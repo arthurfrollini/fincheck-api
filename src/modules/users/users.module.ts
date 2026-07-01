@@ -13,5 +13,6 @@ import { UsersPrismaRepository } from './infra/database/users.prisma.repository'
       useClass: UsersPrismaRepository,
     },
   ],
+  exports: [UsersRepository],
 })
 export class UsersModule {}
