@@ -11,10 +11,7 @@ export class UsersPrismaRepository implements UsersRepository {
     return this.prismaService.user.create({ data });
   }
 
-  findUnique(
-    where: Prisma.UserWhereUniqueInput,
-    select?: Prisma.UserSelect,
-  ): Promise<Partial<User> | null> {
-    return this.prismaService.user.findUnique({ where, select });
+  findUnique(where: Prisma.UserWhereUniqueInput): Promise<User | null> {
+    return this.prismaService.user.findUnique({ where });
   }
 }
