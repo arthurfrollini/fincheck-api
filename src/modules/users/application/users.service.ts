@@ -5,7 +5,17 @@ import { UsersRepository } from '../domain/repositories/users.repository';
 export class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
 
-  getUserById(userId: string) {
-    return this.usersRepository.findUnique({ id: userId });
+  async getUserById(userId: string) {
+    const user = await this.usersRepository.findUnique({ id: userId });
+
+    if (!user) return null;
+
+    const { password: _password, ...rest } = user;
+
+    return rest;
+  }
+
+  listAll() {
+    return this.usersRepository.findMany();
   }
 }

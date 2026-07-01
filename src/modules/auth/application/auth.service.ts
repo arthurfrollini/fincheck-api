@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { SignUpDto } from '../infra/http/dto/sign-up.dto';
 import { hash } from 'bcryptjs';
 import { SignInDto } from '../infra/http/dto/sign-in.dto';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -36,7 +37,7 @@ export class AuthService {
       );
     }
 
-    const accessToken = await this.generateAccessToken(user.id);
+    const accessToken = await this.generateAccessToken(user.id, user.role);
 
     return { accessToken };
   }
@@ -78,14 +79,12 @@ export class AuthService {
       },
     });
 
-    const accessToken = await this.generateAccessToken(user.id);
+    const accessToken = await this.generateAccessToken(user.id, user.role);
 
     return { accessToken };
   }
 
-  // add roles when we implement them
-  private async generateAccessToken(userId: string) {
-    const payload = { sub: userId };
-    return this.jwtService.signAsync(payload);
+  private async generateAccessToken(userId: string, role: Role) {
+    return this.jwtService.signAsync({ sub: userId, role });
   }
 }

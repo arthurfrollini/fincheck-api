@@ -14,4 +14,8 @@ export class UsersPrismaRepository implements UsersRepository {
   findUnique(where: Prisma.UserWhereUniqueInput): Promise<User | null> {
     return this.prismaService.user.findUnique({ where });
   }
+
+  findMany(): Promise<User[]> {
+    return this.prismaService.user.findMany();
+  }
 }
