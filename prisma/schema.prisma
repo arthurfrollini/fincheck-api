@@ -12,11 +12,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  ADMINISTRATOR
+  USER
+
+  @@map("role")
+}
+
 model User {
   id           String        @id @default(uuid()) @db.Uuid
   name         String
   email        String        @unique
   password     String
+  role         Role          @default(USER)
+  pendingEmail String?       @map("pending_email")
+  emailToken   String?       @unique @map("email_token")
   bankAccounts BankAccount[]
   categories   Category[]
   transactions Transaction[]
