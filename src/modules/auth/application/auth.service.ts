@@ -12,6 +12,7 @@ import { MailService } from '@shared/mail/mail.service';
 import { SignUpDto } from '../infra/http/dto/sign-up.dto';
 import { SignInDto } from '../infra/http/dto/sign-in.dto';
 import { RefreshTokensRepository } from '../domain/repositories/refresh-tokens.repository';
+import { GoogleProfile } from '../infra/http/strategies/google.strategy';
 
 @Injectable()
 export class AuthService {
@@ -27,8 +28,8 @@ export class AuthService {
 
     const user = await this.usersRepository.findUnique({ where: { email } });
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials: email not found');
+    if (!user || !user.password) {
+      throw new UnauthorizedException('Invalid credentials.');
     }
 
     const isPasswordValid = await compare(password, user.password);
@@ -112,6 +113,53 @@ export class AuthService {
 
   async signout(token: string) {
     await this.refreshTokensRepository.deleteByToken(token);
+  }
+
+  async googleAuth(profile: GoogleProfile) {
+    const { googleId, email, name } = profile;
+
+    let user = await this.usersRepository.findByGoogleId(googleId);
+
+    if (!user) {
+      const userWithEmail = await this.usersRepository.findUnique({
+        where: { email },
+      });
+
+      if (userWithEmail) {
+        user = await this.usersRepository.update(userWithEmail.id, {
+          googleId,
+        });
+      } else {
+        user = await this.usersRepository.create({
+          name,
+          email,
+          googleId,
+          categories: {
+            createMany: {
+              data: [
+                { name: 'Salário', icon: 'salary', type: 'INCOME' },
+                { name: 'Freelance', icon: 'freelance', type: 'INCOME' },
+                { name: 'Outro', icon: 'other', type: 'INCOME' },
+                { name: 'Casa', icon: 'home', type: 'EXPENSE' },
+                { name: 'Alimentação', icon: 'food', type: 'EXPENSE' },
+                { name: 'Educação', icon: 'education', type: 'EXPENSE' },
+                { name: 'Lazer', icon: 'fun', type: 'EXPENSE' },
+                { name: 'Mercado', icon: 'grocery', type: 'EXPENSE' },
+                { name: 'Roupas', icon: 'clothes', type: 'EXPENSE' },
+                { name: 'Transporte', icon: 'transport', type: 'EXPENSE' },
+                { name: 'Viagem', icon: 'travel', type: 'EXPENSE' },
+                { name: 'Outro', icon: 'other', type: 'EXPENSE' },
+              ],
+            },
+          },
+        });
+
+        // TODO: trocar 'arthur.frollini@gmail.com' por email quando houver domínio verificado no Resend
+        await this.mailService.sendWelcome('arthur.frollini@gmail.com', name);
+      }
+    }
+
+    return this.generateTokens(user.id, user.role);
   }
 
   private async generateTokens(userId: string, role: Role) {

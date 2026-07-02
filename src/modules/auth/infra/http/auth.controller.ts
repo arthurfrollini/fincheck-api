@@ -1,6 +1,18 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Redirect,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { isPublic } from '@shared/decorators/public.decorator';
 import { AuthService } from '../../application/auth.service';
+import { GoogleProfile } from './strategies/google.strategy';
 import { SignUpDto } from './dto/sign-up.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -29,5 +41,21 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   signout(@Body() { refreshToken }: RefreshTokenDto) {
     return this.authService.signout(refreshToken);
+  }
+
+  @Get('/google')
+  @UseGuards(AuthGuard('google'))
+  googleAuth() {}
+
+  @Get('/google/callback')
+  @UseGuards(AuthGuard('google'))
+  @Redirect()
+  async googleCallback(@Req() request: { user: GoogleProfile }) {
+    const { accessToken, refreshToken } = await this.authService.googleAuth(
+      request.user,
+    );
+    return {
+      url: `http://localhost:3001?accessToken=${accessToken}&refreshToken=${refreshToken}`,
+    };
   }
 }
