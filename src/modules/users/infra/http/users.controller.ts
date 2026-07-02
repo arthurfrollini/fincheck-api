@@ -8,12 +8,15 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
-import { IsAdministrator } from '../../../../shared/decorators/roles.decorator';
-import { ActiveUserId } from '../../../../shared/decorators/active-user-id.decorator';
+import { IsAdministrator } from '@shared/decorators/roles.decorator';
+import { ActiveUserId } from '@shared/decorators/active-user-id.decorator';
+import { isPublic } from '@shared/decorators/public.decorator';
 import { UsersService } from '../../application/users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { RequestEmailChangeDto } from './dto/request-email-change.dto';
 
 @Controller('users')
 export class UsersController {
@@ -22,6 +25,25 @@ export class UsersController {
   @Get('/me')
   me(@ActiveUserId() userId: string) {
     return this.usersService.getUserById(userId);
+  }
+
+  @Patch('/me/email')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  requestEmailChange(
+    @ActiveUserId() userId: string,
+    @Body() requestEmailChangeDto: RequestEmailChangeDto,
+  ) {
+    return this.usersService.requestEmailChange(
+      userId,
+      requestEmailChangeDto.newEmail,
+    );
+  }
+
+  @Get('/confirm-email')
+  @isPublic()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  confirmEmailChange(@Query('token') token: string) {
+    return this.usersService.confirmEmailChange(token);
   }
 
   @Get()

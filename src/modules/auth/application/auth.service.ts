@@ -10,12 +10,14 @@ import { SignUpDto } from '../infra/http/dto/sign-up.dto';
 import { hash } from 'bcryptjs';
 import { SignInDto } from '../infra/http/dto/sign-in.dto';
 import { Role } from '@prisma/client';
+import { MailService } from '@shared/mail/mail.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async signin(signInDto: SignInDto) {
@@ -78,6 +80,9 @@ export class AuthService {
         },
       },
     });
+
+    // TODO: Change this to user.email when the email service is ready
+    await this.mailService.sendWelcome('arthur.frollini@gmail.com', user.name);
 
     const accessToken = await this.generateAccessToken(user.id, user.role);
 
