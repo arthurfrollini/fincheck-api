@@ -25,6 +25,8 @@ model User {
   email        String        @unique
   password     String
   role         Role          @default(USER)
+  pendingEmail String?       @map("pending_email")
+  emailToken   String?       @unique @map("email_token")
   bankAccounts BankAccount[]
   categories   Category[]
   transactions Transaction[]
