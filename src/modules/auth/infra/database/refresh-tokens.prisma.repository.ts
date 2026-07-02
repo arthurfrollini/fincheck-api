@@ -7,7 +7,11 @@ import { RefreshTokensRepository } from '../../domain/repositories/refresh-token
 export class RefreshTokensPrismaRepository implements RefreshTokensRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
-  create(userId: string, token: string, expiresAt: Date): Promise<RefreshToken> {
+  create(
+    userId: string,
+    token: string,
+    expiresAt: Date,
+  ): Promise<RefreshToken> {
     return this.prismaService.refreshToken.create({
       data: { userId, token, expiresAt },
     });
@@ -19,5 +23,11 @@ export class RefreshTokensPrismaRepository implements RefreshTokensRepository {
 
   async deleteByToken(token: string): Promise<void> {
     await this.prismaService.refreshToken.deleteMany({ where: { token } });
+  }
+
+  async deleteExpired(): Promise<void> {
+    await this.prismaService.refreshToken.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
   }
 }

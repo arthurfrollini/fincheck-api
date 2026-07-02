@@ -8,4 +8,5 @@ export abstract class RefreshTokensRepository {
   ): Promise<RefreshToken>;
   abstract findByToken(token: string): Promise<RefreshToken | null>;
   abstract deleteByToken(token: string): Promise<void>;
+  abstract deleteExpired(): Promise<void>;
 }
