@@ -22,7 +22,7 @@ export class AuthService {
     const { email, password } = signInDto;
 
     const user = await this.usersRepository.findUnique({
-      email,
+      where: { email },
     });
 
     if (!user) {
@@ -46,7 +46,7 @@ export class AuthService {
     const { name, email, password } = signUpDto;
 
     const emailTaken = await this.usersRepository.findUnique({
-      email,
+      where: { email },
     });
 
     if (emailTaken) {
