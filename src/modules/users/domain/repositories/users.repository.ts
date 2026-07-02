@@ -7,4 +7,5 @@ export abstract class UsersRepository {
   abstract update(userId: string, data: Prisma.UserUpdateInput): Promise<User>;
   abstract delete(userId: string): Promise<void>;
   abstract findByEmailToken(token: string): Promise<User | null>;
+  abstract findByGoogleId(googleId: string): Promise<User | null>;
 }

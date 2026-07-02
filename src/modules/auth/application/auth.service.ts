@@ -3,19 +3,22 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { UsersRepository } from '../../users/domain/repositories/users.repository';
-import { compare } from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
-import { SignUpDto } from '../infra/http/dto/sign-up.dto';
-import { hash } from 'bcryptjs';
-import { SignInDto } from '../infra/http/dto/sign-in.dto';
 import { Role } from '@prisma/client';
+import { compare, hash } from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
+import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
 import { MailService } from '@shared/mail/mail.service';
+import { SignUpDto } from '../infra/http/dto/sign-up.dto';
+import { SignInDto } from '../infra/http/dto/sign-in.dto';
+import { RefreshTokensRepository } from '../domain/repositories/refresh-tokens.repository';
+import { GoogleProfile } from '../infra/http/strategies/google.strategy';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersRepository: UsersRepository,
+    private readonly refreshTokensRepository: RefreshTokensRepository,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
   ) {}
@@ -23,12 +26,10 @@ export class AuthService {
   async signin(signInDto: SignInDto) {
     const { email, password } = signInDto;
 
-    const user = await this.usersRepository.findUnique({
-      where: { email },
-    });
+    const user = await this.usersRepository.findUnique({ where: { email } });
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials: email not found');
+    if (!user || !user.password) {
+      throw new UnauthorizedException('Invalid credentials.');
     }
 
     const isPasswordValid = await compare(password, user.password);
@@ -39,9 +40,7 @@ export class AuthService {
       );
     }
 
-    const accessToken = await this.generateAccessToken(user.id, user.role);
-
-    return { accessToken };
+    return this.generateTokens(user.id, user.role);
   }
 
   async signup(signUpDto: SignUpDto) {
@@ -81,15 +80,96 @@ export class AuthService {
       },
     });
 
-    // TODO: Change this to user.email when the email service is ready
+    // TODO: trocar 'arthur.frollini@gmail.com' por user.email quando houver domínio verificado no Resend
     await this.mailService.sendWelcome('arthur.frollini@gmail.com', user.name);
 
-    const accessToken = await this.generateAccessToken(user.id, user.role);
-
-    return { accessToken };
+    return this.generateTokens(user.id, user.role);
   }
 
-  private async generateAccessToken(userId: string, role: Role) {
-    return this.jwtService.signAsync({ sub: userId, role });
+  async refresh(token: string) {
+    const refreshToken = await this.refreshTokensRepository.findByToken(token);
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Invalid or expired refresh token.');
+    }
+
+    if (refreshToken.expiresAt < new Date()) {
+      await this.refreshTokensRepository.deleteByToken(token);
+      throw new UnauthorizedException('Invalid or expired refresh token.');
+    }
+
+    const user = await this.usersRepository.findUnique({
+      where: { id: refreshToken.userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    await this.refreshTokensRepository.deleteByToken(token);
+
+    return this.generateTokens(user.id, user.role);
+  }
+
+  async signout(token: string) {
+    await this.refreshTokensRepository.deleteByToken(token);
+  }
+
+  async googleAuth(profile: GoogleProfile) {
+    const { googleId, email, name } = profile;
+
+    let user = await this.usersRepository.findByGoogleId(googleId);
+
+    if (!user) {
+      const userWithEmail = await this.usersRepository.findUnique({
+        where: { email },
+      });
+
+      if (userWithEmail) {
+        user = await this.usersRepository.update(userWithEmail.id, {
+          googleId,
+        });
+      } else {
+        user = await this.usersRepository.create({
+          name,
+          email,
+          googleId,
+          categories: {
+            createMany: {
+              data: [
+                { name: 'Salário', icon: 'salary', type: 'INCOME' },
+                { name: 'Freelance', icon: 'freelance', type: 'INCOME' },
+                { name: 'Outro', icon: 'other', type: 'INCOME' },
+                { name: 'Casa', icon: 'home', type: 'EXPENSE' },
+                { name: 'Alimentação', icon: 'food', type: 'EXPENSE' },
+                { name: 'Educação', icon: 'education', type: 'EXPENSE' },
+                { name: 'Lazer', icon: 'fun', type: 'EXPENSE' },
+                { name: 'Mercado', icon: 'grocery', type: 'EXPENSE' },
+                { name: 'Roupas', icon: 'clothes', type: 'EXPENSE' },
+                { name: 'Transporte', icon: 'transport', type: 'EXPENSE' },
+                { name: 'Viagem', icon: 'travel', type: 'EXPENSE' },
+                { name: 'Outro', icon: 'other', type: 'EXPENSE' },
+              ],
+            },
+          },
+        });
+
+        // TODO: trocar 'arthur.frollini@gmail.com' por email quando houver domínio verificado no Resend
+        await this.mailService.sendWelcome('arthur.frollini@gmail.com', name);
+      }
+    }
+
+    return this.generateTokens(user.id, user.role);
+  }
+
+  private async generateTokens(userId: string, role: Role) {
+    const accessToken = await this.jwtService.signAsync({ sub: userId, role });
+
+    const refreshToken = uuidv4();
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days (refreshToken expiration time)
+
+    await this.refreshTokensRepository.create(userId, refreshToken, expiresAt);
+
+    return { accessToken, refreshToken };
   }
 }

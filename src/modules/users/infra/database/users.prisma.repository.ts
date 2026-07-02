@@ -30,4 +30,8 @@ export class UsersPrismaRepository implements UsersRepository {
   findByEmailToken(token: string): Promise<User | null> {
     return this.prismaService.user.findUnique({ where: { emailToken: token } });
   }
+
+  findByGoogleId(googleId: string): Promise<User | null> {
+    return this.prismaService.user.findUnique({ where: { googleId } });
+  }
 }

@@ -20,18 +20,34 @@ enum Role {
 }
 
 model User {
-  id           String        @id @default(uuid()) @db.Uuid
-  name         String
-  email        String        @unique
-  password     String
-  role         Role          @default(USER)
-  pendingEmail String?       @map("pending_email")
-  emailToken   String?       @unique @map("email_token")
-  bankAccounts BankAccount[]
-  categories   Category[]
-  transactions Transaction[]
+  id       String @id @default(uuid()) @db.Uuid
+  name     String
+  role     Role   @default(USER)
+  password String?
+
+  email               String    @unique
+  pendingEmail        String?   @map("pending_email")
+  emailToken          String?   @unique @map("email_token")
+  emailTokenExpiresAt DateTime? @map("email_token_expires_at")
+  googleId            String?   @unique @map("google_id")
+
+  bankAccounts   BankAccount[]
+  categories     Category[]
+  transactions   Transaction[]
+  refreshTokens  RefreshToken[]
 
   @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
 }
 
 enum BankAccountType {

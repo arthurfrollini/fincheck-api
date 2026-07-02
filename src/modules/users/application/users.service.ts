@@ -76,10 +76,12 @@ export class UsersService {
     if (emailTaken) throw new ConflictException('Email already in use.');
 
     const token = uuidv4();
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hora
 
     await this.usersRepository.update(userId, {
       pendingEmail: newEmail,
       emailToken: token,
+      emailTokenExpiresAt: expiresAt,
     });
 
     // TODO: trocar 'arthur.frollini@gmail.com' por user.email quando houver domínio verificado no Resend
@@ -92,7 +94,11 @@ export class UsersService {
   async confirmEmailChange(token: string) {
     const user = await this.usersRepository.findByEmailToken(token);
 
-    if (!user || !user.pendingEmail) {
+    if (!user || !user.pendingEmail || !user.emailTokenExpiresAt) {
+      throw new BadRequestException('Invalid or expired token.');
+    }
+
+    if (user.emailTokenExpiresAt < new Date()) {
       throw new BadRequestException('Invalid or expired token.');
     }
 
@@ -100,6 +106,7 @@ export class UsersService {
       email: user.pendingEmail,
       pendingEmail: null,
       emailToken: null,
+      emailTokenExpiresAt: null,
     });
   }
 }
