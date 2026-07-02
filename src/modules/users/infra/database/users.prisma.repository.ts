@@ -11,11 +11,19 @@ export class UsersPrismaRepository implements UsersRepository {
     return this.prismaService.user.create({ data });
   }
 
-  findUnique(where: Prisma.UserWhereUniqueInput): Promise<User | null> {
-    return this.prismaService.user.findUnique({ where });
+  findUnique(data: Prisma.UserFindUniqueArgs): Promise<User | null> {
+    return this.prismaService.user.findUnique(data);
   }
 
   findMany(): Promise<User[]> {
     return this.prismaService.user.findMany();
+  }
+
+  update(userId: string, data: Prisma.UserUpdateInput): Promise<User> {
+    return this.prismaService.user.update({ where: { id: userId }, data });
+  }
+
+  async delete(userId: string): Promise<void> {
+    await this.prismaService.user.delete({ where: { id: userId } });
   }
 }
