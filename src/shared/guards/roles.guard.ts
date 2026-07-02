@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { IS_ROLES_KEY } from '../decorators/roles.decorator';
@@ -18,6 +23,11 @@ export class RolesGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<{ userRole: Role }>();
-    return requiredRoles.includes(request.userRole);
+
+    if (!requiredRoles.includes(request.userRole)) {
+      throw new ForbiddenException('Insufficient permissions.');
+    }
+
+    return true;
   }
 }
