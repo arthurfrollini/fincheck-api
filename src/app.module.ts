@@ -7,9 +7,10 @@ import { CategoriesModule } from '@modules/categories/categories.module';
 import { DatabaseModule } from '@shared/database/database.module';
 import { MailModule } from '@shared/mail/mail.module';
 import { RolesGuard } from '@shared/guards/roles.guard';
+import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 
 @Module({
-  imports: [UsersModule, DatabaseModule, AuthModule, MailModule, CategoriesModule],
+  imports: [UsersModule, DatabaseModule, AuthModule, MailModule, CategoriesModule, BankAccountsModule],
   controllers: [],
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },

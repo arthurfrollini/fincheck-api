@@ -16,7 +16,7 @@ import { RefreshTokensPrismaRepository } from './infra/database/refresh-tokens.p
     JwtModule.register({
       global: true,
       secret: env.jwtSecret,
-      signOptions: { expiresIn: '14m' },
+      signOptions: { expiresIn: '14d' },
     }),
     PassportModule,
     ScheduleModule.forRoot(),
