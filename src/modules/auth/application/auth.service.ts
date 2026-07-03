@@ -4,7 +4,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Role } from '@prisma/client';
 import { compare, hash } from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
@@ -13,6 +12,21 @@ import { SignUpDto } from '../infra/http/dto/sign-up.dto';
 import { SignInDto } from '../infra/http/dto/sign-in.dto';
 import { RefreshTokensRepository } from '../domain/repositories/refresh-tokens.repository';
 import { GoogleProfile } from '../infra/http/strategies/google.strategy';
+
+const DEFAULT_CATEGORIES = [
+  { name: 'Salário', icon: 'salary', type: 'INCOME' as const },
+  { name: 'Freelance', icon: 'freelance', type: 'INCOME' as const },
+  { name: 'Outro', icon: 'other', type: 'INCOME' as const },
+  { name: 'Casa', icon: 'home', type: 'EXPENSE' as const },
+  { name: 'Alimentação', icon: 'food', type: 'EXPENSE' as const },
+  { name: 'Educação', icon: 'education', type: 'EXPENSE' as const },
+  { name: 'Lazer', icon: 'fun', type: 'EXPENSE' as const },
+  { name: 'Mercado', icon: 'grocery', type: 'EXPENSE' as const },
+  { name: 'Roupas', icon: 'clothes', type: 'EXPENSE' as const },
+  { name: 'Transporte', icon: 'transport', type: 'EXPENSE' as const },
+  { name: 'Viagem', icon: 'travel', type: 'EXPENSE' as const },
+  { name: 'Outro', icon: 'other', type: 'EXPENSE' as const },
+];
 
 @Injectable()
 export class AuthService {
@@ -26,7 +40,7 @@ export class AuthService {
   async signin(signInDto: SignInDto) {
     const { email, password } = signInDto;
 
-    const user = await this.usersRepository.findUnique({ where: { email } });
+    const user = await this.usersRepository.findByEmail(email);
 
     if (!user || !user.password) {
       throw new UnauthorizedException('Invalid credentials.');
@@ -35,9 +49,7 @@ export class AuthService {
     const isPasswordValid = await compare(password, user.password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException(
-        'Invalid credentials: password incorrect',
-      );
+      throw new UnauthorizedException('Invalid credentials.');
     }
 
     return this.generateTokens(user.id, user.role);
@@ -46,9 +58,7 @@ export class AuthService {
   async signup(signUpDto: SignUpDto) {
     const { name, email, password } = signUpDto;
 
-    const emailTaken = await this.usersRepository.findUnique({
-      where: { email },
-    });
+    const emailTaken = await this.usersRepository.findByEmail(email);
 
     if (emailTaken) {
       throw new ConflictException('This email is already in use.');
@@ -60,24 +70,7 @@ export class AuthService {
       name,
       email,
       password: encryptedPassword,
-      categories: {
-        createMany: {
-          data: [
-            { name: 'Salário', icon: 'salary', type: 'INCOME' },
-            { name: 'Freelance', icon: 'freelance', type: 'INCOME' },
-            { name: 'Outro', icon: 'other', type: 'INCOME' },
-            { name: 'Casa', icon: 'home', type: 'EXPENSE' },
-            { name: 'Alimentação', icon: 'food', type: 'EXPENSE' },
-            { name: 'Educação', icon: 'education', type: 'EXPENSE' },
-            { name: 'Lazer', icon: 'fun', type: 'EXPENSE' },
-            { name: 'Mercado', icon: 'grocery', type: 'EXPENSE' },
-            { name: 'Roupas', icon: 'clothes', type: 'EXPENSE' },
-            { name: 'Transporte', icon: 'transport', type: 'EXPENSE' },
-            { name: 'Viagem', icon: 'travel', type: 'EXPENSE' },
-            { name: 'Outro', icon: 'other', type: 'EXPENSE' },
-          ],
-        },
-      },
+      categories: { createMany: { data: DEFAULT_CATEGORIES } },
     });
 
     // TODO: trocar 'arthur.frollini@gmail.com' por user.email quando houver domínio verificado no Resend
@@ -98,9 +91,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token.');
     }
 
-    const user = await this.usersRepository.findUnique({
-      where: { id: refreshToken.userId },
-    });
+    const user = await this.usersRepository.findById(refreshToken.userId);
 
     if (!user) {
       throw new UnauthorizedException();
@@ -121,37 +112,16 @@ export class AuthService {
     let user = await this.usersRepository.findByGoogleId(googleId);
 
     if (!user) {
-      const userWithEmail = await this.usersRepository.findUnique({
-        where: { email },
-      });
+      const userWithEmail = await this.usersRepository.findByEmail(email);
 
       if (userWithEmail) {
-        user = await this.usersRepository.update(userWithEmail.id, {
-          googleId,
-        });
+        user = await this.usersRepository.update(userWithEmail.id, { googleId });
       } else {
         user = await this.usersRepository.create({
           name,
           email,
           googleId,
-          categories: {
-            createMany: {
-              data: [
-                { name: 'Salário', icon: 'salary', type: 'INCOME' },
-                { name: 'Freelance', icon: 'freelance', type: 'INCOME' },
-                { name: 'Outro', icon: 'other', type: 'INCOME' },
-                { name: 'Casa', icon: 'home', type: 'EXPENSE' },
-                { name: 'Alimentação', icon: 'food', type: 'EXPENSE' },
-                { name: 'Educação', icon: 'education', type: 'EXPENSE' },
-                { name: 'Lazer', icon: 'fun', type: 'EXPENSE' },
-                { name: 'Mercado', icon: 'grocery', type: 'EXPENSE' },
-                { name: 'Roupas', icon: 'clothes', type: 'EXPENSE' },
-                { name: 'Transporte', icon: 'transport', type: 'EXPENSE' },
-                { name: 'Viagem', icon: 'travel', type: 'EXPENSE' },
-                { name: 'Outro', icon: 'other', type: 'EXPENSE' },
-              ],
-            },
-          },
+          categories: { createMany: { data: DEFAULT_CATEGORIES } },
         });
 
         // TODO: trocar 'arthur.frollini@gmail.com' por email quando houver domínio verificado no Resend
@@ -162,11 +132,11 @@ export class AuthService {
     return this.generateTokens(user.id, user.role);
   }
 
-  private async generateTokens(userId: string, role: Role) {
+  private async generateTokens(userId: string, role: string) {
     const accessToken = await this.jwtService.signAsync({ sub: userId, role });
 
     const refreshToken = uuidv4();
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days (refreshToken expiration time)
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
 
     await this.refreshTokensRepository.create(userId, refreshToken, expiresAt);
 

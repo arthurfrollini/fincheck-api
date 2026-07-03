@@ -1,7 +1,5 @@
-import { Prisma, type Category } from '@prisma/client';
+import { type Category } from '@prisma/client';
 
 export abstract class CategoriesRepository {
-  abstract findAllByUserId(
-    findManyDto: Prisma.CategoryFindManyArgs,
-  ): Promise<Category[]>;
+  abstract findAllByUserId(userId: string): Promise<Category[]>;
 }

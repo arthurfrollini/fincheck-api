@@ -6,6 +6,6 @@ export class CategoriesService {
   constructor(private readonly categoriesRepository: CategoriesRepository) {}
 
   findAllByUserId(userId: string) {
-    return this.categoriesRepository.findAllByUserId({ where: { userId } });
+    return this.categoriesRepository.findAllByUserId(userId);
   }
 }
