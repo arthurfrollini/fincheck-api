@@ -8,9 +8,18 @@ import { DatabaseModule } from '@shared/database/database.module';
 import { MailModule } from '@shared/mail/mail.module';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
+import { TransactionsModule } from './modules/transactions/transactions.module';
 
 @Module({
-  imports: [UsersModule, DatabaseModule, AuthModule, MailModule, CategoriesModule, BankAccountsModule],
+  imports: [
+    UsersModule,
+    DatabaseModule,
+    AuthModule,
+    MailModule,
+    CategoriesModule,
+    BankAccountsModule,
+    TransactionsModule,
+  ],
   controllers: [],
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },
