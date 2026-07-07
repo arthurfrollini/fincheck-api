@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { type Category } from '@prisma/client';
+import { Prisma, type Category } from '@prisma/client';
 import { PrismaService } from '@shared/database/prisma.service';
 import { CategoriesRepository } from '@modules/categories/domain/repositories/categories.repository';
 
@@ -9,5 +9,9 @@ export class CategoriesPrismaRepository implements CategoriesRepository {
 
   findAllByUserId(userId: string): Promise<Category[]> {
     return this.prismaService.category.findMany({ where: { userId } });
+  }
+
+  findFirst(args: Prisma.CategoryFindFirstArgs): Promise<Category | null> {
+    return this.prismaService.category.findFirst(args);
   }
 }
