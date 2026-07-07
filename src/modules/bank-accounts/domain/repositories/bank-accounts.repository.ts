@@ -4,7 +4,9 @@ export abstract class BankAccountsRepository {
   abstract create(
     bankAccountCreateDto: Prisma.BankAccountCreateArgs,
   ): Promise<BankAccount>;
-  abstract findMany(userId: string): Promise<BankAccount[]>;
+  abstract findMany<T extends Prisma.BankAccountFindManyArgs>(
+    findManyDto: Prisma.SelectSubset<T, Prisma.BankAccountFindManyArgs>,
+  ): Promise<Prisma.BankAccountGetPayload<T>[]>;
   abstract findFirst(
     args: Prisma.BankAccountFindFirstArgs,
   ): Promise<BankAccount | null>;

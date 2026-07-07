@@ -1,4 +1,4 @@
-import { type Prisma, type BankAccount } from '@prisma/client';
+import { type BankAccount, type Prisma } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { BankAccountsRepository } from '@modules/bank-accounts/domain/repositories/bank-accounts.repository';
 import { PrismaService } from '@shared/database/prisma.service';
@@ -11,8 +11,10 @@ export class BankAccountsPrismaRepository implements BankAccountsRepository {
     return this.prismaService.bankAccount.create(data);
   }
 
-  findMany(userId: string): Promise<BankAccount[]> {
-    return this.prismaService.bankAccount.findMany({ where: { userId } });
+  findMany<T extends Prisma.BankAccountFindManyArgs>(
+    findManyDto: Prisma.SelectSubset<T, Prisma.BankAccountFindManyArgs>,
+  ) {
+    return this.prismaService.bankAccount.findMany(findManyDto);
   }
 
   findFirst(
