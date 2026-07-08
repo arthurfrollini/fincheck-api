@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { hash } from 'bcryptjs';
 import { UsersRepository } from '../domain/repositories/users.repository';
 import { MailService } from '@shared/mail/mail.service';
+import { StorageService } from '@shared/storage/storage.service';
 import { CreateUserDto } from '../infra/http/dto/create-user.dto';
 import { UpdateUserDto } from '../infra/http/dto/update-user.dto';
 
@@ -16,12 +17,17 @@ export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly mailService: MailService,
+    private readonly storageService: StorageService,
   ) {}
 
   async getUserById(userId: string) {
     const user = await this.usersRepository.findById(userId);
     if (!user) return null;
     return { name: user.name, email: user.email, role: user.role, plan: user.plan };
+  }
+
+  getAvatarUploadUrl(userId: string, ext: string) {
+    return this.storageService.generateUploadUrl(userId, ext);
   }
 
   listAll() {

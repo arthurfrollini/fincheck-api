@@ -29,6 +29,14 @@ export class UsersController {
     return this.usersService.getUserById(userId);
   }
 
+  @Get('/me/avatar-upload-url')
+  getAvatarUploadUrl(
+    @ActiveUserId() userId: string,
+    @Query('ext') ext: string,
+  ) {
+    return this.usersService.getAvatarUploadUrl(userId, ext);
+  }
+
   @Patch('/me')
   updateMe(@ActiveUserId() userId: string, @Body() { name }: UpdateMeDto) {
     return this.usersService.updateMe(userId, name);
