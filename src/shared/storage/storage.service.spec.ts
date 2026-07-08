@@ -40,10 +40,7 @@ describe('StorageService', () => {
     });
 
     it('builds key as avatars/{userId}/{uuid}.{ext}', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { PutObjectCommand } = jest.requireMock('@aws-sdk/client-s3') as {
-        PutObjectCommand: jest.Mock;
-      };
+      const { PutObjectCommand } = jest.requireMock('@aws-sdk/client-s3');
 
       await service.generateUploadUrl('user-abc', 'png');
 
