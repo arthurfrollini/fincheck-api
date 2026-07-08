@@ -16,21 +16,29 @@ export class TransactionsPrismaRepository implements TransactionsRepository {
     return this.prismaService.transaction.create({ data });
   }
 
-  findMany(
+  async findMany(
     userId: string,
     filters: TransactionFilters,
-  ): Promise<TransactionEntity[]> {
-    return this.prismaService.transaction.findMany({
-      where: {
-        userId,
-        bankAccountId: filters.bankAccountId,
-        type: filters.type,
-        date: {
-          gte: new Date(Date.UTC(filters.year, filters.month)),
-          lt: new Date(Date.UTC(filters.year, filters.month + 1)),
-        },
+  ): Promise<{ data: TransactionEntity[]; total: number }> {
+    const { month, year, bankAccountId, type, page = 1, limit = 20 } = filters;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      userId,
+      bankAccountId,
+      type,
+      date: {
+        gte: new Date(Date.UTC(year, month)),
+        lt: new Date(Date.UTC(year, month + 1)),
       },
-    });
+    };
+
+    const [data, total] = await this.prismaService.$transaction([
+      this.prismaService.transaction.findMany({ where, skip, take: limit }),
+      this.prismaService.transaction.count({ where }),
+    ]);
+
+    return { data, total };
   }
 
   findFirst(id: string, userId: string): Promise<TransactionEntity | null> {
