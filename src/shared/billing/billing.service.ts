@@ -67,9 +67,13 @@ export class BillingService {
 
     const customer = await this.stripe.customers.retrieve(
       user.stripeCustomerId,
-    ) as Stripe.Customer;
+    ) as Stripe.Customer | Stripe.DeletedCustomer;
 
-    const paymentMethodId = customer.invoice_settings
+    if (customer.deleted) {
+      throw new BadRequestException('Stripe customer no longer exists.');
+    }
+
+    const paymentMethodId = (customer as Stripe.Customer).invoice_settings
       .default_payment_method as string | null;
 
     if (!paymentMethodId) {
