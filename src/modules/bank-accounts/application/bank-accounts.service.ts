@@ -4,15 +4,19 @@ import { ValidateBankAccountOwnershipService } from './validate-bank-account-own
 import { CreateBankAccountDto } from '../infra/http/dto/create-bank-account.dto';
 import { UpdateBankAccountDto } from '../infra/http/dto/update-bank-account.dto';
 import { TransactionType } from '@modules/transactions/entities/Transaction';
+import { PlanGuardService } from '@shared/plan/plan-guard.service';
 
 @Injectable()
 export class BankAccountsService {
   constructor(
     private readonly bankAccountsRepository: BankAccountsRepository,
     private readonly validateBankAccountOwnershipService: ValidateBankAccountOwnershipService,
+    private readonly planGuardService: PlanGuardService,
   ) {}
 
-  create(userId: string, dto: CreateBankAccountDto) {
+  async create(userId: string, dto: CreateBankAccountDto) {
+    await this.planGuardService.validateBankAccountLimit(userId);
+
     const { name, color, initialBalance, type } = dto;
     return this.bankAccountsRepository.create({
       userId,
@@ -24,8 +28,10 @@ export class BankAccountsService {
   }
 
   async findAllByUserId(userId: string) {
-    const bankAccounts =
-      await this.bankAccountsRepository.findManyWithTransactions(userId);
+    const [bankAccounts, { ids: activeIds, isUnlimited }] = await Promise.all([
+      this.bankAccountsRepository.findManyWithTransactions(userId),
+      this.planGuardService.getActiveAccountIds(userId),
+    ]);
 
     return bankAccounts.map(({ transactions, ...bankAccount }) => {
       const totalTransactions = transactions.reduce(
@@ -37,25 +43,16 @@ export class BankAccountsService {
         0,
       );
 
-      const currentBalance = bankAccount.initialBalance + totalTransactions;
-
       return {
         ...bankAccount,
-        currentBalance,
+        currentBalance: bankAccount.initialBalance + totalTransactions,
+        isActive: isUnlimited || activeIds.has(bankAccount.id),
       };
     });
   }
 
-  async update(
-    userId: string,
-    bankAccountId: string,
-    dto: UpdateBankAccountDto,
-  ) {
-    await this.validateBankAccountOwnershipService.validate(
-      userId,
-      bankAccountId,
-    );
-
+  async update(userId: string, bankAccountId: string, dto: UpdateBankAccountDto) {
+    await this.validateBankAccountOwnershipService.validate(userId, bankAccountId);
     const { name, color, initialBalance, type } = dto;
     return this.bankAccountsRepository.update(bankAccountId, {
       name,
@@ -66,11 +63,7 @@ export class BankAccountsService {
   }
 
   async remove(userId: string, bankAccountId: string) {
-    await this.validateBankAccountOwnershipService.validate(
-      userId,
-      bankAccountId,
-    );
-
+    await this.validateBankAccountOwnershipService.validate(userId, bankAccountId);
     await this.bankAccountsRepository.delete(bankAccountId);
   }
 }

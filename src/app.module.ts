@@ -6,9 +6,11 @@ import { AuthModule } from '@modules/auth/auth.module';
 import { CategoriesModule } from '@modules/categories/categories.module';
 import { DatabaseModule } from '@shared/database/database.module';
 import { MailModule } from '@shared/mail/mail.module';
+import { StorageModule } from '@shared/storage/storage.module';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
+import { PlanModule } from '@shared/plan/plan.module';
 
 @Module({
   imports: [
@@ -16,9 +18,11 @@ import { TransactionsModule } from './modules/transactions/transactions.module';
     DatabaseModule,
     AuthModule,
     MailModule,
+    StorageModule,
     CategoriesModule,
     BankAccountsModule,
     TransactionsModule,
+    PlanModule,
   ],
   controllers: [],
   providers: [

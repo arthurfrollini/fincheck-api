@@ -2,7 +2,6 @@ export const CategoryType = {
   INCOME: 'INCOME',
   EXPENSE: 'EXPENSE',
 } as const;
-
 export type CategoryType = (typeof CategoryType)[keyof typeof CategoryType];
 
 export interface CategoryEntity {
@@ -11,4 +10,16 @@ export interface CategoryEntity {
   name: string;
   icon: string;
   type: CategoryType;
+}
+
+export interface CategoryCreate {
+  userId: string;
+  name: string;
+  icon: string;
+  type: CategoryType;
+}
+
+export interface CategoryUpdate {
+  name?: string;
+  icon?: string;
 }

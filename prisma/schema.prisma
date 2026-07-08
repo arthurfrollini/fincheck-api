@@ -19,10 +19,19 @@ enum Role {
   @@map("role")
 }
 
+enum Plan {
+  FREE
+  GOLD
+  PLATINUM
+
+  @@map("plan")
+}
+
 model User {
   id       String @id @default(uuid()) @db.Uuid
   name     String
   role     Role   @default(USER)
+  plan     Plan   @default(FREE)
   password String?
 
   email               String    @unique
@@ -30,6 +39,7 @@ model User {
   emailToken          String?   @unique @map("email_token")
   emailTokenExpiresAt DateTime? @map("email_token_expires_at")
   googleId            String?   @unique @map("google_id")
+  avatarUrl           String?   @map("avatar_url")
 
   bankAccounts   BankAccount[]
   categories     Category[]
@@ -65,6 +75,7 @@ model BankAccount {
   initialBalance Float           @map("initial_balance")
   type           BankAccountType
   color          String
+  createdAt      DateTime        @default(now()) @map("created_at")
   transactions   Transaction[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -101,6 +112,7 @@ model Transaction {
   value         Float
   date          DateTime
   type          TransactionType
+  createdAt     DateTime        @default(now()) @map("created_at")
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   bankAccount BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)

@@ -6,6 +6,7 @@ import { ValidateBankAccountOwnershipService } from '@modules/bank-accounts/appl
 import { ValidateCategoryOwnershipService } from '@modules/categories/application/validate-category-ownership.service';
 import { ValidateTransactionOwnershipService } from './validate-transaction-ownership.service';
 import { type TransactionFilters } from '../entities/Transaction';
+import { PlanGuardService } from '@shared/plan/plan-guard.service';
 
 @Injectable()
 export class TransactionsService {
@@ -14,13 +15,17 @@ export class TransactionsService {
     private readonly validateBankAccountOwnershipService: ValidateBankAccountOwnershipService,
     private readonly validateCategoryOwnershipService: ValidateCategoryOwnershipService,
     private readonly validateTransactionOwnershipService: ValidateTransactionOwnershipService,
+    private readonly planGuardService: PlanGuardService,
   ) {}
 
   async create(userId: string, createTransactionDto: CreateTransactionDto) {
-    const { bankAccountId, categoryId, name, value, date, type } =
-      createTransactionDto;
+    const { bankAccountId, categoryId, name, value, date, type } = createTransactionDto;
 
-    await this.validateEntitiesOwnership({ userId, bankAccountId, categoryId });
+    await Promise.all([
+      this.validateEntitiesOwnership({ userId, bankAccountId, categoryId }),
+      this.planGuardService.validateDailyTransactionLimit(userId),
+      this.planGuardService.validateBankAccountIsActive(userId, bankAccountId),
+    ]);
 
     return this.transactionsRepository.create({
       userId,
@@ -33,24 +38,28 @@ export class TransactionsService {
     });
   }
 
-  findAllByUserId(userId: string, filters: TransactionFilters) {
-    return this.transactionsRepository.findMany(userId, filters);
+  async findAllByUserId(userId: string, filters: TransactionFilters) {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+
+    const { data, total } = await this.transactionsRepository.findMany(userId, {
+      ...filters,
+      page,
+      limit,
+    });
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages },
+    };
   }
 
-  async update(
-    userId: string,
-    transactionId: string,
-    updateTransactionDto: UpdateTransactionDto,
-  ) {
-    const { bankAccountId, categoryId, name, value, date, type } =
-      updateTransactionDto;
+  async update(userId: string, transactionId: string, updateTransactionDto: UpdateTransactionDto) {
+    const { bankAccountId, categoryId, name, value, date, type } = updateTransactionDto;
 
-    await this.validateEntitiesOwnership({
-      userId,
-      bankAccountId,
-      categoryId,
-      transactionId,
-    });
+    await this.validateEntitiesOwnership({ userId, bankAccountId, categoryId, transactionId });
 
     return this.transactionsRepository.update(transactionId, {
       bankAccountId,
@@ -63,11 +72,7 @@ export class TransactionsService {
   }
 
   async remove(userId: string, transactionId: string) {
-    await this.validateEntitiesOwnership({
-      userId,
-      transactionId,
-    });
-
+    await this.validateEntitiesOwnership({ userId, transactionId });
     await this.transactionsRepository.delete(transactionId);
   }
 
@@ -84,15 +89,9 @@ export class TransactionsService {
   }) {
     await Promise.all([
       transactionId &&
-        this.validateTransactionOwnershipService.validate(
-          userId,
-          transactionId,
-        ),
+        this.validateTransactionOwnershipService.validate(userId, transactionId),
       bankAccountId &&
-        this.validateBankAccountOwnershipService.validate(
-          userId,
-          bankAccountId,
-        ),
+        this.validateBankAccountOwnershipService.validate(userId, bankAccountId),
       categoryId &&
         this.validateCategoryOwnershipService.validate(userId, categoryId),
     ]);

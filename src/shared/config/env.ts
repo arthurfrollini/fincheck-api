@@ -29,6 +29,22 @@ class Env {
   @IsString()
   @IsNotEmpty()
   googleCallbackUrl: string;
+
+  @IsString()
+  @IsNotEmpty()
+  awsRegion: string;
+
+  @IsString()
+  @IsNotEmpty()
+  awsAccessKeyId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  awsSecretAccessKey: string;
+
+  @IsString()
+  @IsNotEmpty()
+  awsS3BucketName: string;
 }
 
 export const env: Env = plainToInstance(Env, {
@@ -39,6 +55,10 @@ export const env: Env = plainToInstance(Env, {
   googleClientId: process.env.GOOGLE_CLIENT_ID,
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
   googleCallbackUrl: process.env.GOOGLE_CALLBACK_URL,
+  awsRegion: process.env.AWS_REGION,
+  awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  awsS3BucketName: process.env.AWS_S3_BUCKET_NAME,
 });
 
 const errors = validateSync(env);

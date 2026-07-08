@@ -21,6 +21,7 @@ export class BankAccountsPrismaRepository implements BankAccountsRepository {
   ): Promise<BankAccountWithTransactions[]> {
     return this.prismaService.bankAccount.findMany({
       where: { userId },
+      orderBy: { createdAt: 'asc' },
       include: {
         transactions: {
           select: { type: true, value: true },

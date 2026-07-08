@@ -4,8 +4,14 @@ export const Role = {
   USER: 'USER',
   ADMINISTRATOR: 'ADMINISTRATOR',
 } as const;
-
 export type Role = (typeof Role)[keyof typeof Role];
+
+export const Plan = {
+  FREE: 'FREE',
+  GOLD: 'GOLD',
+  PLATINUM: 'PLATINUM',
+} as const;
+export type Plan = (typeof Plan)[keyof typeof Plan];
 
 export interface UserEntity {
   id: string;
@@ -13,10 +19,13 @@ export interface UserEntity {
   email: string;
   password: string | null;
   role: Role;
+  plan: Plan;
   googleId: string | null;
+  avatarUrl: string | null;
   pendingEmail: string | null;
   emailToken: string | null;
   emailTokenExpiresAt: Date | null;
+  avatarUrl: string | null;
 }
 
 export interface UserCreate {
@@ -32,7 +41,9 @@ export interface UserUpdate {
   name?: string;
   email?: string;
   role?: Role;
+  plan?: Plan;
   googleId?: string;
+  avatarUrl?: string | null;
   pendingEmail?: string | null;
   emailToken?: string | null;
   emailTokenExpiresAt?: Date | null;
