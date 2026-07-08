@@ -1,98 +1,115 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Fincheck API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+REST API for a personal finance management app. Users track bank accounts and transactions, organized by category, with plan-based feature limits enforced via Stripe subscriptions.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+- **Runtime:** Node.js + NestJS v11 (TypeScript)
+- **Database:** PostgreSQL via Prisma v6 (Docker)
+- **Auth:** JWT access token + UUID refresh token + Google OAuth 2.0
+- **Email:** Resend (welcome, email change confirmation, billing notifications)
+- **Storage:** AWS S3 (avatar upload via presigned URL)
+- **Billing:** Stripe (subscriptions, webhooks, dunning)
+- **Tests:** Jest 30 (72 unit tests, all services mocked)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Modules
 
-## Project setup
+| Module | Description |
+|--------|-------------|
+| `auth` | Sign up, sign in, refresh token, sign out, Google OAuth |
+| `users` | Profile, avatar upload, email change flow, admin CRUD |
+| `bank-accounts` | CRUD + current balance computed from transactions |
+| `categories` | CRUD — gated by plan (GOLD/PLATINUM only) |
+| `transactions` | CRUD with daily limit enforcement per plan |
+| `billing` | Stripe subscriptions — setup, subscribe, change plan, cancel, webhook |
+
+## Plans
+
+| | FREE | GOLD | PLATINUM |
+|---|---|---|---|
+| Bank accounts | 3 | 5 | unlimited |
+| Transactions/day | 50 | 200 | unlimited |
+| Categories (CRUD) | read-only | full | full |
+| Price | free | R$35/mo | R$65/mo |
+
+## Auth Flow
+
+1. **Sign up / Sign in** → returns `accessToken` (JWT, short-lived) + `refreshToken` (UUID, 7 days)
+2. **Access token expires** → `POST /auth/refresh` with `refreshToken` → new pair issued, old token deleted
+3. **Sign out** → `POST /auth/signout` deletes the refresh token
+4. **Google OAuth** → `GET /auth/google` → callback links or creates account
+
+## Email Flow (Resend)
+
+- Welcome email on signup
+- Email change confirmation — user receives a token link, `GET /users/confirm-email/:token` applies the change
+- Billing: downgrade notification, subscription cancellation on payment failure
+
+## Avatar Upload (AWS S3)
+
+1. `GET /users/avatar-upload-url?ext=jpg` → returns `{ uploadUrl, avatarUrl }`
+2. Frontend uploads directly to S3 via the presigned URL
+3. Frontend calls `PATCH /users/me` with `{ avatarUrl }` to save
+
+## Billing Flow (Stripe)
+
+1. `POST /billing/setup` → creates Stripe Customer + SetupIntent, returns `clientSecret` for Stripe Elements
+2. User completes card setup on frontend
+3. `POST /billing/subscribe` with `{ planId: 'GOLD' | 'PLATINUM' }` → creates subscription
+4. Stripe fires `invoice.payment_succeeded` → webhook updates `user.plan` in DB
+5. `POST /billing/change-plan` → upgrades invoice immediately (`always_invoice`), downgrades at period end (`none`)
+6. `POST /billing/cancel` → `cancel_at_period_end: true`, user keeps plan until billing period ends
+7. `customer.subscription.deleted` (dunning failure / period end) → resets `user.plan` to FREE
+
+Webhook endpoint: `POST /billing/webhook` — validates Stripe signature via `rawBody`.
+
+## Local Setup
 
 ```bash
-$ npm install
+# 1. Start PostgreSQL
+docker compose up -d
+
+# 2. Install dependencies
+npm install
+
+# 3. Configure environment
+cp .env.example .env  # fill in values
+
+# 4. Run migrations
+npx prisma migrate dev
+
+# 5. Start dev server
+npm run start:dev
 ```
 
-## Compile and run the project
+## Environment Variables
+
+```env
+DATABASE_URL=
+JWT_SECRET=
+RESEND_API_KEY=
+RESEND_FROM_EMAIL=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_CALLBACK_URL=
+AWS_REGION=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_S3_BUCKET_NAME=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_GOLD=
+STRIPE_PRICE_PLATINUM=
+```
+
+## Tests
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm test                   # run all 72 unit tests
+npm test -- --verbose      # with test names
 ```
 
-## Run tests
+## Git Hooks (Husky)
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **pre-commit:** `prettier --write` auto-formats staged files
+- **pre-push:** `eslint + tsc --noEmit + prettier --check + npm test` — blocks push on any failure
