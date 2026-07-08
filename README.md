@@ -12,6 +12,18 @@ REST API for a personal finance management app. Users track bank accounts and tr
 - **Billing:** Stripe (subscriptions, webhooks, dunning)
 - **Tests:** Jest 30 (72 unit tests, all services mocked)
 
+## Architecture
+
+The codebase follows Clean Architecture principles with a clear separation between layers:
+
+- **Domain** (`domain/`) — entities, repository interfaces, no framework dependencies
+- **Application** (`application/`) — services containing business logic, depend only on domain abstractions
+- **Infrastructure** (`infra/`) — Prisma repository implementations, HTTP controllers, DTOs, NestJS decorators
+
+Each module is self-contained and depends on abstractions, not concrete implementations. Repositories are defined as abstract classes in the domain layer and injected via NestJS DI — swapping the database requires only a new `infra/database` implementation.
+
+Shared concerns (auth guards, plan enforcement, mail, storage, billing) live in `src/shared/` and are exposed as NestJS modules, keeping feature modules focused on their own business rules.
+
 ## Modules
 
 | Module | Description |
