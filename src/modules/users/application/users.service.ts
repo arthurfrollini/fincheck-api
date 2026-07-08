@@ -21,7 +21,7 @@ export class UsersService {
   async getUserById(userId: string) {
     const user = await this.usersRepository.findById(userId);
     if (!user) return null;
-    return { name: user.name, email: user.email, role: user.role };
+    return { name: user.name, email: user.email, role: user.role, plan: user.plan };
   }
 
   listAll() {
