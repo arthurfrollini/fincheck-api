@@ -1,19 +1,23 @@
-import { type TransactionFilters } from '@modules/transactions/entities/Transaction';
-import { type Transaction, type Prisma } from '@prisma/client';
+import {
+  type TransactionCreate,
+  type TransactionEntity,
+  type TransactionFilters,
+  type TransactionUpdate,
+} from '../../entities/Transaction';
 
 export abstract class TransactionsRepository {
-  abstract create(
-    transactionCreateArgs: Prisma.TransactionCreateArgs,
-  ): Promise<Transaction>;
+  abstract create(data: TransactionCreate): Promise<TransactionEntity>;
   abstract findMany(
     userId: string,
     filters: TransactionFilters,
-  ): Promise<Transaction[]>;
+  ): Promise<TransactionEntity[]>;
   abstract findFirst(
-    args: Prisma.TransactionFindFirstArgs,
-  ): Promise<Transaction | null>;
+    id: string,
+    userId: string,
+  ): Promise<TransactionEntity | null>;
   abstract update(
-    transactionUpdateArgs: Prisma.TransactionUpdateArgs,
-  ): Promise<Transaction>;
-  abstract delete(transactionId: string): Promise<void>;
+    id: string,
+    data: TransactionUpdate,
+  ): Promise<TransactionEntity>;
+  abstract delete(id: string): Promise<void>;
 }

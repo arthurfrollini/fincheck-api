@@ -1,15 +1,16 @@
-import { type Prisma, type User } from '@prisma/client';
+import {
+  type UserCreate,
+  type UserEntity,
+  type UserUpdate,
+} from '../../entities/User';
 
 export abstract class UsersRepository {
-  abstract create(userCreateDto: Prisma.UserCreateInput): Promise<User>;
-  abstract findById(userId: string): Promise<User | null>;
-  abstract findByEmail(userEmail: string): Promise<User | null>;
-  abstract findMany(): Promise<User[]>;
-  abstract update(
-    userId: string,
-    userUpdateDto: Prisma.UserUpdateInput,
-  ): Promise<User>;
+  abstract create(data: UserCreate): Promise<UserEntity>;
+  abstract findById(userId: string): Promise<UserEntity | null>;
+  abstract findByEmail(email: string): Promise<UserEntity | null>;
+  abstract findMany(): Promise<UserEntity[]>;
+  abstract update(userId: string, data: UserUpdate): Promise<UserEntity>;
   abstract delete(userId: string): Promise<void>;
-  abstract findByEmailToken(token: string): Promise<User | null>;
-  abstract findByGoogleId(userGoogleId: string): Promise<User | null>;
+  abstract findByEmailToken(token: string): Promise<UserEntity | null>;
+  abstract findByGoogleId(googleId: string): Promise<UserEntity | null>;
 }
