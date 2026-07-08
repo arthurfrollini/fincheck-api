@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Headers,
@@ -36,18 +37,24 @@ export class BillingController {
   @HttpCode(HttpStatus.NO_CONTENT)
   createSubscription(
     @ActiveUserId() userId: string,
-    @Body('planId') planId: 'GOLD' | 'PLATINUM',
+    @Body('planId') planId: string,
   ) {
-    return this.billingService.createSubscription(userId, planId);
+    if (planId !== 'GOLD' && planId !== 'PLATINUM') {
+      throw new BadRequestException('planId must be GOLD or PLATINUM');
+    }
+    return this.billingService.createSubscription(userId, planId as 'GOLD' | 'PLATINUM');
   }
 
   @Post('change-plan')
   @HttpCode(HttpStatus.NO_CONTENT)
   changePlan(
     @ActiveUserId() userId: string,
-    @Body('planId') planId: 'GOLD' | 'PLATINUM' | 'FREE',
+    @Body('planId') planId: string,
   ) {
-    return this.billingService.changePlan(userId, planId);
+    if (planId !== 'GOLD' && planId !== 'PLATINUM' && planId !== 'FREE') {
+      throw new BadRequestException('planId must be GOLD, PLATINUM or FREE');
+    }
+    return this.billingService.changePlan(userId, planId as 'GOLD' | 'PLATINUM' | 'FREE');
   }
 
   @Post('cancel')

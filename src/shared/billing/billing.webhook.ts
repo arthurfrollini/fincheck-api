@@ -89,5 +89,13 @@ export class BillingWebhookHandler {
 
     const newPlan = this.planFromPriceId(priceId);
     await this.usersRepository.update(user.id, { plan: newPlan, stripePriceId: priceId });
+
+    const isDowngrade =
+      (user.plan === Plan.PLATINUM && newPlan === Plan.GOLD) ||
+      (user.plan !== Plan.FREE && newPlan === Plan.FREE);
+
+    if (isDowngrade) {
+      await this.mailService.sendDowngradeNotification(user.email, user.name, newPlan);
+    }
   }
 }

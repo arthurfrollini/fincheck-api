@@ -1,12 +1,11 @@
 import {
   IsEmail,
-  IsEnum,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   MinLength,
 } from 'class-validator';
-import { Plan } from '@modules/users/entities/User';
 
 export class SignUpDto {
   @IsString()
@@ -24,8 +23,8 @@ export class SignUpDto {
   password: string;
 
   @IsOptional()
-  @IsEnum(Plan)
-  plan?: Plan;
+  @IsIn(['FREE', 'GOLD', 'PLATINUM'])
+  plan?: 'FREE' | 'GOLD' | 'PLATINUM';
 
   @IsOptional()
   @IsString()
