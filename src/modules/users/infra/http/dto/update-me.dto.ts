@@ -1,7 +1,12 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsOptional, IsString, IsNotEmpty, IsUrl } from 'class-validator';
 
 export class UpdateMeDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  @IsOptional()
+  name?: string;
+
+  @IsUrl()
+  @IsOptional()
+  avatarUrl?: string;
 }

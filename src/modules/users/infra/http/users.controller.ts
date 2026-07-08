@@ -38,8 +38,11 @@ export class UsersController {
   }
 
   @Patch('/me')
-  updateMe(@ActiveUserId() userId: string, @Body() { name }: UpdateMeDto) {
-    return this.usersService.updateMe(userId, name);
+  updateMe(
+    @ActiveUserId() userId: string,
+    @Body() updateMeDto: UpdateMeDto,
+  ) {
+    return this.usersService.updateMe(userId, updateMeDto);
   }
 
   @Patch('/me/email')

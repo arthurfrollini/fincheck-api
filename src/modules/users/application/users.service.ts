@@ -45,10 +45,13 @@ export class UsersService {
     });
   }
 
-  async updateMe(userId: string, name: string) {
+  async updateMe(userId: string, dto: { name?: string; avatarUrl?: string }) {
     const user = await this.usersRepository.findById(userId);
     if (!user) throw new NotFoundException('User not found.');
-    return this.usersRepository.update(userId, { name });
+    return this.usersRepository.update(userId, {
+      name: dto.name,
+      avatarUrl: dto.avatarUrl,
+    });
   }
 
   async update(userId: string, updateUserDto: UpdateUserDto) {
