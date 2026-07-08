@@ -10,7 +10,7 @@ export abstract class TransactionsRepository {
   abstract findMany(
     userId: string,
     filters: TransactionFilters,
-  ): Promise<TransactionEntity[]>;
+  ): Promise<{ data: TransactionEntity[]; total: number }>;
   abstract findFirst(
     id: string,
     userId: string,
