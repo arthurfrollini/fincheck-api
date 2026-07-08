@@ -39,7 +39,9 @@ export class BillingWebhookHandler {
     const user = await this.usersRepository.findByStripeCustomerId(customerId);
     if (!user) return;
 
-    const priceId = (invoice.lines.data[0] as any)?.price?.id as string | undefined;
+    const lineItem = invoice.lines.data[0];
+    const priceRef = lineItem?.pricing?.price_details?.price;
+    const priceId = typeof priceRef === 'string' ? priceRef : priceRef?.id;
     if (!priceId) return;
 
     const newPlan = this.planFromPriceId(priceId);
