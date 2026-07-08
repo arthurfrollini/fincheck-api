@@ -26,6 +26,8 @@ export interface UserEntity {
   pendingEmail: string | null;
   emailToken: string | null;
   emailTokenExpiresAt: Date | null;
+  stripeCustomerId: string | null;
+  stripePriceId: string | null;
 }
 
 export interface UserCreate {
@@ -47,4 +49,6 @@ export interface UserUpdate {
   pendingEmail?: string | null;
   emailToken?: string | null;
   emailTokenExpiresAt?: Date | null;
+  stripeCustomerId?: string | null;
+  stripePriceId?: string | null;
 }

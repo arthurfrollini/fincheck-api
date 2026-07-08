@@ -13,4 +13,5 @@ export abstract class UsersRepository {
   abstract delete(userId: string): Promise<void>;
   abstract findByEmailToken(token: string): Promise<UserEntity | null>;
   abstract findByGoogleId(googleId: string): Promise<UserEntity | null>;
+  abstract findByStripeCustomerId(customerId: string): Promise<UserEntity | null>;
 }

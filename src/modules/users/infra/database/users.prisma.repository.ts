@@ -50,4 +50,10 @@ export class UsersPrismaRepository implements UsersRepository {
   findByGoogleId(googleId: string): Promise<UserEntity | null> {
     return this.prismaService.user.findUnique({ where: { googleId } });
   }
+
+  findByStripeCustomerId(customerId: string): Promise<UserEntity | null> {
+    return this.prismaService.user.findUnique({
+      where: { stripeCustomerId: customerId },
+    });
+  }
 }
