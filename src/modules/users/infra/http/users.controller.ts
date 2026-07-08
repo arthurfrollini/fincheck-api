@@ -38,10 +38,7 @@ export class UsersController {
   }
 
   @Patch('/me')
-  updateMe(
-    @ActiveUserId() userId: string,
-    @Body() updateMeDto: UpdateMeDto,
-  ) {
+  updateMe(@ActiveUserId() userId: string, @Body() updateMeDto: UpdateMeDto) {
     return this.usersService.updateMe(userId, updateMeDto);
   }
 

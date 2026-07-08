@@ -17,7 +17,9 @@ jest.mock('@aws-sdk/client-s3', () => ({
 }));
 
 jest.mock('@aws-sdk/s3-request-presigner', () => ({
-  getSignedUrl: jest.fn().mockResolvedValue('https://s3.example.com/presigned-url'),
+  getSignedUrl: jest
+    .fn()
+    .mockResolvedValue('https://s3.example.com/presigned-url'),
 }));
 
 describe('StorageService', () => {
@@ -32,12 +34,15 @@ describe('StorageService', () => {
       const result = await service.generateUploadUrl('user-123', 'jpg');
 
       expect(result.uploadUrl).toBe('https://s3.example.com/presigned-url');
-      expect(result.avatarUrl).toMatch(/^https:\/\/.+\/avatars\/user-123\/.+\.jpg$/);
+      expect(result.avatarUrl).toMatch(
+        /^https:\/\/.+\/avatars\/user-123\/.+\.jpg$/,
+      );
     });
 
     it('builds key as avatars/{userId}/{uuid}.{ext}', async () => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { PutObjectCommand } = require('@aws-sdk/client-s3') as typeof import('@aws-sdk/client-s3');
+      const { PutObjectCommand } =
+        require('@aws-sdk/client-s3') as typeof import('@aws-sdk/client-s3');
 
       await service.generateUploadUrl('user-abc', 'png');
 
