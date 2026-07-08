@@ -28,8 +28,8 @@ export class TransactionsPrismaRepository implements TransactionsRepository {
       bankAccountId,
       type,
       date: {
-        gte: new Date(Date.UTC(year, month)),
-        lt: new Date(Date.UTC(year, month + 1)),
+        gte: new Date(Date.UTC(year, month - 1)),
+        lt: new Date(Date.UTC(year, month)),
       },
     };
 
