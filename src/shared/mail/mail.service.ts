@@ -34,4 +34,32 @@ export class MailService {
       `,
     });
   }
+
+  async sendDowngradeNotification(to: string, name: string, newPlan: string): Promise<void> {
+    await this.resend.emails.send({
+      from: env.resendFromEmail,
+      to,
+      subject: 'Seu plano Fincheck foi alterado',
+      html: `
+        <h1>Olá, ${name}!</h1>
+        <p>Seu plano foi alterado para <strong>${newPlan}</strong> no início do novo ciclo de cobrança.</p>
+        <p>Contas bancárias que excedem o limite do seu novo plano estão agora em modo somente leitura. Acesse o Fincheck para verificar quais contas foram afetadas.</p>
+        <p>Para reativar todas as contas, faça upgrade do seu plano.</p>
+      `,
+    });
+  }
+
+  async sendSubscriptionCancelled(to: string, name: string): Promise<void> {
+    await this.resend.emails.send({
+      from: env.resendFromEmail,
+      to,
+      subject: 'Sua assinatura Fincheck foi cancelada',
+      html: `
+        <h1>Olá, ${name}!</h1>
+        <p>Sua assinatura foi cancelada após falha no pagamento. Seu plano voltou para <strong>FREE</strong>.</p>
+        <p>Contas bancárias e transações anteriores continuam disponíveis, mas algumas funcionalidades foram limitadas.</p>
+        <p>Para reativar, acesse o Fincheck e escolha um novo plano.</p>
+      `,
+    });
+  }
 }
