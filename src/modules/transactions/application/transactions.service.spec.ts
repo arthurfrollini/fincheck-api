@@ -1,9 +1,18 @@
+jest.mock('@shared/config/env', () => ({
+  env: {
+    stripeSecretKey: 'sk_test_fake',
+    stripePriceGold: 'price_gold',
+    stripePricePlatinum: 'price_platinum',
+  },
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { TransactionsService } from './transactions.service';
 import { TransactionsRepository } from '../domain/repositories/transactions.repository';
 import { ValidateBankAccountOwnershipService } from '@modules/bank-accounts/application/validate-bank-account-ownership.service';
 import { ValidateCategoryOwnershipService } from '@modules/categories/application/validate-category-ownership.service';
 import { ValidateTransactionOwnershipService } from './validate-transaction-ownership.service';
+import { PlanGuardService } from '@shared/plan/plan-guard.service';
 
 const mockTransactionsRepository = {
   findMany: jest.fn(),
@@ -29,6 +38,10 @@ const makeService = async () => {
       {
         provide: ValidateTransactionOwnershipService,
         useValue: { validate: jest.fn() },
+      },
+      {
+        provide: PlanGuardService,
+        useValue: { validateDailyTransactionLimit: jest.fn() },
       },
     ],
   }).compile();
