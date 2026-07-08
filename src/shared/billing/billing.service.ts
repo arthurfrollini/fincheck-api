@@ -38,13 +38,16 @@ export class BillingService {
     return planId === 'GOLD' ? env.stripePriceGold : env.stripePricePlatinum;
   }
 
-  private async getActiveSubscription(customerId: string): Promise<Stripe.Subscription> {
+  private async getActiveSubscription(
+    customerId: string,
+  ): Promise<Stripe.Subscription> {
     const list = await this.stripe.subscriptions.list({
       customer: customerId,
       status: 'active',
       limit: 1,
     });
-    if (!list.data[0]) throw new BadRequestException('No active subscription found.');
+    if (!list.data[0])
+      throw new BadRequestException('No active subscription found.');
     return list.data[0];
   }
 
@@ -59,25 +62,30 @@ export class BillingService {
     return { clientSecret: setupIntent.client_secret! };
   }
 
-  async createSubscription(userId: string, planId: 'GOLD' | 'PLATINUM'): Promise<void> {
+  async createSubscription(
+    userId: string,
+    planId: 'GOLD' | 'PLATINUM',
+  ): Promise<void> {
     const user = await this.usersRepository.findById(userId);
     if (!user?.stripeCustomerId) {
       throw new BadRequestException('Complete payment setup first.');
     }
 
-    const customer = await this.stripe.customers.retrieve(
+    const customer = (await this.stripe.customers.retrieve(
       user.stripeCustomerId,
-    ) as Stripe.Customer | Stripe.DeletedCustomer;
+    )) as Stripe.Customer | Stripe.DeletedCustomer;
 
     if (customer.deleted) {
       throw new BadRequestException('Stripe customer no longer exists.');
     }
 
-    const paymentMethodId = (customer as Stripe.Customer).invoice_settings
-      .default_payment_method as string | null;
+    const paymentMethodId = customer.invoice_settings.default_payment_method as
+      string | null;
 
     if (!paymentMethodId) {
-      throw new BadRequestException('No payment method found. Complete setup first.');
+      throw new BadRequestException(
+        'No payment method found. Complete setup first.',
+      );
     }
 
     const priceId = this.priceIdForPlan(planId);
@@ -92,13 +100,18 @@ export class BillingService {
     await this.usersRepository.update(userId, { stripePriceId: priceId });
   }
 
-  async changePlan(userId: string, newPlanId: 'GOLD' | 'PLATINUM' | 'FREE'): Promise<void> {
+  async changePlan(
+    userId: string,
+    newPlanId: 'GOLD' | 'PLATINUM' | 'FREE',
+  ): Promise<void> {
     const user = await this.usersRepository.findById(userId);
     if (!user?.stripeCustomerId) {
       throw new BadRequestException('No active subscription.');
     }
 
-    const subscription = await this.getActiveSubscription(user.stripeCustomerId);
+    const subscription = await this.getActiveSubscription(
+      user.stripeCustomerId,
+    );
 
     if (newPlanId === 'FREE') {
       await this.stripe.subscriptions.update(subscription.id, {
@@ -125,7 +138,9 @@ export class BillingService {
       throw new BadRequestException('No active subscription.');
     }
 
-    const subscription = await this.getActiveSubscription(user.stripeCustomerId);
+    const subscription = await this.getActiveSubscription(
+      user.stripeCustomerId,
+    );
 
     await this.stripe.subscriptions.update(subscription.id, {
       cancel_at_period_end: true,

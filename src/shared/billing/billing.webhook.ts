@@ -79,7 +79,8 @@ export class BillingWebhookHandler {
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = subscription.customer as string;
 
-    if (subscription.status !== 'active' || subscription.cancel_at_period_end) return;
+    if (subscription.status !== 'active' || subscription.cancel_at_period_end)
+      return;
 
     const user = await this.usersRepository.findByStripeCustomerId(customerId);
     if (!user) return;
@@ -88,14 +89,21 @@ export class BillingWebhookHandler {
     if (!priceId) return;
 
     const newPlan = this.planFromPriceId(priceId);
-    await this.usersRepository.update(user.id, { plan: newPlan, stripePriceId: priceId });
+    await this.usersRepository.update(user.id, {
+      plan: newPlan,
+      stripePriceId: priceId,
+    });
 
     const isDowngrade =
       (user.plan === Plan.PLATINUM && newPlan === Plan.GOLD) ||
       (user.plan !== Plan.FREE && newPlan === Plan.FREE);
 
     if (isDowngrade) {
-      await this.mailService.sendDowngradeNotification(user.email, user.name, newPlan);
+      await this.mailService.sendDowngradeNotification(
+        user.email,
+        user.name,
+        newPlan,
+      );
     }
   }
 }

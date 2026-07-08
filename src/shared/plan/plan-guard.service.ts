@@ -12,7 +12,7 @@ export class PlanGuardService {
       where: { id: userId },
       select: { plan: true },
     });
-    return (user?.plan ?? 'FREE') as Plan;
+    return user?.plan ?? 'FREE';
   }
 
   async validateBankAccountLimit(userId: string): Promise<void> {
@@ -21,7 +21,9 @@ export class PlanGuardService {
     const limit = PLAN_LIMITS[plan].bankAccounts;
     if (limit === Infinity) return;
 
-    const count = await this.prismaService.bankAccount.count({ where: { userId } });
+    const count = await this.prismaService.bankAccount.count({
+      where: { userId },
+    });
     if (count >= limit) {
       throw new ForbiddenException(
         `Your plan allows up to ${limit} bank account${limit === 1 ? '' : 's'}.`,
@@ -40,7 +42,11 @@ export class PlanGuardService {
       Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
     );
     const lt = new Date(
-      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 1),
+      Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth(),
+        today.getUTCDate() + 1,
+      ),
     );
 
     const count = await this.prismaService.transaction.count({

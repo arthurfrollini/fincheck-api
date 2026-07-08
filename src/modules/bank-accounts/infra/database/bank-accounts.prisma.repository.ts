@@ -27,7 +27,7 @@ export class BankAccountsPrismaRepository implements BankAccountsRepository {
           select: { type: true, value: true },
         },
       },
-    }) as Promise<BankAccountWithTransactions[]>;
+    });
   }
 
   findFirst(id: string, userId: string): Promise<BankAccountEntity | null> {
