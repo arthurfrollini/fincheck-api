@@ -1,0 +1,11 @@
+-- CreateEnum
+CREATE TYPE "plan" AS ENUM ('FREE', 'GOLD', 'PLATINUM');
+
+-- AlterTable
+ALTER TABLE "bank_accounts" ADD COLUMN "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable
+ALTER TABLE "transactions" ADD COLUMN "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN "plan" "plan" NOT NULL DEFAULT 'FREE';

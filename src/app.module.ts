@@ -9,6 +9,7 @@ import { MailModule } from '@shared/mail/mail.module';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
+import { PlanModule } from '@shared/plan/plan.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module';
     CategoriesModule,
     BankAccountsModule,
     TransactionsModule,
+    PlanModule,
   ],
   controllers: [],
   providers: [
