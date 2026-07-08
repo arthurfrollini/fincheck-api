@@ -18,9 +18,18 @@ const makeService = async () => {
     providers: [
       TransactionsService,
       { provide: TransactionsRepository, useValue: mockTransactionsRepository },
-      { provide: ValidateBankAccountOwnershipService, useValue: { validate: jest.fn() } },
-      { provide: ValidateCategoryOwnershipService, useValue: { validate: jest.fn() } },
-      { provide: ValidateTransactionOwnershipService, useValue: { validate: jest.fn() } },
+      {
+        provide: ValidateBankAccountOwnershipService,
+        useValue: { validate: jest.fn() },
+      },
+      {
+        provide: ValidateCategoryOwnershipService,
+        useValue: { validate: jest.fn() },
+      },
+      {
+        provide: ValidateTransactionOwnershipService,
+        useValue: { validate: jest.fn() },
+      },
     ],
   }).compile();
   return module.get<TransactionsService>(TransactionsService);
@@ -36,15 +45,29 @@ describe('TransactionsService', () => {
 
   describe('findAllByUserId', () => {
     it('returns paginated meta with defaults when page/limit omitted', async () => {
-      mockTransactionsRepository.findMany.mockResolvedValue({ data: [], total: 0 });
+      mockTransactionsRepository.findMany.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
 
-      const result = await service.findAllByUserId('user-1', { month: 6, year: 2026 });
+      const result = await service.findAllByUserId('user-1', {
+        month: 6,
+        year: 2026,
+      });
 
-      expect(result.meta).toEqual({ total: 0, page: 1, limit: 20, totalPages: 0 });
+      expect(result.meta).toEqual({
+        total: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0,
+      });
     });
 
     it('computes totalPages correctly', async () => {
-      mockTransactionsRepository.findMany.mockResolvedValue({ data: [], total: 87 });
+      mockTransactionsRepository.findMany.mockResolvedValue({
+        data: [],
+        total: 87,
+      });
 
       const result = await service.findAllByUserId('user-1', {
         month: 6,
@@ -53,20 +76,36 @@ describe('TransactionsService', () => {
         limit: 20,
       });
 
-      expect(result.meta).toEqual({ total: 87, page: 2, limit: 20, totalPages: 5 });
+      expect(result.meta).toEqual({
+        total: 87,
+        page: 2,
+        limit: 20,
+        totalPages: 5,
+      });
     });
 
     it('passes page and limit to repository', async () => {
-      mockTransactionsRepository.findMany.mockResolvedValue({ data: [], total: 0 });
+      mockTransactionsRepository.findMany.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
 
-      await service.findAllByUserId('user-1', { month: 6, year: 2026, page: 3, limit: 10 });
-
-      expect(mockTransactionsRepository.findMany).toHaveBeenCalledWith('user-1', {
+      await service.findAllByUserId('user-1', {
         month: 6,
         year: 2026,
         page: 3,
         limit: 10,
       });
+
+      expect(mockTransactionsRepository.findMany).toHaveBeenCalledWith(
+        'user-1',
+        {
+          month: 6,
+          year: 2026,
+          page: 3,
+          limit: 10,
+        },
+      );
     });
   });
 });
