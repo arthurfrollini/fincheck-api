@@ -21,6 +21,7 @@ export interface UserEntity {
   role: Role;
   plan: Plan;
   googleId: string | null;
+  avatarUrl: string | null;
   pendingEmail: string | null;
   emailToken: string | null;
   emailTokenExpiresAt: Date | null;
