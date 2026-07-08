@@ -41,6 +41,8 @@ model User {
   emailTokenExpiresAt DateTime? @map("email_token_expires_at")
   googleId            String?   @unique @map("google_id")
   avatarUrl           String?   @map("avatar_url")
+  stripeCustomerId    String?   @unique @map("stripe_customer_id")
+  stripePriceId       String?   @map("stripe_price_id")
 
   bankAccounts   BankAccount[]
   categories     Category[]
