@@ -40,11 +40,14 @@ describe('StorageService', () => {
     });
 
     it('builds key as avatars/{userId}/{uuid}.{ext}', async () => {
-      const s3Module = jest.mocked(await import('@aws-sdk/client-s3'));
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { PutObjectCommand } = jest.requireMock('@aws-sdk/client-s3') as {
+        PutObjectCommand: jest.Mock;
+      };
 
       await service.generateUploadUrl('user-abc', 'png');
 
-      expect(s3Module.PutObjectCommand).toHaveBeenCalledWith(
+      expect(PutObjectCommand).toHaveBeenCalledWith(
         expect.objectContaining({
           Key: expect.stringMatching(/^avatars\/user-abc\/.+\.png$/),
         }),
