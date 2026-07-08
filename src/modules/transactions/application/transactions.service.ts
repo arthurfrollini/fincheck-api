@@ -23,15 +23,13 @@ export class TransactionsService {
     await this.validateEntitiesOwnership({ userId, bankAccountId, categoryId });
 
     return this.transactionsRepository.create({
-      data: {
-        userId,
-        bankAccountId,
-        categoryId,
-        name,
-        value,
-        date,
-        type,
-      },
+      userId,
+      bankAccountId,
+      categoryId,
+      name,
+      value,
+      date: new Date(date),
+      type,
     });
   }
 
@@ -54,16 +52,13 @@ export class TransactionsService {
       transactionId,
     });
 
-    return this.transactionsRepository.update({
-      where: { id: transactionId },
-      data: {
-        bankAccountId,
-        categoryId,
-        name,
-        value,
-        date,
-        type,
-      },
+    return this.transactionsRepository.update(transactionId, {
+      bankAccountId,
+      categoryId,
+      name,
+      value,
+      date: new Date(date),
+      type,
     });
   }
 

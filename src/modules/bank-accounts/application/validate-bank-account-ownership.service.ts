@@ -8,9 +8,10 @@ export class ValidateBankAccountOwnershipService {
   ) {}
 
   async validate(userId: string, bankAccountId: string) {
-    const isOwner = await this.bankAccountsRepository.findFirst({
-      where: { id: bankAccountId, userId },
-    });
+    const isOwner = await this.bankAccountsRepository.findFirst(
+      bankAccountId,
+      userId,
+    );
 
     if (!isOwner) throw new NotFoundException('Bank account not found.');
 

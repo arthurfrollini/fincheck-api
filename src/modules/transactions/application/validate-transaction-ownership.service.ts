@@ -8,9 +8,10 @@ export class ValidateTransactionOwnershipService {
   ) {}
 
   async validate(userId: string, transactionId: string) {
-    const isOwner = await this.transactionsRepository.findFirst({
-      where: { id: transactionId, userId },
-    });
+    const isOwner = await this.transactionsRepository.findFirst(
+      transactionId,
+      userId,
+    );
 
     if (!isOwner) throw new NotFoundException('Transaction not found.');
 
