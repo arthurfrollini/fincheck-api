@@ -14,7 +14,6 @@ import { BillingService } from './billing.service';
 import { BillingWebhookHandler } from './billing.webhook';
 import { ActiveUserId } from '@shared/decorators/active-user-id.decorator';
 import { isPublic } from '@shared/decorators/public.decorator';
-import { Plan } from '@modules/users/entities/User';
 import { env } from '@shared/config/env';
 
 @Controller('billing')
