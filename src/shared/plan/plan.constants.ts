@@ -11,4 +11,9 @@ export const PLAN_LIMITS: Record<
     transactionsPerDay: Infinity,
     canManageCategories: true,
   },
+  ADMINISTRATOR: {
+    bankAccounts: Infinity,
+    transactionsPerDay: Infinity,
+    canManageCategories: true,
+  },
 };

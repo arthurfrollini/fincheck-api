@@ -10,6 +10,7 @@ export const Plan = {
   FREE: 'FREE',
   GOLD: 'GOLD',
   PLATINUM: 'PLATINUM',
+  ADMINISTRATOR: 'ADMINISTRATOR',
 } as const;
 export type Plan = (typeof Plan)[keyof typeof Plan];
 
