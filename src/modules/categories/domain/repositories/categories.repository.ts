@@ -1,8 +1,9 @@
-import { Prisma, type Category } from '@prisma/client';
+import { type CategoryEntity } from '../../entities/Category';
 
 export abstract class CategoriesRepository {
-  abstract findAllByUserId(userId: string): Promise<Category[]>;
+  abstract findAllByUserId(userId: string): Promise<CategoryEntity[]>;
   abstract findFirst(
-    args: Prisma.CategoryFindFirstArgs,
-  ): Promise<Category | null>;
+    id: string,
+    userId: string,
+  ): Promise<CategoryEntity | null>;
 }

@@ -3,6 +3,7 @@ import { BankAccountsRepository } from '../domain/repositories/bank-accounts.rep
 import { ValidateBankAccountOwnershipService } from './validate-bank-account-ownership.service';
 import { CreateBankAccountDto } from '../infra/http/dto/create-bank-account.dto';
 import { UpdateBankAccountDto } from '../infra/http/dto/update-bank-account.dto';
+import { TransactionType } from '@modules/transactions/entities/Transaction';
 
 @Injectable()
 export class BankAccountsService {
@@ -14,25 +15,23 @@ export class BankAccountsService {
   create(userId: string, dto: CreateBankAccountDto) {
     const { name, color, initialBalance, type } = dto;
     return this.bankAccountsRepository.create({
-      data: { userId, name, color, initialBalance, type },
+      userId,
+      name,
+      color,
+      initialBalance,
+      type,
     });
   }
 
   async findAllByUserId(userId: string) {
-    const bankAccounts = await this.bankAccountsRepository.findMany({
-      where: { userId },
-      include: {
-        transactions: {
-          select: { type: true, value: true },
-        },
-      },
-    });
+    const bankAccounts =
+      await this.bankAccountsRepository.findManyWithTransactions(userId);
 
     return bankAccounts.map(({ transactions, ...bankAccount }) => {
       const totalTransactions = transactions.reduce(
         (acc, transaction) =>
           acc +
-          (transaction.type === 'INCOME'
+          (transaction.type === TransactionType.INCOME
             ? transaction.value
             : -transaction.value),
         0,

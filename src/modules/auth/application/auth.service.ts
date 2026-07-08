@@ -70,7 +70,7 @@ export class AuthService {
       name,
       email,
       password: encryptedPassword,
-      categories: { createMany: { data: DEFAULT_CATEGORIES } },
+      categories: DEFAULT_CATEGORIES,
     });
 
     // TODO: trocar 'arthur.frollini@gmail.com' por user.email quando houver domínio verificado no Resend
@@ -115,13 +115,15 @@ export class AuthService {
       const userWithEmail = await this.usersRepository.findByEmail(email);
 
       if (userWithEmail) {
-        user = await this.usersRepository.update(userWithEmail.id, { googleId });
+        user = await this.usersRepository.update(userWithEmail.id, {
+          googleId,
+        });
       } else {
         user = await this.usersRepository.create({
           name,
           email,
           googleId,
-          categories: { createMany: { data: DEFAULT_CATEGORIES } },
+          categories: DEFAULT_CATEGORIES,
         });
 
         // TODO: trocar 'arthur.frollini@gmail.com' por email quando houver domínio verificado no Resend

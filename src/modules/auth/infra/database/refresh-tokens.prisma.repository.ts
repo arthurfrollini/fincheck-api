@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { type RefreshToken } from '@prisma/client';
 import { PrismaService } from '@shared/database/prisma.service';
 import { RefreshTokensRepository } from '../../domain/repositories/refresh-tokens.repository';
+import { type RefreshTokenEntity } from '../../entities/RefreshToken';
 
 @Injectable()
 export class RefreshTokensPrismaRepository implements RefreshTokensRepository {
@@ -11,13 +11,13 @@ export class RefreshTokensPrismaRepository implements RefreshTokensRepository {
     userId: string,
     token: string,
     expiresAt: Date,
-  ): Promise<RefreshToken> {
+  ): Promise<RefreshTokenEntity> {
     return this.prismaService.refreshToken.create({
       data: { userId, token, expiresAt },
     });
   }
 
-  findByToken(token: string): Promise<RefreshToken | null> {
+  findByToken(token: string): Promise<RefreshTokenEntity | null> {
     return this.prismaService.refreshToken.findUnique({ where: { token } });
   }
 

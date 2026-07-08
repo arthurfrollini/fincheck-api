@@ -1,18 +1,22 @@
-import { type BankAccount, type Prisma } from '@prisma/client';
+import {
+  type BankAccountCreate,
+  type BankAccountEntity,
+  type BankAccountUpdate,
+  type BankAccountWithTransactions,
+} from '../../entities/BankAccount';
 
 export abstract class BankAccountsRepository {
-  abstract create(
-    bankAccountCreateDto: Prisma.BankAccountCreateArgs,
-  ): Promise<BankAccount>;
-  abstract findMany<T extends Prisma.BankAccountFindManyArgs>(
-    findManyDto: Prisma.SelectSubset<T, Prisma.BankAccountFindManyArgs>,
-  ): Promise<Prisma.BankAccountGetPayload<T>[]>;
+  abstract create(data: BankAccountCreate): Promise<BankAccountEntity>;
+  abstract findManyWithTransactions(
+    userId: string,
+  ): Promise<BankAccountWithTransactions[]>;
   abstract findFirst(
-    args: Prisma.BankAccountFindFirstArgs,
-  ): Promise<BankAccount | null>;
+    id: string,
+    userId: string,
+  ): Promise<BankAccountEntity | null>;
   abstract update(
-    bankAccountId: string,
-    bankAccountUpdateDto: Prisma.BankAccountUpdateInput,
-  ): Promise<BankAccount>;
-  abstract delete(bankAccountId: string): Promise<void>;
+    id: string,
+    data: BankAccountUpdate,
+  ): Promise<BankAccountEntity>;
+  abstract delete(id: string): Promise<void>;
 }

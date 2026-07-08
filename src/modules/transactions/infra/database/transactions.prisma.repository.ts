@@ -1,21 +1,25 @@
-import { type Prisma, type Transaction } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
-import { TransactionsRepository } from '@modules/transactions/domain/repositories/transactions.repository';
 import { PrismaService } from '@shared/database/prisma.service';
-import { type TransactionFilters } from '@modules/transactions/entities/Transaction';
+import { TransactionsRepository } from '@modules/transactions/domain/repositories/transactions.repository';
+import {
+  type TransactionCreate,
+  type TransactionEntity,
+  type TransactionFilters,
+  type TransactionUpdate,
+} from '@modules/transactions/entities/Transaction';
 
 @Injectable()
 export class TransactionsPrismaRepository implements TransactionsRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
-  create(data: Prisma.TransactionCreateArgs): Promise<Transaction> {
-    return this.prismaService.transaction.create(data);
+  create(data: TransactionCreate): Promise<TransactionEntity> {
+    return this.prismaService.transaction.create({ data });
   }
 
   findMany(
     userId: string,
     filters: TransactionFilters,
-  ): Promise<Transaction[]> {
+  ): Promise<TransactionEntity[]> {
     return this.prismaService.transaction.findMany({
       where: {
         userId,
@@ -29,19 +33,15 @@ export class TransactionsPrismaRepository implements TransactionsRepository {
     });
   }
 
-  findFirst(
-    args: Prisma.TransactionFindFirstArgs,
-  ): Promise<Transaction | null> {
-    return this.prismaService.transaction.findFirst(args);
+  findFirst(id: string, userId: string): Promise<TransactionEntity | null> {
+    return this.prismaService.transaction.findFirst({ where: { id, userId } });
   }
 
-  update(args: Prisma.TransactionUpdateArgs): Promise<Transaction> {
-    return this.prismaService.transaction.update(args);
+  update(id: string, data: TransactionUpdate): Promise<TransactionEntity> {
+    return this.prismaService.transaction.update({ where: { id }, data });
   }
 
-  async delete(transactionId: string): Promise<void> {
-    await this.prismaService.transaction.delete({
-      where: { id: transactionId },
-    });
+  async delete(id: string): Promise<void> {
+    await this.prismaService.transaction.delete({ where: { id } });
   }
 }
