@@ -11,6 +11,8 @@ export interface TransactionFilters {
   year: number;
   bankAccountId?: string;
   type?: TransactionType;
+  page?: number;
+  limit?: number;
 }
 
 export interface TransactionEntity {

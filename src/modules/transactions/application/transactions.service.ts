@@ -33,8 +33,22 @@ export class TransactionsService {
     });
   }
 
-  findAllByUserId(userId: string, filters: TransactionFilters) {
-    return this.transactionsRepository.findMany(userId, filters);
+  async findAllByUserId(userId: string, filters: TransactionFilters) {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+
+    const { data, total } = await this.transactionsRepository.findMany(userId, {
+      ...filters,
+      page,
+      limit,
+    });
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages },
+    };
   }
 
   async update(
