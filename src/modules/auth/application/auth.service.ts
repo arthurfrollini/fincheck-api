@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -7,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
+import { Plan } from '@modules/users/entities/User';
 import { MailService } from '@shared/mail/mail.service';
 import { SignUpDto } from '../infra/http/dto/sign-up.dto';
 import { SignInDto } from '../infra/http/dto/sign-in.dto';
@@ -56,7 +58,13 @@ export class AuthService {
   }
 
   async signup(signUpDto: SignUpDto) {
-    const { name, email, password } = signUpDto;
+    const { name, email, password, plan = Plan.FREE } = signUpDto;
+
+    if (plan !== Plan.FREE) {
+      throw new BadRequestException(
+        'Plan upgrade requires Stripe integration. Please sign up with the FREE plan.',
+      );
+    }
 
     const emailTaken = await this.usersRepository.findByEmail(email);
 
