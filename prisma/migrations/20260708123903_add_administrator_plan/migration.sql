@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "plan" ADD VALUE 'ADMINISTRATOR';

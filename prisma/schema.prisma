@@ -23,6 +23,7 @@ enum Plan {
   FREE
   GOLD
   PLATINUM
+  ADMINISTRATOR
 
   @@map("plan")
 }
