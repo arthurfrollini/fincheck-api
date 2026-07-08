@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@shared/database/prisma.service';
 import { PLAN_LIMITS } from './plan.constants';
-import { type Plan } from '@modules/users/entities/User';
+import { Plan } from '@modules/users/entities/User';
 
 @Injectable()
 export class PlanGuardService {
@@ -17,6 +17,7 @@ export class PlanGuardService {
 
   async validateBankAccountLimit(userId: string): Promise<void> {
     const plan = await this.getUserPlan(userId);
+    if (plan === Plan.ADMINISTRATOR) return;
     const limit = PLAN_LIMITS[plan].bankAccounts;
     if (limit === Infinity) return;
 
@@ -30,6 +31,7 @@ export class PlanGuardService {
 
   async validateDailyTransactionLimit(userId: string): Promise<void> {
     const plan = await this.getUserPlan(userId);
+    if (plan === Plan.ADMINISTRATOR) return;
     const limit = PLAN_LIMITS[plan].transactionsPerDay;
     if (limit === Infinity) return;
 
@@ -54,6 +56,7 @@ export class PlanGuardService {
 
   async validateCategoryAccess(userId: string): Promise<void> {
     const plan = await this.getUserPlan(userId);
+    if (plan === Plan.ADMINISTRATOR) return;
     if (!PLAN_LIMITS[plan].canManageCategories) {
       throw new ForbiddenException(
         'Category management requires a GOLD or PLATINUM plan.',
@@ -65,6 +68,9 @@ export class PlanGuardService {
     userId: string,
   ): Promise<{ ids: Set<string>; isUnlimited: boolean }> {
     const plan = await this.getUserPlan(userId);
+    if (plan === Plan.ADMINISTRATOR) {
+      return { ids: new Set<string>(), isUnlimited: true };
+    }
     const limit = PLAN_LIMITS[plan].bankAccounts;
 
     if (limit === Infinity) return { ids: new Set(), isUnlimited: true };
