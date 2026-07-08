@@ -2,49 +2,21 @@ import { plainToInstance } from 'class-transformer';
 import { IsNotEmpty, IsString, validateSync } from 'class-validator';
 
 class Env {
-  @IsString()
-  @IsNotEmpty()
-  jwtSecret: string;
-
-  @IsString()
-  @IsNotEmpty()
-  databaseURL: string;
-
-  @IsString()
-  @IsNotEmpty()
-  resendApiKey: string;
-
-  @IsString()
-  @IsNotEmpty()
-  resendFromEmail: string;
-
-  @IsString()
-  @IsNotEmpty()
-  googleClientId: string;
-
-  @IsString()
-  @IsNotEmpty()
-  googleClientSecret: string;
-
-  @IsString()
-  @IsNotEmpty()
-  googleCallbackUrl: string;
-
-  @IsString()
-  @IsNotEmpty()
-  awsRegion: string;
-
-  @IsString()
-  @IsNotEmpty()
-  awsAccessKeyId: string;
-
-  @IsString()
-  @IsNotEmpty()
-  awsSecretAccessKey: string;
-
-  @IsString()
-  @IsNotEmpty()
-  awsS3BucketName: string;
+  @IsString() @IsNotEmpty() jwtSecret: string;
+  @IsString() @IsNotEmpty() databaseURL: string;
+  @IsString() @IsNotEmpty() resendApiKey: string;
+  @IsString() @IsNotEmpty() resendFromEmail: string;
+  @IsString() @IsNotEmpty() googleClientId: string;
+  @IsString() @IsNotEmpty() googleClientSecret: string;
+  @IsString() @IsNotEmpty() googleCallbackUrl: string;
+  @IsString() @IsNotEmpty() awsRegion: string;
+  @IsString() @IsNotEmpty() awsAccessKeyId: string;
+  @IsString() @IsNotEmpty() awsSecretAccessKey: string;
+  @IsString() @IsNotEmpty() awsS3BucketName: string;
+  @IsString() @IsNotEmpty() stripeSecretKey: string;
+  @IsString() @IsNotEmpty() stripeWebhookSecret: string;
+  @IsString() @IsNotEmpty() stripePriceGold: string;
+  @IsString() @IsNotEmpty() stripePricePlatinum: string;
 }
 
 export const env: Env = plainToInstance(Env, {
@@ -59,10 +31,13 @@ export const env: Env = plainToInstance(Env, {
   awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
   awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   awsS3BucketName: process.env.AWS_S3_BUCKET_NAME,
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+  stripePriceGold: process.env.STRIPE_PRICE_GOLD,
+  stripePricePlatinum: process.env.STRIPE_PRICE_PLATINUM,
 });
 
 const errors = validateSync(env);
-
 if (errors.length > 0) {
   throw new Error(JSON.stringify(errors, null, 2));
 }
