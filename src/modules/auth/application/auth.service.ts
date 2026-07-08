@@ -9,6 +9,7 @@ import { compare, hash } from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
 import { Plan } from '@modules/users/entities/User';
+import { BillingService } from '@shared/billing/billing.service';
 import { MailService } from '@shared/mail/mail.service';
 import { SignUpDto } from '../infra/http/dto/sign-up.dto';
 import { SignInDto } from '../infra/http/dto/sign-in.dto';
@@ -37,6 +38,7 @@ export class AuthService {
     private readonly refreshTokensRepository: RefreshTokensRepository,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly billingService: BillingService,
   ) {}
 
   async signin(signInDto: SignInDto) {
@@ -58,11 +60,11 @@ export class AuthService {
   }
 
   async signup(signUpDto: SignUpDto) {
-    const { name, email, password, plan = Plan.FREE } = signUpDto;
+    const { name, email, password, plan = Plan.FREE, paymentMethodId } = signUpDto;
 
-    if (plan !== Plan.FREE) {
+    if (plan !== Plan.FREE && !paymentMethodId) {
       throw new BadRequestException(
-        'Plan upgrade requires Stripe integration. Please sign up with the FREE plan.',
+        'A payment method is required to sign up with a paid plan.',
       );
     }
 
@@ -83,6 +85,14 @@ export class AuthService {
 
     // TODO: trocar 'arthur.frollini@gmail.com' por user.email quando houver domínio verificado no Resend
     await this.mailService.sendWelcome('arthur.frollini@gmail.com', user.name);
+
+    if (plan !== Plan.FREE && paymentMethodId) {
+      await this.billingService.createCustomerAndSubscribe(
+        user.id,
+        paymentMethodId,
+        plan as 'GOLD' | 'PLATINUM',
+      );
+    }
 
     return this.generateTokens(user.id, user.role);
   }

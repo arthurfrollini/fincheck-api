@@ -26,4 +26,8 @@ export class SignUpDto {
   @IsOptional()
   @IsEnum(Plan)
   plan?: Plan;
+
+  @IsOptional()
+  @IsString()
+  paymentMethodId?: string;
 }
