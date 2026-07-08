@@ -1,41 +1,43 @@
-import { type BankAccount, type Prisma } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
-import { BankAccountsRepository } from '@modules/bank-accounts/domain/repositories/bank-accounts.repository';
 import { PrismaService } from '@shared/database/prisma.service';
+import { BankAccountsRepository } from '@modules/bank-accounts/domain/repositories/bank-accounts.repository';
+import {
+  type BankAccountCreate,
+  type BankAccountEntity,
+  type BankAccountUpdate,
+  type BankAccountWithTransactions,
+} from '@modules/bank-accounts/entities/BankAccount';
 
 @Injectable()
 export class BankAccountsPrismaRepository implements BankAccountsRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
-  create(data: Prisma.BankAccountCreateArgs): Promise<BankAccount> {
-    return this.prismaService.bankAccount.create(data);
+  create(data: BankAccountCreate): Promise<BankAccountEntity> {
+    return this.prismaService.bankAccount.create({ data });
   }
 
-  findMany<T extends Prisma.BankAccountFindManyArgs>(
-    findManyDto: Prisma.SelectSubset<T, Prisma.BankAccountFindManyArgs>,
-  ) {
-    return this.prismaService.bankAccount.findMany(findManyDto);
+  findManyWithTransactions(
+    userId: string,
+  ): Promise<BankAccountWithTransactions[]> {
+    return this.prismaService.bankAccount.findMany({
+      where: { userId },
+      include: {
+        transactions: {
+          select: { type: true, value: true },
+        },
+      },
+    }) as Promise<BankAccountWithTransactions[]>;
   }
 
-  findFirst(
-    args: Prisma.BankAccountFindFirstArgs,
-  ): Promise<BankAccount | null> {
-    return this.prismaService.bankAccount.findFirst(args);
+  findFirst(id: string, userId: string): Promise<BankAccountEntity | null> {
+    return this.prismaService.bankAccount.findFirst({ where: { id, userId } });
   }
 
-  update(
-    bankAccountId: string,
-    data: Prisma.BankAccountUpdateInput,
-  ): Promise<BankAccount> {
-    return this.prismaService.bankAccount.update({
-      where: { id: bankAccountId },
-      data,
-    });
+  update(id: string, data: BankAccountUpdate): Promise<BankAccountEntity> {
+    return this.prismaService.bankAccount.update({ where: { id }, data });
   }
 
-  async delete(bankAccountId: string): Promise<void> {
-    await this.prismaService.bankAccount.delete({
-      where: { id: bankAccountId },
-    });
+  async delete(id: string): Promise<void> {
+    await this.prismaService.bankAccount.delete({ where: { id } });
   }
 }
