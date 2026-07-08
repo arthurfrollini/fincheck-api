@@ -11,6 +11,7 @@ import { RolesGuard } from '@shared/guards/roles.guard';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { PlanModule } from '@shared/plan/plan.module';
+import { BillingModule } from '@shared/billing/billing.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { PlanModule } from '@shared/plan/plan.module';
     BankAccountsModule,
     TransactionsModule,
     PlanModule,
+    BillingModule,
   ],
   controllers: [],
   providers: [
