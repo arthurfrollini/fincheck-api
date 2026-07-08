@@ -42,19 +42,16 @@ export class BillingController {
     if (planId !== 'GOLD' && planId !== 'PLATINUM') {
       throw new BadRequestException('planId must be GOLD or PLATINUM');
     }
-    return this.billingService.createSubscription(userId, planId as 'GOLD' | 'PLATINUM');
+    return this.billingService.createSubscription(userId, planId);
   }
 
   @Post('change-plan')
   @HttpCode(HttpStatus.NO_CONTENT)
-  changePlan(
-    @ActiveUserId() userId: string,
-    @Body('planId') planId: string,
-  ) {
+  changePlan(@ActiveUserId() userId: string, @Body('planId') planId: string) {
     if (planId !== 'GOLD' && planId !== 'PLATINUM' && planId !== 'FREE') {
       throw new BadRequestException('planId must be GOLD, PLATINUM or FREE');
     }
-    return this.billingService.changePlan(userId, planId as 'GOLD' | 'PLATINUM' | 'FREE');
+    return this.billingService.changePlan(userId, planId);
   }
 
   @Post('cancel')
@@ -70,7 +67,8 @@ export class BillingController {
     @Req() req: Request,
     @Headers('stripe-signature') signature: string,
   ) {
-    if (!signature) throw new UnauthorizedException('Missing stripe-signature header.');
+    if (!signature)
+      throw new UnauthorizedException('Missing stripe-signature header.');
 
     let event: Stripe.Event;
     try {

@@ -35,7 +35,11 @@ export class MailService {
     });
   }
 
-  async sendDowngradeNotification(to: string, name: string, newPlan: string): Promise<void> {
+  async sendDowngradeNotification(
+    to: string,
+    name: string,
+    newPlan: string,
+  ): Promise<void> {
     await this.resend.emails.send({
       from: env.resendFromEmail,
       to,

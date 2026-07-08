@@ -51,8 +51,15 @@ export class BankAccountsService {
     });
   }
 
-  async update(userId: string, bankAccountId: string, dto: UpdateBankAccountDto) {
-    await this.validateBankAccountOwnershipService.validate(userId, bankAccountId);
+  async update(
+    userId: string,
+    bankAccountId: string,
+    dto: UpdateBankAccountDto,
+  ) {
+    await this.validateBankAccountOwnershipService.validate(
+      userId,
+      bankAccountId,
+    );
     const { name, color, initialBalance, type } = dto;
     return this.bankAccountsRepository.update(bankAccountId, {
       name,
@@ -63,7 +70,10 @@ export class BankAccountsService {
   }
 
   async remove(userId: string, bankAccountId: string) {
-    await this.validateBankAccountOwnershipService.validate(userId, bankAccountId);
+    await this.validateBankAccountOwnershipService.validate(
+      userId,
+      bankAccountId,
+    );
     await this.bankAccountsRepository.delete(bankAccountId);
   }
 }

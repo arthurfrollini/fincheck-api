@@ -60,7 +60,13 @@ export class AuthService {
   }
 
   async signup(signUpDto: SignUpDto) {
-    const { name, email, password, plan = Plan.FREE, paymentMethodId } = signUpDto;
+    const {
+      name,
+      email,
+      password,
+      plan = Plan.FREE,
+      paymentMethodId,
+    } = signUpDto;
 
     if (plan !== Plan.FREE && !paymentMethodId) {
       throw new BadRequestException(
@@ -90,7 +96,7 @@ export class AuthService {
       await this.billingService.createCustomerAndSubscribe(
         user.id,
         paymentMethodId,
-        plan as 'GOLD' | 'PLATINUM',
+        plan,
       );
     }
 

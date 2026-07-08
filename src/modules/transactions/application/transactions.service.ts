@@ -19,7 +19,8 @@ export class TransactionsService {
   ) {}
 
   async create(userId: string, createTransactionDto: CreateTransactionDto) {
-    const { bankAccountId, categoryId, name, value, date, type } = createTransactionDto;
+    const { bankAccountId, categoryId, name, value, date, type } =
+      createTransactionDto;
 
     await Promise.all([
       this.validateEntitiesOwnership({ userId, bankAccountId, categoryId }),
@@ -56,10 +57,20 @@ export class TransactionsService {
     };
   }
 
-  async update(userId: string, transactionId: string, updateTransactionDto: UpdateTransactionDto) {
-    const { bankAccountId, categoryId, name, value, date, type } = updateTransactionDto;
+  async update(
+    userId: string,
+    transactionId: string,
+    updateTransactionDto: UpdateTransactionDto,
+  ) {
+    const { bankAccountId, categoryId, name, value, date, type } =
+      updateTransactionDto;
 
-    await this.validateEntitiesOwnership({ userId, bankAccountId, categoryId, transactionId });
+    await this.validateEntitiesOwnership({
+      userId,
+      bankAccountId,
+      categoryId,
+      transactionId,
+    });
 
     return this.transactionsRepository.update(transactionId, {
       bankAccountId,
@@ -89,9 +100,15 @@ export class TransactionsService {
   }) {
     await Promise.all([
       transactionId &&
-        this.validateTransactionOwnershipService.validate(userId, transactionId),
+        this.validateTransactionOwnershipService.validate(
+          userId,
+          transactionId,
+        ),
       bankAccountId &&
-        this.validateBankAccountOwnershipService.validate(userId, bankAccountId),
+        this.validateBankAccountOwnershipService.validate(
+          userId,
+          bankAccountId,
+        ),
       categoryId &&
         this.validateCategoryOwnershipService.validate(userId, categoryId),
     ]);
