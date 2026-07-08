@@ -25,7 +25,6 @@ export interface UserEntity {
   pendingEmail: string | null;
   emailToken: string | null;
   emailTokenExpiresAt: Date | null;
-  avatarUrl: string | null;
 }
 
 export interface UserCreate {
