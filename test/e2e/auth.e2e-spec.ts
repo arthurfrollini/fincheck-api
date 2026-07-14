@@ -3,6 +3,8 @@ import { INestApplication } from '@nestjs/common';
 import { createApp } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens, uniqueEmail } from '../helpers/auth.helper';
+import { PrismaService } from '../../src/shared/database/prisma.service';
+import { RefreshTokensRepository } from '../../src/modules/auth/domain/repositories/refresh-tokens.repository';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication;
@@ -118,6 +120,46 @@ describe('Auth (e2e)', () => {
         .post('/auth/refresh')
         .send({ refreshToken });
       expect(refreshRes.status).toBe(401);
+    });
+  });
+
+  describe('RefreshTokensPrismaRepository.deleteExpired', () => {
+    it('deletes only expired refresh tokens from the database', async () => {
+      const email = uniqueEmail();
+      await signUpAndGetTokens(app, email);
+
+      const prisma = app.get(PrismaService);
+      const repository = app.get(RefreshTokensRepository);
+
+      const user = await prisma.user.findFirstOrThrow({ where: { email } });
+
+      const expired = await prisma.refreshToken.create({
+        data: {
+          userId: user.id,
+          token: 'expired-token',
+          expiresAt: new Date(Date.now() - 60_000),
+        },
+      });
+
+      const valid = await prisma.refreshToken.create({
+        data: {
+          userId: user.id,
+          token: 'valid-token',
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+      });
+
+      await repository.deleteExpired();
+
+      const expiredFound = await prisma.refreshToken.findUnique({
+        where: { id: expired.id },
+      });
+      const validFound = await prisma.refreshToken.findUnique({
+        where: { id: valid.id },
+      });
+
+      expect(expiredFound).toBeNull();
+      expect(validFound).not.toBeNull();
     });
   });
 });
