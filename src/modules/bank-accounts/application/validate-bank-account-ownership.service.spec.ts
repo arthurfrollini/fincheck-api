@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
 import { ValidateBankAccountOwnershipService } from './validate-bank-account-ownership.service';
 import { BankAccountsRepository } from '../domain/repositories/bank-accounts.repository';
 

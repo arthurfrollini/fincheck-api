@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
 import { ValidateCategoryOwnershipService } from './validate-category-ownership.service';
 import { CategoriesRepository } from '../domain/repositories/categories.repository';
 
