@@ -10,6 +10,7 @@
 # keep the only thing printed the final merged report.
 set -uo pipefail
 
+echo "Running unit tests..."
 unit_output=$(npm run test:unit -- --coverage 2>&1)
 unit_status=$?
 if [ $unit_status -ne 0 ]; then
@@ -19,6 +20,7 @@ if [ $unit_status -ne 0 ]; then
   exit $unit_status
 fi
 
+echo "Running e2e tests (real DB, ~45-50s)..."
 e2e_output=$(npx jest --config ./test/jest-e2e.json --coverageReporters=json --coverageReporters=text-summary 2>&1)
 e2e_status=$?
 if [ $e2e_status -ne 0 ]; then
