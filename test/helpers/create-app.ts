@@ -50,7 +50,7 @@ export async function createApp(): Promise<INestApplication> {
     .useValue(mockBillingWebhookHandler)
     .compile();
 
-  const app = module.createNestApplication();
+  const app = module.createNestApplication({ rawBody: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   await app.init();
   return app;
