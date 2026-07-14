@@ -132,6 +132,10 @@ describe('Billing (e2e)', () => {
       };
       const { payload, header } = signedPayload(event);
 
+      // Must send `payload` as a raw string, not `event` or `Buffer.from(payload)` —
+      // the signature was computed over these exact bytes, and superagent
+      // JSON.stringifies a Buffer body under a JSON content-type, corrupting it
+      // before the server's HMAC check ever sees it.
       const res = await request(app.getHttpServer())
         .post('/billing/webhook')
         .set('stripe-signature', header)
