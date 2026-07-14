@@ -54,6 +54,21 @@ export async function createApp(): Promise<INestApplication> {
 
   const app = module.createNestApplication({ rawBody: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  // Each e2e spec file boots its own app on its own ephemeral port in the
+  // same Jest worker process. Without this, a keep-alive socket left open
+  // by supertest against one app can occasionally get reused against the
+  // next app's port, producing a client-side "Parse Error: Expected HTTP/,
+  // RTSP/ or ICE/" — force every response to close its connection instead.
+  app.use(
+    (
+      _req: unknown,
+      res: { set: (k: string, v: string) => void },
+      next: () => void,
+    ) => {
+      res.set('Connection', 'close');
+      next();
+    },
+  );
   await app.init();
   return app;
 }

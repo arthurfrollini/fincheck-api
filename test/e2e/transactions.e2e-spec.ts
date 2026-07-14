@@ -25,7 +25,12 @@ describe('Transactions (e2e)', () => {
     const baRes = await request(app.getHttpServer())
       .post('/bank-accounts')
       .set('Authorization', `Bearer ${accessToken}`)
-      .send({ name: 'Nubank', initialBalance: 0, color: '#000', type: 'CHECKING' });
+      .send({
+        name: 'Nubank',
+        initialBalance: 0,
+        color: '#000',
+        type: 'CHECKING',
+      });
     bankAccountId = baRes.body.id;
 
     const catRes = await request(app.getHttpServer())

@@ -73,7 +73,9 @@ describe('Users (e2e)', () => {
         .send({ newEmail: uniqueEmail('new') });
 
       expect(res.status).toBe(204);
-      expect(mockMailService.sendEmailChangeConfirmation).toHaveBeenCalledTimes(1);
+      expect(mockMailService.sendEmailChangeConfirmation).toHaveBeenCalledTimes(
+        1,
+      );
     });
 
     it('returns 409 if new email already in use', async () => {
@@ -100,7 +102,9 @@ describe('Users (e2e)', () => {
       expect(patchRes.status).toBe(204);
 
       const prisma = app.get(PrismaService);
-      const user = await prisma.user.findFirst({ where: { pendingEmail: newEmail } });
+      const user = await prisma.user.findFirst({
+        where: { pendingEmail: newEmail },
+      });
 
       expect(user).not.toBeNull();
 
