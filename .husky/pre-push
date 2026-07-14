@@ -1,1 +1,21 @@
-npm run lint && npx tsc --noEmit && npx prettier --check "src/**/*.ts" "test/**/*.ts" && npm test
+if ! npm run lint; then
+  echo '❌ ESLint check failed. Fix the issues above and try again.'
+  exit 1
+fi
+
+if ! npx tsc --noEmit; then
+  echo '❌ Type check failed. Fix the errors above and try again.'
+  exit 1
+fi
+
+if ! npx prettier --check "src/**/*.ts" "test/**/*.ts"; then
+  echo '❌ Prettier check failed. Run "npm run format" and try again.'
+  exit 1
+fi
+
+if ! npm test; then
+  echo '❌ Tests failed. Fix the failing tests and try again.'
+  exit 1
+fi
+
+echo '✅ All checks passed.'
