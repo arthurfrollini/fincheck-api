@@ -14,6 +14,7 @@
     "^@modules/(.*)$": "<rootDir>/src/modules/$1"
   },
   "globalSetup": "<rootDir>/test/global-setup.ts",
+  "maxWorkers": 1,
   "collectCoverage": true,
   "coverageDirectory": "<rootDir>/coverage-e2e",
   "collectCoverageFrom": [
