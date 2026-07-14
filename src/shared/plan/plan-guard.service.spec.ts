@@ -114,7 +114,9 @@ describe('PlanGuardService', () => {
       prisma.transaction.count.mockResolvedValue(30);
 
       const svc = new PlanGuardService(prisma as any);
-      await expect(svc.validateDailyTransactionLimit('u1')).resolves.toBeUndefined();
+      await expect(
+        svc.validateDailyTransactionLimit('u1'),
+      ).resolves.toBeUndefined();
     });
 
     it('throws when at limit for FREE plan', async () => {
@@ -135,7 +137,9 @@ describe('PlanGuardService', () => {
       });
 
       const svc = new PlanGuardService(prisma as any);
-      await expect(svc.validateDailyTransactionLimit('u1')).resolves.toBeUndefined();
+      await expect(
+        svc.validateDailyTransactionLimit('u1'),
+      ).resolves.toBeUndefined();
       expect(prisma.transaction.count).toHaveBeenCalledTimes(0);
     });
   });
@@ -150,7 +154,9 @@ describe('PlanGuardService', () => {
       ]);
 
       const svc = new PlanGuardService(prisma as any);
-      await expect(svc.validateBankAccountIsActive('u1', 'a1')).resolves.toBeUndefined();
+      await expect(
+        svc.validateBankAccountIsActive('u1', 'a1'),
+      ).resolves.toBeUndefined();
     });
 
     it('throws when account id is not in active set', async () => {
@@ -172,7 +178,9 @@ describe('PlanGuardService', () => {
       prisma.user.findUnique.mockResolvedValue({ plan: 'PLATINUM' });
 
       const svc = new PlanGuardService(prisma as any);
-      await expect(svc.validateBankAccountIsActive('u1', 'any-id')).resolves.toBeUndefined();
+      await expect(
+        svc.validateBankAccountIsActive('u1', 'any-id'),
+      ).resolves.toBeUndefined();
       expect(prisma.bankAccount.findMany).toHaveBeenCalledTimes(0);
     });
   });
