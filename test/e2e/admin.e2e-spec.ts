@@ -38,7 +38,7 @@ describe('Admin routes (e2e)', () => {
 
     return {
       accessToken: signinRes.body.accessToken as string,
-      userId: user.id as string,
+      userId: user.id,
     };
   }
 
@@ -52,9 +52,7 @@ describe('Admin routes (e2e)', () => {
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.some((u: { id: string }) => u.id === userId)).toBe(
-        true,
-      );
+      expect(res.body.some((u: { id: string }) => u.id === userId)).toBe(true);
     });
 
     it('non-admin token returns 403', async () => {
@@ -178,9 +176,9 @@ describe('Admin routes (e2e)', () => {
         .get('/users')
         .set('Authorization', `Bearer ${accessToken}`);
 
-      expect(
-        listRes.body.some((u: { id: string }) => u.id === target.id),
-      ).toBe(false);
+      expect(listRes.body.some((u: { id: string }) => u.id === target.id)).toBe(
+        false,
+      );
     });
 
     it('admin token with unknown id returns 404', async () => {
