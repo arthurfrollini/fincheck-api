@@ -1,6 +1,11 @@
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
-import { createApp, mockBillingService } from '../helpers/create-app';
+import Stripe from 'stripe';
+import {
+  createApp,
+  mockBillingService,
+  mockBillingWebhookHandler,
+} from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
 
@@ -85,6 +90,57 @@ describe('Billing (e2e)', () => {
 
       expect(res.status).toBe(204);
       expect(mockBillingService.cancelSubscription).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('POST /billing/webhook', () => {
+    const stripe = new Stripe('sk_test_fake');
+    const secret = 'whsec_fake'; // matches .env.test STRIPE_WEBHOOK_SECRET
+
+    function signedPayload(event: Record<string, unknown>) {
+      const payload = JSON.stringify(event);
+      const header = stripe.webhooks.generateTestHeaderString({
+        payload,
+        secret,
+      });
+      return { payload, header };
+    }
+
+    it('returns 401 without stripe-signature header', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/billing/webhook')
+        .send({ type: 'test' });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 401 with an invalid signature', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/billing/webhook')
+        .set('stripe-signature', 'not-a-real-signature')
+        .send({ type: 'test' });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 200 and calls the webhook handler with a valid signature', async () => {
+      const event = {
+        id: 'evt_test',
+        object: 'event',
+        type: 'customer.subscription.deleted',
+        data: { object: {} },
+      };
+      const { payload, header } = signedPayload(event);
+
+      const res = await request(app.getHttpServer())
+        .post('/billing/webhook')
+        .set('stripe-signature', header)
+        .set('Content-Type', 'application/json')
+        .send(payload);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ received: true });
+      expect(mockBillingWebhookHandler.handle).toHaveBeenCalledTimes(1);
     });
   });
 });
