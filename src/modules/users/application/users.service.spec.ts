@@ -20,6 +20,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { hash } from 'bcryptjs';
 import { UsersService } from './users.service';
 import { UsersRepository } from '../domain/repositories/users.repository';
 import { MailService } from '@shared/mail/mail.service';
@@ -52,6 +53,7 @@ describe('UsersService', () => {
     findMany: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
+    delete: jest.Mock;
   }>;
   let mockMailService: { sendEmailChangeConfirmation: jest.Mock };
 
@@ -63,6 +65,7 @@ describe('UsersService', () => {
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
 
     mockMailService = { sendEmailChangeConfirmation: jest.fn() };
@@ -118,6 +121,7 @@ describe('UsersService', () => {
 
       const result = await service.listAll();
 
+      expect(mockUsersRepository.findMany).toHaveBeenCalled();
       expect(result).toEqual([
         {
           id: 'user-1',
@@ -145,13 +149,16 @@ describe('UsersService', () => {
       const created = makeUser({ id: 'user-2', email: 'new@example.com' });
       mockUsersRepository.create.mockResolvedValue(created);
 
-      const result = await service.createByAdmin({
+      const dto = {
         name: 'New User',
         email: 'new@example.com',
         password: 'plaintext-password',
         role: Role.USER,
-      });
+      };
 
+      const result = await service.createByAdmin(dto);
+
+      expect(hash).toHaveBeenCalledWith('plaintext-password', 12);
       expect(mockUsersRepository.create).toHaveBeenCalledWith({
         name: 'New User',
         email: 'new@example.com',
@@ -237,6 +244,24 @@ describe('UsersService', () => {
         plan: updated.plan,
         avatarUrl: updated.avatarUrl,
       });
+    });
+  });
+
+  describe('delete', () => {
+    it('throws NotFoundException when user not found', async () => {
+      mockUsersRepository.findById.mockResolvedValue(null);
+
+      await expect(service.delete('user-1')).rejects.toThrow(NotFoundException);
+      expect(mockUsersRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('calls usersRepository.delete on success', async () => {
+      mockUsersRepository.findById.mockResolvedValue(makeUser());
+      mockUsersRepository.delete.mockResolvedValue(undefined);
+
+      await service.delete('user-1');
+
+      expect(mockUsersRepository.delete).toHaveBeenCalledWith('user-1');
     });
   });
 

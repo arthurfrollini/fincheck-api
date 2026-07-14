@@ -10,7 +10,7 @@ REST API for a personal finance management app. Users track bank accounts and tr
 - **Email:** Resend (welcome, email change confirmation, billing notifications)
 - **Storage:** AWS S3 (avatar upload via presigned URL)
 - **Billing:** Stripe (subscriptions, webhooks, dunning)
-- **Tests:** Jest 30 (72 unit tests, all services mocked)
+- **Tests:** Jest 30 + Supertest — 117 unit + 61 e2e tests, 97%+ combined coverage
 
 ## Architecture
 
@@ -116,12 +116,22 @@ STRIPE_PRICE_PLATINUM=
 
 ## Tests
 
+Two independent suites, kept deliberately separate — each covers a different architectural layer, so either report in isolation is misleading. "Coverage" only means something combined.
+
+- **Unit** (`test:unit`) — Jest, testing the `application`/`domain` layer in isolation. Dependencies mocked with Jest's own `jest.fn()`/`jest.mock()` — no Sinon, no ts-mockito, no separate mocking library. 117 tests.
+- **E2E** (`test:e2e`) — Jest + Supertest, booting the real `AppModule` against a dedicated `fincheck_test` Postgres database (`PrismaService` is never mocked). Only `MailService`, `StorageService`, `BillingService`, and the Stripe webhook handler are replaced with mocks — everything else runs for real, including Stripe webhook signature verification (via `stripe.webhooks.generateTestHeaderString`, pure local HMAC, no network call). 61 tests across 7 spec files: auth, users, admin routes, bank-accounts, categories, transactions, billing.
+- No browser/UI E2E — no Playwright, no Cypress. This is an API-only project; the HTTP layer is tested directly with Supertest, no browser needed.
+
 ```bash
-npm test                   # run all 72 unit tests
-npm test -- --verbose      # with test names
+npm run test:unit     # unit only, ~2s
+npm run test:e2e      # e2e only, real DB, ~50s
+npm test              # both, merged coverage report — the number that matters
 ```
+
+`npm test` runs both suites and merges their coverage via `nyc`, since neither suite's own report reflects real coverage alone — unit only touches `application`/`domain`, e2e only touches `infra`/`http` (plus whatever it deliberately mocks). Combined: **97%+ statements**.
+
+E2E requires Docker running (`docker compose up -d`, which provisions both the `fincheck` and `fincheck_test` databases) and a local `.env.test` file (same shape as `.env`, fake credentials for Resend/AWS/Stripe/Google — gitignored, never used for a real network call).
 
 ## Git Hooks (Husky)
 
-- **pre-commit:** `prettier --write` auto-formats staged files
-- **pre-push:** `eslint + tsc --noEmit + prettier --check + npm test` — blocks push on any failure
+- **pre-push:** `eslint + tsc --noEmit + prettier --check (src/ and test/) + npm test` — blocks push on any failure
