@@ -112,25 +112,46 @@ describe('UsersService', () => {
   });
 
   describe('listAll', () => {
-    it('returns result of usersRepository.findMany', async () => {
-      const users = [makeUser(), makeUser({ id: 'user-2' })];
+    it('returns users without password or other sensitive fields', async () => {
+      const users = [
+        makeUser({ id: 'user-1' }),
+        makeUser({ id: 'user-2', email: 'other@example.com' }),
+      ];
       mockUsersRepository.findMany.mockResolvedValue(users);
 
       const result = await service.listAll();
 
       expect(mockUsersRepository.findMany).toHaveBeenCalled();
-      expect(result).toBe(users);
+      expect(result).toEqual([
+        {
+          id: 'user-1',
+          name: users[0].name,
+          email: users[0].email,
+          role: users[0].role,
+          plan: users[0].plan,
+          avatarUrl: users[0].avatarUrl,
+        },
+        {
+          id: 'user-2',
+          name: users[1].name,
+          email: users[1].email,
+          role: users[1].role,
+          plan: users[1].plan,
+          avatarUrl: users[1].avatarUrl,
+        },
+      ]);
+      result.forEach((user) => expect(user).not.toHaveProperty('password'));
     });
   });
 
   describe('createByAdmin', () => {
-    it('hashes the password before creating the user', async () => {
-      const created = makeUser({ password: 'hashed-password' });
+    it('hashes the password and returns the created user without it', async () => {
+      const created = makeUser({ id: 'user-2', email: 'new@example.com' });
       mockUsersRepository.create.mockResolvedValue(created);
 
       const dto = {
-        name: 'Arthur',
-        email: 'arthur@example.com',
+        name: 'New User',
+        email: 'new@example.com',
         password: 'plaintext-password',
         role: Role.USER,
       };
@@ -139,14 +160,59 @@ describe('UsersService', () => {
 
       expect(hash).toHaveBeenCalledWith('plaintext-password', 12);
       expect(mockUsersRepository.create).toHaveBeenCalledWith({
-        name: 'Arthur',
-        email: 'arthur@example.com',
+        name: 'New User',
+        email: 'new@example.com',
         password: 'hashed-password',
         role: Role.USER,
       });
-      const createCallArg = mockUsersRepository.create.mock.calls[0][0];
-      expect(createCallArg.password).not.toBe('plaintext-password');
-      expect(result).toBe(created);
+      expect(result).toEqual({
+        id: created.id,
+        name: created.name,
+        email: created.email,
+        role: created.role,
+        plan: created.plan,
+        avatarUrl: created.avatarUrl,
+      });
+      expect(result).not.toHaveProperty('password');
+    });
+  });
+
+  describe('update', () => {
+    it('throws NotFoundException when user not found', async () => {
+      mockUsersRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.update('user-1', { name: 'New Name' }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockUsersRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('returns updated user fields without password on success', async () => {
+      const user = makeUser();
+      const updated = makeUser({ name: 'Updated Name', role: Role.USER });
+      mockUsersRepository.findById.mockResolvedValue(user);
+      mockUsersRepository.update.mockResolvedValue(updated);
+
+      const result = await service.update('user-1', {
+        name: 'Updated Name',
+        email: 'updated@example.com',
+        role: Role.USER,
+      });
+
+      expect(mockUsersRepository.update).toHaveBeenCalledWith('user-1', {
+        name: 'Updated Name',
+        email: 'updated@example.com',
+        role: Role.USER,
+      });
+      expect(result).toEqual({
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        role: updated.role,
+        plan: updated.plan,
+        avatarUrl: updated.avatarUrl,
+      });
+      expect(result).not.toHaveProperty('password');
     });
   });
 
@@ -178,37 +244,6 @@ describe('UsersService', () => {
         plan: updated.plan,
         avatarUrl: updated.avatarUrl,
       });
-    });
-  });
-
-  describe('update', () => {
-    it('throws NotFoundException when user not found', async () => {
-      mockUsersRepository.findById.mockResolvedValue(null);
-
-      await expect(
-        service.update('user-1', { name: 'New Name' }),
-      ).rejects.toThrow(NotFoundException);
-      expect(mockUsersRepository.update).not.toHaveBeenCalled();
-    });
-
-    it('calls usersRepository.update with name, email and role on success', async () => {
-      const user = makeUser();
-      const updated = makeUser({ name: 'New Name', role: Role.ADMINISTRATOR });
-      mockUsersRepository.findById.mockResolvedValue(user);
-      mockUsersRepository.update.mockResolvedValue(updated);
-
-      const result = await service.update('user-1', {
-        name: 'New Name',
-        email: 'new@example.com',
-        role: Role.ADMINISTRATOR,
-      });
-
-      expect(mockUsersRepository.update).toHaveBeenCalledWith('user-1', {
-        name: 'New Name',
-        email: 'new@example.com',
-        role: Role.ADMINISTRATOR,
-      });
-      expect(result).toBe(updated);
     });
   });
 

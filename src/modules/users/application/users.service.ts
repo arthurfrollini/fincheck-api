@@ -11,6 +11,7 @@ import { MailService } from '@shared/mail/mail.service';
 import { StorageService } from '@shared/storage/storage.service';
 import { CreateUserDto } from '../infra/http/dto/create-user.dto';
 import { UpdateUserDto } from '../infra/http/dto/update-user.dto';
+import { type UserEntity } from '../entities/User';
 
 @Injectable()
 export class UsersService {
@@ -36,19 +37,32 @@ export class UsersService {
     return this.storageService.generateUploadUrl(userId, ext);
   }
 
-  listAll() {
-    return this.usersRepository.findMany();
+  private toAdminSafeUser(user: UserEntity) {
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      plan: user.plan,
+      avatarUrl: user.avatarUrl,
+    };
+  }
+
+  async listAll() {
+    const users = await this.usersRepository.findMany();
+    return users.map((user) => this.toAdminSafeUser(user));
   }
 
   async createByAdmin(createUserDto: CreateUserDto) {
     const { name, email, password, role } = createUserDto;
     const encryptedPassword = await hash(password, 12);
-    return this.usersRepository.create({
+    const created = await this.usersRepository.create({
       name,
       email,
       password: encryptedPassword,
       role,
     });
+    return this.toAdminSafeUser(created);
   }
 
   async updateMe(userId: string, dto: { name?: string; avatarUrl?: string }) {
@@ -71,7 +85,12 @@ export class UsersService {
     const { name, email, role } = updateUserDto;
     const user = await this.usersRepository.findById(userId);
     if (!user) throw new NotFoundException('User not found.');
-    return this.usersRepository.update(userId, { name, email, role });
+    const updated = await this.usersRepository.update(userId, {
+      name,
+      email,
+      role,
+    });
+    return this.toAdminSafeUser(updated);
   }
 
   async delete(userId: string) {
