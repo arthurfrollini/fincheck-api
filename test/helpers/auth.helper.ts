@@ -32,5 +32,8 @@ export async function signUpAndGetTokens(
     .post('/auth/signin')
     .send({ email, password });
 
-  return { accessToken: res.body.accessToken, refreshToken: res.body.refreshToken };
+  return {
+    accessToken: res.body.accessToken,
+    refreshToken: res.body.refreshToken,
+  };
 }

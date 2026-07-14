@@ -25,7 +25,12 @@ describe('BankAccounts (e2e)', () => {
     request(app.getHttpServer())
       .post('/bank-accounts')
       .set('Authorization', `Bearer ${token}`)
-      .send({ name: 'Nubank', initialBalance: 1000, color: '#000000', type: 'CHECKING' });
+      .send({
+        name: 'Nubank',
+        initialBalance: 1000,
+        color: '#000000',
+        type: 'CHECKING',
+      });
 
   describe('POST /bank-accounts', () => {
     it('creates bank account and returns 201', async () => {
@@ -38,7 +43,12 @@ describe('BankAccounts (e2e)', () => {
     it('returns 401 without token', async () => {
       const res = await request(app.getHttpServer())
         .post('/bank-accounts')
-        .send({ name: 'Nubank', initialBalance: 0, color: '#000', type: 'CHECKING' });
+        .send({
+          name: 'Nubank',
+          initialBalance: 0,
+          color: '#000',
+          type: 'CHECKING',
+        });
       expect(res.status).toBe(401);
     });
   });
@@ -76,7 +86,12 @@ describe('BankAccounts (e2e)', () => {
       const res = await request(app.getHttpServer())
         .put(`/bank-accounts/${id}`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'Updated', initialBalance: 500, color: '#ffffff', type: 'INVESTMENT' });
+        .send({
+          name: 'Updated',
+          initialBalance: 500,
+          color: '#ffffff',
+          type: 'INVESTMENT',
+        });
 
       expect(res.status).toBe(200);
       expect(res.body.name).toBe('Updated');
@@ -90,7 +105,12 @@ describe('BankAccounts (e2e)', () => {
       const res = await request(app.getHttpServer())
         .put(`/bank-accounts/${id}`)
         .set('Authorization', `Bearer ${otherToken}`)
-        .send({ name: 'Hack', initialBalance: 0, color: '#000', type: 'CHECKING' });
+        .send({
+          name: 'Hack',
+          initialBalance: 0,
+          color: '#000',
+          type: 'CHECKING',
+        });
 
       expect(res.status).toBe(404);
     });

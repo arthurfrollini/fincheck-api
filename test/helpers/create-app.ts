@@ -25,7 +25,9 @@ export const mockStorageService = {
 };
 
 export const mockBillingService = {
-  createSetupIntent: jest.fn().mockResolvedValue({ clientSecret: 'seti_fake_secret' }),
+  createSetupIntent: jest
+    .fn()
+    .mockResolvedValue({ clientSecret: 'seti_fake_secret' }),
   createSubscription: jest.fn().mockResolvedValue(undefined),
   changePlan: jest.fn().mockResolvedValue(undefined),
   cancelSubscription: jest.fn().mockResolvedValue(undefined),
