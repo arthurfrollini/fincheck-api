@@ -1,5 +1,9 @@
 jest.mock('uuid', () => ({ v4: jest.fn().mockReturnValue('test-uuid') }));
 
+jest.mock('bcryptjs', () => ({
+  hash: jest.fn().mockResolvedValue('hashed-password'),
+}));
+
 jest.mock('@shared/config/env', () => ({
   env: {
     jwtSecret: 'test',
@@ -16,6 +20,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { hash } from 'bcryptjs';
 import { UsersService } from './users.service';
 import { UsersRepository } from '../domain/repositories/users.repository';
 import { MailService } from '@shared/mail/mail.service';
@@ -45,7 +50,10 @@ describe('UsersService', () => {
     findById: jest.Mock;
     findByEmail: jest.Mock;
     findByEmailToken: jest.Mock;
+    findMany: jest.Mock;
+    create: jest.Mock;
     update: jest.Mock;
+    delete: jest.Mock;
   }>;
   let mockMailService: { sendEmailChangeConfirmation: jest.Mock };
 
@@ -54,7 +62,10 @@ describe('UsersService', () => {
       findById: jest.fn(),
       findByEmail: jest.fn(),
       findByEmailToken: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
 
     mockMailService = { sendEmailChangeConfirmation: jest.fn() };
@@ -100,6 +111,45 @@ describe('UsersService', () => {
     });
   });
 
+  describe('listAll', () => {
+    it('returns result of usersRepository.findMany', async () => {
+      const users = [makeUser(), makeUser({ id: 'user-2' })];
+      mockUsersRepository.findMany.mockResolvedValue(users);
+
+      const result = await service.listAll();
+
+      expect(mockUsersRepository.findMany).toHaveBeenCalled();
+      expect(result).toBe(users);
+    });
+  });
+
+  describe('createByAdmin', () => {
+    it('hashes the password before creating the user', async () => {
+      const created = makeUser({ password: 'hashed-password' });
+      mockUsersRepository.create.mockResolvedValue(created);
+
+      const dto = {
+        name: 'Arthur',
+        email: 'arthur@example.com',
+        password: 'plaintext-password',
+        role: Role.USER,
+      };
+
+      const result = await service.createByAdmin(dto);
+
+      expect(hash).toHaveBeenCalledWith('plaintext-password', 12);
+      expect(mockUsersRepository.create).toHaveBeenCalledWith({
+        name: 'Arthur',
+        email: 'arthur@example.com',
+        password: 'hashed-password',
+        role: Role.USER,
+      });
+      const createCallArg = mockUsersRepository.create.mock.calls[0][0];
+      expect(createCallArg.password).not.toBe('plaintext-password');
+      expect(result).toBe(created);
+    });
+  });
+
   describe('updateMe', () => {
     it('throws NotFoundException when user not found', async () => {
       mockUsersRepository.findById.mockResolvedValue(null);
@@ -128,6 +178,55 @@ describe('UsersService', () => {
         plan: updated.plan,
         avatarUrl: updated.avatarUrl,
       });
+    });
+  });
+
+  describe('update', () => {
+    it('throws NotFoundException when user not found', async () => {
+      mockUsersRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.update('user-1', { name: 'New Name' }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockUsersRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('calls usersRepository.update with name, email and role on success', async () => {
+      const user = makeUser();
+      const updated = makeUser({ name: 'New Name', role: Role.ADMINISTRATOR });
+      mockUsersRepository.findById.mockResolvedValue(user);
+      mockUsersRepository.update.mockResolvedValue(updated);
+
+      const result = await service.update('user-1', {
+        name: 'New Name',
+        email: 'new@example.com',
+        role: Role.ADMINISTRATOR,
+      });
+
+      expect(mockUsersRepository.update).toHaveBeenCalledWith('user-1', {
+        name: 'New Name',
+        email: 'new@example.com',
+        role: Role.ADMINISTRATOR,
+      });
+      expect(result).toBe(updated);
+    });
+  });
+
+  describe('delete', () => {
+    it('throws NotFoundException when user not found', async () => {
+      mockUsersRepository.findById.mockResolvedValue(null);
+
+      await expect(service.delete('user-1')).rejects.toThrow(NotFoundException);
+      expect(mockUsersRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('calls usersRepository.delete on success', async () => {
+      mockUsersRepository.findById.mockResolvedValue(makeUser());
+      mockUsersRepository.delete.mockResolvedValue(undefined);
+
+      await service.delete('user-1');
+
+      expect(mockUsersRepository.delete).toHaveBeenCalledWith('user-1');
     });
   });
 
