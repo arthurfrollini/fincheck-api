@@ -92,5 +92,88 @@ describe('PlanGuardService', () => {
         expect.objectContaining({ take: 3 }),
       );
     });
+
+    it('returns isUnlimited for ADMINISTRATOR without querying accounts', async () => {
+      const prisma = makePrisma();
+      prisma.user.findUnique.mockResolvedValue({
+        plan: 'ADMINISTRATOR',
+      });
+
+      const svc = new PlanGuardService(prisma as any);
+      const result = await svc.getActiveAccountIds('u1');
+      expect(result.isUnlimited).toBe(true);
+      expect(result.ids.size).toBe(0);
+      expect(prisma.bankAccount.findMany).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  describe('validateDailyTransactionLimit', () => {
+    it('allows when under limit for FREE plan', async () => {
+      const prisma = makePrisma();
+      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.transaction.count.mockResolvedValue(30);
+
+      const svc = new PlanGuardService(prisma as any);
+      await expect(svc.validateDailyTransactionLimit('u1')).resolves.toBeUndefined();
+    });
+
+    it('throws when at limit for FREE plan', async () => {
+      const prisma = makePrisma();
+      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.transaction.count.mockResolvedValue(50);
+
+      const svc = new PlanGuardService(prisma as any);
+      await expect(svc.validateDailyTransactionLimit('u1')).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('never throws for ADMINISTRATOR plan', async () => {
+      const prisma = makePrisma();
+      prisma.user.findUnique.mockResolvedValue({
+        plan: 'ADMINISTRATOR',
+      });
+
+      const svc = new PlanGuardService(prisma as any);
+      await expect(svc.validateDailyTransactionLimit('u1')).resolves.toBeUndefined();
+      expect(prisma.transaction.count).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  describe('validateBankAccountIsActive', () => {
+    it('allows when account id is in active set', async () => {
+      const prisma = makePrisma();
+      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.bankAccount.findMany.mockResolvedValue([
+        { id: 'a1' },
+        { id: 'a2' },
+      ]);
+
+      const svc = new PlanGuardService(prisma as any);
+      await expect(svc.validateBankAccountIsActive('u1', 'a1')).resolves.toBeUndefined();
+    });
+
+    it('throws when account id is not in active set', async () => {
+      const prisma = makePrisma();
+      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.bankAccount.findMany.mockResolvedValue([
+        { id: 'a1' },
+        { id: 'a2' },
+      ]);
+
+      const svc = new PlanGuardService(prisma as any);
+      await expect(svc.validateBankAccountIsActive('u1', 'a3')).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('allows any account id when isUnlimited is true', async () => {
+      const prisma = makePrisma();
+      prisma.user.findUnique.mockResolvedValue({ plan: 'PLATINUM' });
+
+      const svc = new PlanGuardService(prisma as any);
+      await expect(svc.validateBankAccountIsActive('u1', 'any-id')).resolves.toBeUndefined();
+      expect(prisma.bankAccount.findMany).toHaveBeenCalledTimes(0);
+    });
   });
 });
