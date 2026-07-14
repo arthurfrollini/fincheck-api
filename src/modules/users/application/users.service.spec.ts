@@ -1,5 +1,9 @@
 jest.mock('uuid', () => ({ v4: jest.fn().mockReturnValue('test-uuid') }));
 
+jest.mock('bcryptjs', () => ({
+  hash: jest.fn().mockResolvedValue('hashed-password'),
+}));
+
 jest.mock('@shared/config/env', () => ({
   env: {
     jwtSecret: 'test',
@@ -45,6 +49,8 @@ describe('UsersService', () => {
     findById: jest.Mock;
     findByEmail: jest.Mock;
     findByEmailToken: jest.Mock;
+    findMany: jest.Mock;
+    create: jest.Mock;
     update: jest.Mock;
   }>;
   let mockMailService: { sendEmailChangeConfirmation: jest.Mock };
@@ -54,6 +60,8 @@ describe('UsersService', () => {
       findById: jest.fn(),
       findByEmail: jest.fn(),
       findByEmailToken: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
       update: jest.fn(),
     };
 
@@ -95,6 +103,107 @@ describe('UsersService', () => {
         role: user.role,
         plan: user.plan,
         avatarUrl: user.avatarUrl,
+      });
+      expect(result).not.toHaveProperty('password');
+    });
+  });
+
+  describe('listAll', () => {
+    it('returns users without password or other sensitive fields', async () => {
+      const users = [
+        makeUser({ id: 'user-1' }),
+        makeUser({ id: 'user-2', email: 'other@example.com' }),
+      ];
+      mockUsersRepository.findMany.mockResolvedValue(users);
+
+      const result = await service.listAll();
+
+      expect(result).toEqual([
+        {
+          id: 'user-1',
+          name: users[0].name,
+          email: users[0].email,
+          role: users[0].role,
+          plan: users[0].plan,
+          avatarUrl: users[0].avatarUrl,
+        },
+        {
+          id: 'user-2',
+          name: users[1].name,
+          email: users[1].email,
+          role: users[1].role,
+          plan: users[1].plan,
+          avatarUrl: users[1].avatarUrl,
+        },
+      ]);
+      result.forEach((user) => expect(user).not.toHaveProperty('password'));
+    });
+  });
+
+  describe('createByAdmin', () => {
+    it('hashes the password and returns the created user without it', async () => {
+      const created = makeUser({ id: 'user-2', email: 'new@example.com' });
+      mockUsersRepository.create.mockResolvedValue(created);
+
+      const result = await service.createByAdmin({
+        name: 'New User',
+        email: 'new@example.com',
+        password: 'plaintext-password',
+        role: Role.USER,
+      });
+
+      expect(mockUsersRepository.create).toHaveBeenCalledWith({
+        name: 'New User',
+        email: 'new@example.com',
+        password: 'hashed-password',
+        role: Role.USER,
+      });
+      expect(result).toEqual({
+        id: created.id,
+        name: created.name,
+        email: created.email,
+        role: created.role,
+        plan: created.plan,
+        avatarUrl: created.avatarUrl,
+      });
+      expect(result).not.toHaveProperty('password');
+    });
+  });
+
+  describe('update', () => {
+    it('throws NotFoundException when user not found', async () => {
+      mockUsersRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.update('user-1', { name: 'New Name' }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockUsersRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('returns updated user fields without password on success', async () => {
+      const user = makeUser();
+      const updated = makeUser({ name: 'Updated Name', role: Role.USER });
+      mockUsersRepository.findById.mockResolvedValue(user);
+      mockUsersRepository.update.mockResolvedValue(updated);
+
+      const result = await service.update('user-1', {
+        name: 'Updated Name',
+        email: 'updated@example.com',
+        role: Role.USER,
+      });
+
+      expect(mockUsersRepository.update).toHaveBeenCalledWith('user-1', {
+        name: 'Updated Name',
+        email: 'updated@example.com',
+        role: Role.USER,
+      });
+      expect(result).toEqual({
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        role: updated.role,
+        plan: updated.plan,
+        avatarUrl: updated.avatarUrl,
       });
       expect(result).not.toHaveProperty('password');
     });
