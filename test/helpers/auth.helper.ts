@@ -18,9 +18,15 @@ export async function signUpAndGetTokens(
   password = 'Test@1234',
   name = 'Test User',
 ): Promise<AuthTokens> {
-  await request(app.getHttpServer())
+  const signUpRes = await request(app.getHttpServer())
     .post('/auth/signup')
     .send({ name, email, password });
+
+  if (signUpRes.status !== 201) {
+    throw new Error(
+      `signUpAndGetTokens: /auth/signup failed with status ${signUpRes.status}. Body: ${JSON.stringify(signUpRes.body)}`,
+    );
+  }
 
   const res = await request(app.getHttpServer())
     .post('/auth/signin')
