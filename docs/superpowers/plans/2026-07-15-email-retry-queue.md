@@ -24,7 +24,7 @@
 **Files:**
 - Modify: `docker-compose.yml`
 - Modify: `src/shared/config/env.ts`
-- Modify: `.env.test`
+- Modify: `.env.test` (local-only, gitignored — do not commit)
 - Modify: `.env.example`
 
 **Interfaces:**
@@ -207,13 +207,13 @@ if (errors.length > 0) {
 
 - [ ] **Step 4: Add the new vars to `.env.test`**
 
-`.env.test` currently ends with:
+`.env.test` is gitignored (local-only, same as `.env` — never commit it, even though it only holds fake/test credentials). It currently ends with:
 
 ```
 STRIPE_PRICE_PLATINUM=price_platinum_fake
 ```
 
-Append:
+Append (edit the file on disk only — do not `git add` it, and never use `git add -f` to force past `.gitignore`):
 
 ```
 REDIS_HOST=localhost
@@ -255,7 +255,7 @@ Expected: same pass count as before this task (every unit spec that touches `env
 - [ ] **Step 8: Commit**
 
 ```bash
-git add docker-compose.yml src/shared/config/env.ts .env.test .env.example
+git add docker-compose.yml src/shared/config/env.ts .env.example
 git commit -m "chore: add Redis + RedisInsight to docker-compose, add REDIS_HOST/REDIS_PORT env vars"
 ```
 
