@@ -10,7 +10,12 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CategoriesService } from '@modules/categories/application/categories.service';
 import { ActiveUserId } from '@shared/decorators/active-user-id.decorator';
 import { CreateCategoryDto } from './dto/create-category.dto';

@@ -13,7 +13,13 @@ import {
   ParseIntPipe,
   ParseEnumPipe,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { TransactionsService } from '@modules/transactions/application/transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
@@ -30,8 +36,15 @@ export class TransactionsController {
   @ApiOperation({ summary: 'Create a transaction' })
   @ApiResponse({ status: 201, description: 'Created transaction' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
-  @ApiResponse({ status: 403, description: 'Plan daily transaction limit reached, or bank account is read-only on current plan' })
-  @ApiResponse({ status: 404, description: 'Bank account or category not found' })
+  @ApiResponse({
+    status: 403,
+    description:
+      'Plan daily transaction limit reached, or bank account is read-only on current plan',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Bank account or category not found',
+  })
   create(
     @ActiveUserId() userId: string,
     @Body() createTransactionDto: CreateTransactionDto,
@@ -40,7 +53,9 @@ export class TransactionsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List transactions for a given month/year, paginated' })
+  @ApiOperation({
+    summary: 'List transactions for a given month/year, paginated',
+  })
   @ApiQuery({ name: 'month', type: Number, example: 6 })
   @ApiQuery({ name: 'year', type: Number, example: 2026 })
   @ApiQuery({ name: 'bankAccountId', required: false, format: 'uuid' })
@@ -75,7 +90,10 @@ export class TransactionsController {
   @ApiOperation({ summary: 'Update a transaction' })
   @ApiResponse({ status: 200, description: 'Updated transaction' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
-  @ApiResponse({ status: 404, description: 'Transaction, bank account, or category not found' })
+  @ApiResponse({
+    status: 404,
+    description: 'Transaction, bank account, or category not found',
+  })
   update(
     @ActiveUserId() userId: string,
     @Param('transactionId', ParseUUIDPipe) transactionId: string,

@@ -28,7 +28,10 @@ export class CreateTransactionDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ description: 'Transaction value, must be positive', example: 100 })
+  @ApiProperty({
+    description: 'Transaction value, must be positive',
+    example: 100,
+  })
   @IsNumber()
   @IsNotEmpty()
   @IsPositive()

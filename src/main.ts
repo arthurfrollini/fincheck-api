@@ -35,7 +35,9 @@ async function bootstrap() {
 
   const port = 3000;
   await app.listen(port);
-  console.log(`INFO: API Reference available at http://localhost:${port}/reference`);
+  console.log(
+    `INFO: API Reference available at http://localhost:${port}/reference`,
+  );
 }
 
 void bootstrap();

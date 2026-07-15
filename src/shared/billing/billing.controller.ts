@@ -10,7 +10,13 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import Stripe from 'stripe';
-import { ApiBearerAuth, ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiExcludeEndpoint,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { BillingService } from './billing.service';
 import { BillingWebhookHandler } from './billing.webhook';
 import { ActiveUserId } from '@shared/decorators/active-user-id.decorator';
@@ -34,7 +40,10 @@ export class BillingController {
 
   @Post('setup')
   @ApiOperation({ summary: 'Create a Stripe SetupIntent for adding a card' })
-  @ApiResponse({ status: 201, description: 'Returns clientSecret for Stripe Elements' })
+  @ApiResponse({
+    status: 201,
+    description: 'Returns clientSecret for Stripe Elements',
+  })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   createSetupIntent(@ActiveUserId() userId: string) {
     return this.billingService.createSetupIntent(userId);
@@ -57,9 +66,15 @@ export class BillingController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Change the current subscription plan' })
   @ApiResponse({ status: 204, description: 'Plan changed' })
-  @ApiResponse({ status: 400, description: 'planId must be GOLD, PLATINUM or FREE' })
+  @ApiResponse({
+    status: 400,
+    description: 'planId must be GOLD, PLATINUM or FREE',
+  })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
-  changePlan(@ActiveUserId() userId: string, @Body() { planId }: ChangePlanDto) {
+  changePlan(
+    @ActiveUserId() userId: string,
+    @Body() { planId }: ChangePlanDto,
+  ) {
     return this.billingService.changePlan(userId, planId);
   }
 

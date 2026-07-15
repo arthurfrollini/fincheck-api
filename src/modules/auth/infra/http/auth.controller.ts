@@ -10,7 +10,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiExcludeEndpoint,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { isPublic } from '@shared/decorators/public.decorator';
 import { AuthService } from '../../application/auth.service';
 import { GoogleProfile } from './strategies/google.strategy';
@@ -26,7 +31,10 @@ export class AuthController {
 
   @Post('/signin')
   @ApiOperation({ summary: 'Sign in with email and password' })
-  @ApiResponse({ status: 201, description: 'Returns accessToken and refreshToken' })
+  @ApiResponse({
+    status: 201,
+    description: 'Returns accessToken and refreshToken',
+  })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   signin(@Body() signInDto: SignInDto) {
     return this.authService.signin(signInDto);
@@ -34,7 +42,10 @@ export class AuthController {
 
   @Post('/signup')
   @ApiOperation({ summary: 'Create a new account' })
-  @ApiResponse({ status: 201, description: 'Returns accessToken and refreshToken' })
+  @ApiResponse({
+    status: 201,
+    description: 'Returns accessToken and refreshToken',
+  })
   @ApiResponse({ status: 409, description: 'Email already in use' })
   signup(@Body() signUpDto: SignUpDto) {
     return this.authService.signup(signUpDto);
@@ -42,7 +53,10 @@ export class AuthController {
 
   @Post('/refresh')
   @ApiOperation({ summary: 'Exchange a refresh token for a new token pair' })
-  @ApiResponse({ status: 201, description: 'Returns a new accessToken and refreshToken' })
+  @ApiResponse({
+    status: 201,
+    description: 'Returns a new accessToken and refreshToken',
+  })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   refresh(@Body() { refreshToken }: RefreshTokenDto) {
     return this.authService.refresh(refreshToken);

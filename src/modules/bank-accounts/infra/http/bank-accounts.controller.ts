@@ -10,7 +10,12 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ActiveUserId } from '@shared/decorators/active-user-id.decorator';
 import { BankAccountsService } from '../../application/bank-accounts.service';
 import { CreateBankAccountDto } from './dto/create-bank-account.dto';
@@ -36,7 +41,10 @@ export class BankAccountsController {
 
   @Get()
   @ApiOperation({ summary: "List the current user's bank accounts" })
-  @ApiResponse({ status: 200, description: 'List of bank accounts with computed balance' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of bank accounts with computed balance',
+  })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   findAll(@ActiveUserId() userId: string) {
     return this.bankAccountsService.findAllByUserId(userId);
