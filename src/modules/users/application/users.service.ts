@@ -7,7 +7,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { hash } from 'bcryptjs';
 import { UsersRepository } from '../domain/repositories/users.repository';
-import { MailService } from '@shared/mail/mail.service';
+import { MailQueueService } from '@shared/mail/mail-queue.service';
 import { StorageService } from '@shared/storage/storage.service';
 import { CreateUserDto } from '../infra/http/dto/create-user.dto';
 import { UpdateUserDto } from '../infra/http/dto/update-user.dto';
@@ -17,7 +17,7 @@ import { type UserEntity } from '../entities/User';
 export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
-    private readonly mailService: MailService,
+    private readonly mailQueueService: MailQueueService,
     private readonly storageService: StorageService,
   ) {}
 
@@ -113,7 +113,7 @@ export class UsersService {
     });
 
     // TODO: trocar 'arthur.frollini@gmail.com' por user.email quando houver domínio verificado no Resend
-    await this.mailService.sendEmailChangeConfirmation(
+    await this.mailQueueService.queueEmailChangeConfirmation(
       'arthur.frollini@gmail.com',
       token,
     );

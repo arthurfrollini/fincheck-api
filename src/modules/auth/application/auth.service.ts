@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
 import { Plan } from '@modules/users/entities/User';
 import { BillingService } from '@shared/billing/billing.service';
-import { MailService } from '@shared/mail/mail.service';
+import { MailQueueService } from '@shared/mail/mail-queue.service';
 import { SignUpDto } from '../infra/http/dto/sign-up.dto';
 import { SignInDto } from '../infra/http/dto/sign-in.dto';
 import { RefreshTokensRepository } from '../domain/repositories/refresh-tokens.repository';
@@ -37,7 +37,7 @@ export class AuthService {
     private readonly usersRepository: UsersRepository,
     private readonly refreshTokensRepository: RefreshTokensRepository,
     private readonly jwtService: JwtService,
-    private readonly mailService: MailService,
+    private readonly mailQueueService: MailQueueService,
     private readonly billingService: BillingService,
   ) {}
 
@@ -90,7 +90,10 @@ export class AuthService {
     });
 
     // TODO: trocar 'arthur.frollini@gmail.com' por user.email quando houver domínio verificado no Resend
-    await this.mailService.sendWelcome('arthur.frollini@gmail.com', user.name);
+    await this.mailQueueService.queueWelcome(
+      'arthur.frollini@gmail.com',
+      user.name,
+    );
 
     if (plan !== Plan.FREE && paymentMethodId) {
       await this.billingService.createCustomerAndSubscribe(
@@ -151,7 +154,10 @@ export class AuthService {
         });
 
         // TODO: trocar 'arthur.frollini@gmail.com' por email quando houver domínio verificado no Resend
-        await this.mailService.sendWelcome('arthur.frollini@gmail.com', name);
+        await this.mailQueueService.queueWelcome(
+          'arthur.frollini@gmail.com',
+          name,
+        );
       }
     }
 

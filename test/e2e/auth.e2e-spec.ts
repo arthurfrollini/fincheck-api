@@ -1,10 +1,12 @@
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
-import { createApp } from '../helpers/create-app';
+import { createApp, mockMailService } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens, uniqueEmail } from '../helpers/auth.helper';
 import { PrismaService } from '../../src/shared/database/prisma.service';
 import { RefreshTokensRepository } from '../../src/modules/auth/domain/repositories/refresh-tokens.repository';
+import { cleanMailQueue, waitForLatestMailJob } from '../helpers/queue-helper';
+import { WELCOME_JOB_NAME } from '../../src/shared/mail/mail-job.types';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication;
@@ -19,6 +21,7 @@ describe('Auth (e2e)', () => {
 
   afterEach(async () => {
     await cleanDatabase(app);
+    await cleanMailQueue(app);
   });
 
   describe('POST /auth/signup', () => {
@@ -30,6 +33,23 @@ describe('Auth (e2e)', () => {
       expect(res.status).toBe(201);
       expect(res.body).toHaveProperty('accessToken');
       expect(res.body).toHaveProperty('refreshToken');
+    });
+
+    it('queues and delivers the welcome email asynchronously', async () => {
+      // Reset the mock so the assertion counts only this test's welcome job,
+      // not any welcome job the worker processed asynchronously from an
+      // earlier signup test in this suite.
+      mockMailService.sendWelcome.mockClear();
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/signup')
+        .send({ name: 'Arthur', email: uniqueEmail(), password: 'Test@1234' });
+
+      expect(res.status).toBe(201);
+
+      await waitForLatestMailJob(app, WELCOME_JOB_NAME);
+
+      expect(mockMailService.sendWelcome).toHaveBeenCalledTimes(1);
     });
 
     it('returns 409 on duplicate email', async () => {

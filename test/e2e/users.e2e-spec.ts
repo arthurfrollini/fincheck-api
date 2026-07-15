@@ -4,6 +4,8 @@ import { createApp, mockMailService } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens, uniqueEmail } from '../helpers/auth.helper';
 import { PrismaService } from '../../src/shared/database/prisma.service';
+import { cleanMailQueue, waitForLatestMailJob } from '../helpers/queue-helper';
+import { EMAIL_CHANGE_CONFIRMATION_JOB_NAME } from '../../src/shared/mail/mail-job.types';
 
 describe('Users (e2e)', () => {
   let app: INestApplication;
@@ -19,6 +21,7 @@ describe('Users (e2e)', () => {
 
   beforeEach(async () => {
     await cleanDatabase(app);
+    await cleanMailQueue(app);
     jest.clearAllMocks();
     ({ accessToken } = await signUpAndGetTokens(app));
   });
@@ -73,6 +76,9 @@ describe('Users (e2e)', () => {
         .send({ newEmail: uniqueEmail('new') });
 
       expect(res.status).toBe(204);
+
+      await waitForLatestMailJob(app, EMAIL_CHANGE_CONFIRMATION_JOB_NAME);
+
       expect(mockMailService.sendEmailChangeConfirmation).toHaveBeenCalledTimes(
         1,
       );

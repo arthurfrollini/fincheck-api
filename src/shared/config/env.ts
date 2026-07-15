@@ -17,6 +17,8 @@ class Env {
   @IsString() @IsNotEmpty() stripeWebhookSecret: string;
   @IsString() @IsNotEmpty() stripePriceGold: string;
   @IsString() @IsNotEmpty() stripePricePlatinum: string;
+  @IsString() @IsNotEmpty() redisHost: string;
+  @IsString() @IsNotEmpty() redisPort: string;
 }
 
 export const env: Env = plainToInstance(Env, {
@@ -35,6 +37,8 @@ export const env: Env = plainToInstance(Env, {
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
   stripePriceGold: process.env.STRIPE_PRICE_GOLD,
   stripePricePlatinum: process.env.STRIPE_PRICE_PLATINUM,
+  redisHost: process.env.REDIS_HOST,
+  redisPort: process.env.REDIS_PORT,
 });
 
 const errors = validateSync(env);

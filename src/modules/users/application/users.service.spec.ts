@@ -23,7 +23,7 @@ import {
 import { hash } from 'bcryptjs';
 import { UsersService } from './users.service';
 import { UsersRepository } from '../domain/repositories/users.repository';
-import { MailService } from '@shared/mail/mail.service';
+import { MailQueueService } from '@shared/mail/mail-queue.service';
 import { StorageService } from '@shared/storage/storage.service';
 import { Plan, Role, UserEntity } from '../entities/User';
 
@@ -55,7 +55,7 @@ describe('UsersService', () => {
     update: jest.Mock;
     delete: jest.Mock;
   }>;
-  let mockMailService: { sendEmailChangeConfirmation: jest.Mock };
+  let mockMailQueueService: { queueEmailChangeConfirmation: jest.Mock };
 
   beforeEach(async () => {
     mockUsersRepository = {
@@ -68,13 +68,13 @@ describe('UsersService', () => {
       delete: jest.fn(),
     };
 
-    mockMailService = { sendEmailChangeConfirmation: jest.fn() };
+    mockMailQueueService = { queueEmailChangeConfirmation: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
         { provide: UsersRepository, useValue: mockUsersRepository },
-        { provide: MailService, useValue: mockMailService },
+        { provide: MailQueueService, useValue: mockMailQueueService },
         {
           provide: StorageService,
           useValue: { generateUploadUrl: jest.fn() },
@@ -277,7 +277,9 @@ describe('UsersService', () => {
     it('calls usersRepository.update with token and pendingEmail', async () => {
       mockUsersRepository.findByEmail.mockResolvedValue(null);
       mockUsersRepository.update.mockResolvedValue(makeUser());
-      mockMailService.sendEmailChangeConfirmation.mockResolvedValue(undefined);
+      mockMailQueueService.queueEmailChangeConfirmation.mockResolvedValue(
+        undefined,
+      );
 
       await service.requestEmailChange('user-1', 'new@example.com');
 
@@ -294,14 +296,15 @@ describe('UsersService', () => {
     it('calls mailService.sendEmailChangeConfirmation with the token', async () => {
       mockUsersRepository.findByEmail.mockResolvedValue(null);
       mockUsersRepository.update.mockResolvedValue(makeUser());
-      mockMailService.sendEmailChangeConfirmation.mockResolvedValue(undefined);
+      mockMailQueueService.queueEmailChangeConfirmation.mockResolvedValue(
+        undefined,
+      );
 
       await service.requestEmailChange('user-1', 'new@example.com');
 
-      expect(mockMailService.sendEmailChangeConfirmation).toHaveBeenCalledWith(
-        expect.any(String),
-        'test-uuid',
-      );
+      expect(
+        mockMailQueueService.queueEmailChangeConfirmation,
+      ).toHaveBeenCalledWith(expect.any(String), 'test-uuid');
     });
   });
 
