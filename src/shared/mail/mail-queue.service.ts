@@ -18,7 +18,16 @@ export class MailQueueService {
     @InjectQueue(MAIL_QUEUE_NAME) private readonly mailQueue: Queue,
     @InjectPinoLogger(MailQueueService.name)
     private readonly logger: PinoLogger,
-  ) {}
+  ) {
+    // BullMQ's Queue re-emits underlying Redis connection errors (e.g.
+    // during close()/teardown races) as an 'error' event. Without a
+    // listener, Node treats it as an unhandled EventEmitter error and
+    // crashes the process — see
+    // https://docs.bullmq.io/guide/going-to-production#log-errors.
+    this.mailQueue.on('error', (err) => {
+      this.logger.error({ err }, 'Mail queue connection error');
+    });
+  }
 
   async queueWelcome(to: string, name: string): Promise<void> {
     await this.enqueue<WelcomeJobData>(WELCOME_JOB_NAME, { to, name });

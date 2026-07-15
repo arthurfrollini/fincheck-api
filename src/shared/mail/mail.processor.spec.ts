@@ -30,6 +30,7 @@ describe('MailProcessor', () => {
   let mockMailService: jest.Mocked<
     Pick<MailService, 'sendWelcome' | 'sendEmailChangeConfirmation'>
   >;
+  let mockLogger: { error: jest.Mock };
   let processor: MailProcessor;
 
   beforeEach(() => {
@@ -37,7 +38,11 @@ describe('MailProcessor', () => {
       sendWelcome: jest.fn().mockResolvedValue(undefined),
       sendEmailChangeConfirmation: jest.fn().mockResolvedValue(undefined),
     };
-    processor = new MailProcessor(mockMailService as unknown as MailService);
+    mockLogger = { error: jest.fn() };
+    processor = new MailProcessor(
+      mockMailService as unknown as MailService,
+      mockLogger as unknown as import('nestjs-pino').PinoLogger,
+    );
   });
 
   it('calls sendWelcome for a welcome job', async () => {

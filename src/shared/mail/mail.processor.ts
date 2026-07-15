@@ -1,5 +1,6 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { MailService } from './mail.service';
 import {
   MAIL_QUEUE_NAME,
@@ -12,6 +13,7 @@ import {
 } from './mail-job.types';
 
 @Processor(MAIL_QUEUE_NAME, {
+  drainDelay: 1,
   settings: {
     backoffStrategy: (attemptsMade: number, type?: string) => {
       if (type !== EMAIL_RETRY_BACKOFF_TYPE) {
@@ -27,8 +29,21 @@ export class MailProcessor extends WorkerHost {
     return Math.min(delay, EMAIL_RETRY_MAX_DELAY_MS);
   }
 
-  constructor(private readonly mailService: MailService) {
+  constructor(
+    private readonly mailService: MailService,
+    @InjectPinoLogger(MailProcessor.name)
+    private readonly logger: PinoLogger,
+  ) {
     super();
+  }
+
+  // BullMQ's Worker re-emits underlying Redis connection errors (e.g. during
+  // close()/teardown races) as an 'error' event. Without a listener, Node
+  // treats it as an unhandled EventEmitter error and crashes the process —
+  // see https://docs.bullmq.io/guide/going-to-production#log-errors.
+  @OnWorkerEvent('error')
+  onError(err: Error): void {
+    this.logger.error({ err }, 'Mail worker connection error');
   }
 
   async process(job: Job): Promise<void> {

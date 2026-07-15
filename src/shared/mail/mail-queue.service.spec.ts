@@ -9,12 +9,12 @@ import {
 } from './mail-job.types';
 
 describe('MailQueueService', () => {
-  let mockQueue: jest.Mocked<Pick<Queue, 'add'>>;
+  let mockQueue: jest.Mocked<Pick<Queue, 'add' | 'on'>>;
   let mockLogger: jest.Mocked<Pick<PinoLogger, 'error'>>;
   let service: MailQueueService;
 
   beforeEach(() => {
-    mockQueue = { add: jest.fn().mockResolvedValue(undefined) };
+    mockQueue = { add: jest.fn().mockResolvedValue(undefined), on: jest.fn() };
     mockLogger = { error: jest.fn() };
     service = new MailQueueService(
       mockQueue as unknown as Queue,
