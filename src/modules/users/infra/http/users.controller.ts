@@ -11,7 +11,12 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { IsAdministrator } from '@shared/decorators/roles.decorator';
 import { ActiveUserId } from '@shared/decorators/active-user-id.decorator';
 import { isPublic } from '@shared/decorators/public.decorator';
@@ -56,7 +61,9 @@ export class UsersController {
 
   @Patch('/me/email')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Request an email change — sends a confirmation link' })
+  @ApiOperation({
+    summary: 'Request an email change — sends a confirmation link',
+  })
   @ApiResponse({ status: 204, description: 'Confirmation email sent' })
   @ApiResponse({ status: 409, description: 'Email already in use' })
   requestEmailChange(
