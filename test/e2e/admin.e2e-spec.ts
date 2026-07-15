@@ -106,6 +106,33 @@ describe('Admin routes (e2e)', () => {
 
       expect(res.status).toBe(403);
     });
+
+    it('returns 409 when creating a user with an email that already exists', async () => {
+      const email = uniqueEmail('duplicate');
+      const { accessToken } = await signUpAdmin();
+
+      await request(app.getHttpServer())
+        .post('/users')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'First User',
+          email,
+          password: 'Test@1234',
+          role: 'USER',
+        });
+
+      const res = await request(app.getHttpServer())
+        .post('/users')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Second User',
+          email,
+          password: 'Test@1234',
+          role: 'USER',
+        });
+
+      expect(res.status).toBe(409);
+    });
   });
 
   describe('PATCH /users/:id', () => {
