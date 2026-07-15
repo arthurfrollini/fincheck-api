@@ -48,6 +48,7 @@ export class TransactionsController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Paginated transactions with meta' })
+  @ApiResponse({ status: 400, description: 'Invalid or missing month/year' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   findAll(
     @ActiveUserId() userId: string,
