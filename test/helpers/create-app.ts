@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
+import { Logger } from 'nestjs-pino';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { AppModule } from '../../src/app.module';
@@ -54,7 +55,11 @@ export async function createApp(): Promise<INestApplication> {
     .useValue(mockBillingWebhookHandler)
     .compile();
 
-  const app = module.createNestApplication({ rawBody: true });
+  const app = module.createNestApplication({
+    rawBody: true,
+    bufferLogs: true,
+  });
+  app.useLogger(app.get(Logger));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const config = new DocumentBuilder()
