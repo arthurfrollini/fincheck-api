@@ -28,7 +28,10 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Get()
-  @ApiOperation({ summary: "List the current user's categories" })
+  @ApiOperation({
+    summary: '/categories',
+    description: "List the current user's categories",
+  })
   @ApiResponse({ status: 200, description: 'List of categories' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   findAll(@ActiveUserId() userId: string) {
@@ -36,7 +39,7 @@ export class CategoriesController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a category' })
+  @ApiOperation({ summary: '/categories', description: 'Create a category' })
   @ApiResponse({ status: 201, description: 'Created category' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({ status: 403, description: 'Requires GOLD or PLATINUM plan' })
@@ -48,7 +51,7 @@ export class CategoriesController {
   }
 
   @Patch(':categoryId')
-  @ApiOperation({ summary: 'Update a category' })
+  @ApiOperation({ summary: '/:categoryId', description: 'Update a category' })
   @ApiResponse({ status: 200, description: 'Updated category' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({ status: 403, description: 'Requires GOLD or PLATINUM plan' })
@@ -63,7 +66,7 @@ export class CategoriesController {
 
   @Delete(':categoryId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a category' })
+  @ApiOperation({ summary: '/:categoryId', description: 'Delete a category' })
   @ApiResponse({ status: 204, description: 'Category deleted' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({ status: 403, description: 'Requires GOLD or PLATINUM plan' })

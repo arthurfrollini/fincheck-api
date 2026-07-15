@@ -39,7 +39,10 @@ export class BillingController {
   }
 
   @Post('setup')
-  @ApiOperation({ summary: 'Create a Stripe SetupIntent for adding a card' })
+  @ApiOperation({
+    summary: '/setup',
+    description: 'Create a Stripe SetupIntent for adding a card',
+  })
   @ApiResponse({
     status: 201,
     description: 'Returns clientSecret for Stripe Elements',
@@ -51,7 +54,10 @@ export class BillingController {
 
   @Post('subscribe')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Subscribe to a paid plan' })
+  @ApiOperation({
+    summary: '/subscribe',
+    description: 'Subscribe to a paid plan',
+  })
   @ApiResponse({ status: 204, description: 'Subscription created' })
   @ApiResponse({ status: 400, description: 'planId must be GOLD or PLATINUM' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
@@ -64,7 +70,10 @@ export class BillingController {
 
   @Post('change-plan')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Change the current subscription plan' })
+  @ApiOperation({
+    summary: '/change-plan',
+    description: 'Change the current subscription plan',
+  })
   @ApiResponse({ status: 204, description: 'Plan changed' })
   @ApiResponse({
     status: 400,
@@ -80,7 +89,10 @@ export class BillingController {
 
   @Post('cancel')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Cancel the current subscription at period end' })
+  @ApiOperation({
+    summary: '/cancel',
+    description: 'Cancel the current subscription at period end',
+  })
   @ApiResponse({ status: 204, description: 'Cancellation scheduled' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   cancelSubscription(@ActiveUserId() userId: string) {

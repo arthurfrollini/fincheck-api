@@ -33,7 +33,10 @@ export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a transaction' })
+  @ApiOperation({
+    summary: '/transactions',
+    description: 'Create a transaction',
+  })
   @ApiResponse({ status: 201, description: 'Created transaction' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({
@@ -54,7 +57,8 @@ export class TransactionsController {
 
   @Get()
   @ApiOperation({
-    summary: 'List transactions for a given month/year, paginated',
+    summary: '/transactions',
+    description: 'List transactions for a given month/year, paginated',
   })
   @ApiQuery({ name: 'month', type: Number, example: 6 })
   @ApiQuery({ name: 'year', type: Number, example: 2026 })
@@ -87,7 +91,10 @@ export class TransactionsController {
   }
 
   @Put(':transactionId')
-  @ApiOperation({ summary: 'Update a transaction' })
+  @ApiOperation({
+    summary: '/:transactionId',
+    description: 'Update a transaction',
+  })
   @ApiResponse({ status: 200, description: 'Updated transaction' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({
@@ -108,7 +115,10 @@ export class TransactionsController {
 
   @Delete(':transactionId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a transaction' })
+  @ApiOperation({
+    summary: '/:transactionId',
+    description: 'Delete a transaction',
+  })
   @ApiResponse({ status: 204, description: 'Transaction deleted' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({ status: 404, description: 'Transaction not found' })
