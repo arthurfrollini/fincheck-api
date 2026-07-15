@@ -90,9 +90,7 @@ describe('MailProcessor', () => {
       name: 'Arthur',
     });
 
-    await expect(processor.process(job)).rejects.toThrow(
-      'Resend unreachable',
-    );
+    await expect(processor.process(job)).rejects.toThrow('Resend unreachable');
   });
 
   describe('email-retry backoff strategy', () => {

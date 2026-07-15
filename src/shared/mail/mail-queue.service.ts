@@ -33,10 +33,7 @@ export class MailQueueService {
     await this.enqueue<WelcomeJobData>(WELCOME_JOB_NAME, { to, name });
   }
 
-  async queueEmailChangeConfirmation(
-    to: string,
-    token: string,
-  ): Promise<void> {
+  async queueEmailChangeConfirmation(to: string, token: string): Promise<void> {
     await this.enqueue<EmailChangeConfirmationJobData>(
       EMAIL_CHANGE_CONFIRMATION_JOB_NAME,
       { to, token },

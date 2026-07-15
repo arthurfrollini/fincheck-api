@@ -62,8 +62,6 @@ describe('MailQueueService', () => {
     ];
     expect(logPayload.jobName).toBe(WELCOME_JOB_NAME);
     expect(logPayload.err).toBeInstanceOf(Error);
-    expect(message).toBe(
-      'Failed to enqueue mail job — email will not be sent',
-    );
+    expect(message).toBe('Failed to enqueue mail job — email will not be sent');
   });
 });
