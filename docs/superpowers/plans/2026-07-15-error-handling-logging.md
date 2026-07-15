@@ -42,7 +42,7 @@ Add the import and provider — the file currently looks like this (read it firs
 
 ```ts
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { AuthGuard } from '@modules/auth/auth.guard';
 import { UsersModule } from '@modules/users/users.module';
@@ -80,7 +80,7 @@ import { BillingModule } from '@shared/billing/billing.module';
 export class AppModule {}
 ```
 
-Note: `APP_FILTER` is imported here already even though nothing uses it yet — Task 4 registers the filter in this same providers array, avoiding a second edit to this import line later.
+Note: do NOT import `APP_FILTER` yet — this repo's ESLint config (`@typescript-eslint/no-unused-vars`) fails the build on an unused import, so pre-importing it here (before Task 4 actually uses it) breaks `npm run lint`. Task 4 adds `APP_FILTER` to this same import line when it's actually used.
 
 - [ ] **Step 3: Update `src/main.ts`'s bootstrap to use the pino logger**
 
@@ -706,7 +706,7 @@ Expected: PASS, 4/4.
 
 - [ ] **Step 5: Register the filter in `src/app.module.ts`**
 
-Add `AllExceptionsFilter` to the providers array (the `APP_FILTER` import already landed in Task 1's edit):
+Add `AllExceptionsFilter` to the providers array, and add `APP_FILTER` back to the `@nestjs/core` import on this line (Task 1 deliberately did NOT pre-import it, to avoid an unused-import lint failure — this is the task that actually uses it):
 
 ```ts
 import { Module } from '@nestjs/common';
