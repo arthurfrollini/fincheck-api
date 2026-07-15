@@ -13,6 +13,10 @@ import {
 } from './mail-job.types';
 
 @Processor(MAIL_QUEUE_NAME, {
+  // Short idle poll interval (default 5s) so worker.close() during test
+  // teardown doesn't wait long for a blocking Redis read to return —
+  // reduces (though doesn't eliminate) a known BullMQ teardown race across
+  // e2e's per-file app boot/close cycle, see .superpowers/sdd/task-5-report.md.
   drainDelay: 1,
   settings: {
     backoffStrategy: (attemptsMade: number, type?: string) => {
