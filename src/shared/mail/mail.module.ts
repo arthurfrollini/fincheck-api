@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { env } from '@shared/config/env';
 import { MailService } from './mail.service';
 import { MailQueueService } from './mail-queue.service';
+import { MailProcessor } from './mail.processor';
 import { MAIL_QUEUE_NAME } from './mail-job.types';
 
 @Global()
@@ -15,7 +16,7 @@ import { MAIL_QUEUE_NAME } from './mail-job.types';
     }),
     BullModule.registerQueue({ name: MAIL_QUEUE_NAME }),
   ],
-  providers: [MailService, MailQueueService],
+  providers: [MailService, MailQueueService, MailProcessor],
   exports: [MailService, MailQueueService],
 })
 export class MailModule {}
