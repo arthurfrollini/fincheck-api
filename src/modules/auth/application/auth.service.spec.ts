@@ -32,7 +32,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { compare } from 'bcryptjs';
 import { BillingService } from '@shared/billing/billing.service';
-import { MailService } from '@shared/mail/mail.service';
+import { MailQueueService } from '@shared/mail/mail-queue.service';
 import { RefreshTokensRepository } from '@modules/auth/domain/repositories/refresh-tokens.repository';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
 import { Plan, Role } from '@modules/users/entities/User';
@@ -58,8 +58,8 @@ const mockJwtService = {
   signAsync: jest.fn(),
 };
 
-const mockMailService = {
-  sendWelcome: jest.fn(),
+const mockMailQueueService = {
+  queueWelcome: jest.fn(),
 };
 
 const mockBillingService = {
@@ -99,7 +99,7 @@ describe('AuthService', () => {
           useValue: mockRefreshTokensRepository,
         },
         { provide: JwtService, useValue: mockJwtService },
-        { provide: MailService, useValue: mockMailService },
+        { provide: MailQueueService, useValue: mockMailQueueService },
         { provide: BillingService, useValue: mockBillingService },
       ],
     }).compile();
@@ -192,7 +192,7 @@ describe('AuthService', () => {
       });
 
       expect(mockUsersRepository.create).toHaveBeenCalled();
-      expect(mockMailService.sendWelcome).toHaveBeenCalled();
+      expect(mockMailQueueService.queueWelcome).toHaveBeenCalled();
       expect(
         mockBillingService.createCustomerAndSubscribe,
       ).not.toHaveBeenCalled();
@@ -321,7 +321,7 @@ describe('AuthService', () => {
       const result = await service.googleAuth(profile);
 
       expect(mockUsersRepository.create).toHaveBeenCalled();
-      expect(mockMailService.sendWelcome).toHaveBeenCalled();
+      expect(mockMailQueueService.queueWelcome).toHaveBeenCalled();
       expect(result).toEqual({
         accessToken: 'access-token',
         refreshToken: 'test-uuid',
