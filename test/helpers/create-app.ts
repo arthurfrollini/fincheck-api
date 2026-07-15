@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { apiReference } from '@scalar/nestjs-api-reference';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { AppModule } from '../../src/app.module';
@@ -54,6 +56,24 @@ export async function createApp(): Promise<INestApplication> {
 
   const app = module.createNestApplication({ rawBody: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
+  const config = new DocumentBuilder()
+    .setTitle('Fincheck API')
+    .setDescription(
+      'REST API for a personal finance management app. Users track bank accounts and transactions, organized by category, with plan-based feature limits enforced via Stripe subscriptions.',
+    )
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+
+  SwaggerModule.setup('reference', app, document, {
+    jsonDocumentUrl: 'reference-json',
+    swaggerUiEnabled: false,
+  });
+
+  app.use('/reference', apiReference({ content: document }));
+
   // Each e2e spec file boots its own app on its own ephemeral port in the
   // same Jest worker process. Without this, a keep-alive socket left open
   // by supertest against one app can occasionally get reused against the

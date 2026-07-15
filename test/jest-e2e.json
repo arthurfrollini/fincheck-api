@@ -7,7 +7,7 @@
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "transformIgnorePatterns": [
-    "node_modules/(?!(uuid)/)"
+    "node_modules/(?!(uuid|@scalar)/)"
   ],
   "moduleNameMapper": {
     "^@shared/(.*)$": "<rootDir>/src/shared/$1",
