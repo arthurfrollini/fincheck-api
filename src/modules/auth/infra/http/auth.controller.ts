@@ -30,7 +30,10 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('/signin')
-  @ApiOperation({ summary: 'Sign in with email and password' })
+  @ApiOperation({
+    summary: '/signin',
+    description: 'Sign in with email and password',
+  })
   @ApiResponse({
     status: 201,
     description: 'Returns accessToken and refreshToken',
@@ -41,7 +44,7 @@ export class AuthController {
   }
 
   @Post('/signup')
-  @ApiOperation({ summary: 'Create a new account' })
+  @ApiOperation({ summary: '/signup', description: 'Create a new account' })
   @ApiResponse({
     status: 201,
     description: 'Returns accessToken and refreshToken',
@@ -52,7 +55,10 @@ export class AuthController {
   }
 
   @Post('/refresh')
-  @ApiOperation({ summary: 'Exchange a refresh token for a new token pair' })
+  @ApiOperation({
+    summary: '/refresh',
+    description: 'Exchange a refresh token for a new token pair',
+  })
   @ApiResponse({
     status: 201,
     description: 'Returns a new accessToken and refreshToken',
@@ -64,7 +70,10 @@ export class AuthController {
 
   @Post('/signout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Invalidate a refresh token' })
+  @ApiOperation({
+    summary: '/signout',
+    description: 'Invalidate a refresh token',
+  })
   @ApiResponse({ status: 204, description: 'Refresh token invalidated' })
   signout(@Body() { refreshToken }: RefreshTokenDto) {
     return this.authService.signout(refreshToken);

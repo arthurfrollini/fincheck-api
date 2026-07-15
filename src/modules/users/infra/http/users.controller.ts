@@ -33,7 +33,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('/me')
-  @ApiOperation({ summary: 'Get the current user profile' })
+  @ApiOperation({ summary: '/me', description: 'Get the current user profile' })
   @ApiResponse({ status: 200, description: 'Current user profile' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   me(@ActiveUserId() userId: string) {
@@ -41,7 +41,10 @@ export class UsersController {
   }
 
   @Get('/me/avatar-upload-url')
-  @ApiOperation({ summary: 'Get a presigned S3 URL to upload an avatar' })
+  @ApiOperation({
+    summary: '/me/avatar-upload-url',
+    description: 'Get a presigned S3 URL to upload an avatar',
+  })
   @ApiResponse({ status: 200, description: 'Returns uploadUrl and avatarUrl' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   getAvatarUploadUrl(
@@ -52,7 +55,10 @@ export class UsersController {
   }
 
   @Patch('/me')
-  @ApiOperation({ summary: "Update the current user's name/avatar" })
+  @ApiOperation({
+    summary: '/me',
+    description: "Update the current user's name/avatar",
+  })
   @ApiResponse({ status: 200, description: 'Updated user profile' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   updateMe(@ActiveUserId() userId: string, @Body() updateMeDto: UpdateMeDto) {
@@ -62,7 +68,8 @@ export class UsersController {
   @Patch('/me/email')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
-    summary: 'Request an email change — sends a confirmation link',
+    summary: '/me/email',
+    description: 'Request an email change — sends a confirmation link',
   })
   @ApiResponse({ status: 204, description: 'Confirmation email sent' })
   @ApiResponse({ status: 409, description: 'Email already in use' })
@@ -79,7 +86,10 @@ export class UsersController {
   @Get('/confirm-email')
   @isPublic()
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Confirm a pending email change via token' })
+  @ApiOperation({
+    summary: '/confirm-email',
+    description: 'Confirm a pending email change via token',
+  })
   @ApiResponse({ status: 204, description: 'Email changed' })
   @ApiResponse({ status: 400, description: 'Invalid or expired token' })
   confirmEmailChange(@Query('token') token: string) {
@@ -88,7 +98,7 @@ export class UsersController {
 
   @Get()
   @IsAdministrator()
-  @ApiOperation({ summary: '[Admin] List all users' })
+  @ApiOperation({ summary: '[Admin] /users', description: 'List all users' })
   @ApiResponse({ status: 200, description: 'List of users' })
   @ApiResponse({ status: 403, description: 'Requires ADMINISTRATOR role' })
   listAll() {
@@ -97,7 +107,10 @@ export class UsersController {
 
   @Post()
   @IsAdministrator()
-  @ApiOperation({ summary: '[Admin] Create a user directly' })
+  @ApiOperation({
+    summary: '[Admin] /users',
+    description: 'Create a user directly',
+  })
   @ApiResponse({ status: 201, description: 'Created user' })
   @ApiResponse({ status: 403, description: 'Requires ADMINISTRATOR role' })
   create(@Body() createUserDto: CreateUserDto) {
@@ -106,7 +119,10 @@ export class UsersController {
 
   @Patch(':id')
   @IsAdministrator()
-  @ApiOperation({ summary: '[Admin] Update any user by id' })
+  @ApiOperation({
+    summary: '[Admin] /users/:id',
+    description: 'Update any user by id',
+  })
   @ApiResponse({ status: 200, description: 'Updated user' })
   @ApiResponse({ status: 403, description: 'Requires ADMINISTRATOR role' })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -120,7 +136,10 @@ export class UsersController {
   @Delete(':id')
   @IsAdministrator()
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: '[Admin] Delete any user by id' })
+  @ApiOperation({
+    summary: '[Admin] /users/:id',
+    description: 'Delete any user by id',
+  })
   @ApiResponse({ status: 204, description: 'User deleted' })
   @ApiResponse({ status: 403, description: 'Requires ADMINISTRATOR role' })
   @ApiResponse({ status: 404, description: 'User not found' })

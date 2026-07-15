@@ -28,7 +28,10 @@ export class BankAccountsController {
   constructor(private readonly bankAccountsService: BankAccountsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a bank account' })
+  @ApiOperation({
+    summary: '/bank-accounts',
+    description: 'Create a bank account',
+  })
   @ApiResponse({ status: 201, description: 'Created bank account' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({ status: 403, description: 'Plan bank account limit reached' })
@@ -40,7 +43,10 @@ export class BankAccountsController {
   }
 
   @Get()
-  @ApiOperation({ summary: "List the current user's bank accounts" })
+  @ApiOperation({
+    summary: '/bank-accounts',
+    description: "List the current user's bank accounts",
+  })
   @ApiResponse({
     status: 200,
     description: 'List of bank accounts with computed balance',
@@ -51,7 +57,10 @@ export class BankAccountsController {
   }
 
   @Put(':bankAccountId')
-  @ApiOperation({ summary: 'Update a bank account' })
+  @ApiOperation({
+    summary: '/:bankAccountId',
+    description: 'Update a bank account',
+  })
   @ApiResponse({ status: 200, description: 'Updated bank account' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({ status: 404, description: 'Bank account not found' })
@@ -69,7 +78,10 @@ export class BankAccountsController {
 
   @Delete(':bankAccountId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a bank account' })
+  @ApiOperation({
+    summary: '/:bankAccountId',
+    description: 'Delete a bank account',
+  })
   @ApiResponse({ status: 204, description: 'Bank account deleted' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({ status: 404, description: 'Bank account not found' })
