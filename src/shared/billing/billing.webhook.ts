@@ -1,28 +1,58 @@
 import { Injectable } from '@nestjs/common';
 import Stripe from 'stripe';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
-import { MailService } from '@shared/mail/mail.service';
+import { MailQueueService } from '@shared/mail/mail-queue.service';
 import { Plan } from '@modules/users/entities/User';
 import { env } from '@shared/config/env';
+import { StripeEventsRepository } from './stripe-events.repository';
 
 @Injectable()
 export class BillingWebhookHandler {
   constructor(
     private readonly usersRepository: UsersRepository,
-    private readonly mailService: MailService,
+    private readonly mailQueueService: MailQueueService,
+    private readonly stripeEventsRepository: StripeEventsRepository,
+    @InjectPinoLogger(BillingWebhookHandler.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async handle(event: Stripe.Event): Promise<void> {
-    switch (event.type) {
-      case 'invoice.payment_succeeded':
-        await this.onInvoicePaymentSucceeded(event);
-        break;
-      case 'customer.subscription.deleted':
-        await this.onSubscriptionDeleted(event);
-        break;
-      case 'customer.subscription.updated':
-        await this.onSubscriptionUpdated(event);
-        break;
+    // Record-first: a concurrent duplicate delivery hits the unique
+    // constraint here and is skipped — no double-processing window.
+    const isNew = await this.stripeEventsRepository.register(
+      event.id,
+      event.type,
+    );
+    if (!isNew) return;
+
+    try {
+      switch (event.type) {
+        case 'invoice.payment_succeeded':
+          await this.onInvoicePaymentSucceeded(event);
+          break;
+        case 'customer.subscription.deleted':
+          await this.onSubscriptionDeleted(event);
+          break;
+        case 'customer.subscription.updated':
+          await this.onSubscriptionUpdated(event);
+          break;
+      }
+    } catch (err) {
+      // Compensation: a real processing failure must not burn the event —
+      // removing the record lets Stripe's retry reprocess from scratch.
+      // The unregister is itself guarded so its failure can never mask the
+      // original error; if it fails, the event stays registered (accepted
+      // residual risk — see the design spec's failure matrix).
+      try {
+        await this.stripeEventsRepository.unregister(event.id);
+      } catch (unregisterErr) {
+        this.logger.error(
+          { err: unregisterErr, eventId: event.id },
+          'Failed to unregister Stripe event after processing failure — event stays marked processed',
+        );
+      }
+      throw err;
     }
   }
 
@@ -52,7 +82,7 @@ export class BillingWebhookHandler {
     await this.usersRepository.update(user.id, { plan: newPlan });
 
     if (isDowngrade) {
-      await this.mailService.sendDowngradeNotification(
+      await this.mailQueueService.queueDowngradeNotification(
         user.email,
         user.name,
         newPlan,
@@ -72,7 +102,10 @@ export class BillingWebhookHandler {
       stripePriceId: null,
     });
 
-    await this.mailService.sendSubscriptionCancelled(user.email, user.name);
+    await this.mailQueueService.queueSubscriptionCancelled(
+      user.email,
+      user.name,
+    );
   }
 
   private async onSubscriptionUpdated(event: Stripe.Event): Promise<void> {
@@ -99,7 +132,7 @@ export class BillingWebhookHandler {
       (user.plan !== Plan.FREE && newPlan === Plan.FREE);
 
     if (isDowngrade) {
-      await this.mailService.sendDowngradeNotification(
+      await this.mailQueueService.queueDowngradeNotification(
         user.email,
         user.name,
         newPlan,

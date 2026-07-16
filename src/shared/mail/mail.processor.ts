@@ -6,10 +6,14 @@ import {
   MAIL_QUEUE_NAME,
   WELCOME_JOB_NAME,
   EMAIL_CHANGE_CONFIRMATION_JOB_NAME,
+  DOWNGRADE_NOTIFICATION_JOB_NAME,
+  SUBSCRIPTION_CANCELLED_JOB_NAME,
   EMAIL_RETRY_BACKOFF_TYPE,
   EMAIL_RETRY_MAX_DELAY_MS,
   WelcomeJobData,
   EmailChangeConfirmationJobData,
+  DowngradeNotificationJobData,
+  SubscriptionCancelledJobData,
 } from './mail-job.types';
 
 @Processor(MAIL_QUEUE_NAME, {
@@ -60,6 +64,18 @@ export class MailProcessor extends WorkerHost {
     if (job.name === EMAIL_CHANGE_CONFIRMATION_JOB_NAME) {
       const { to, token } = job.data as EmailChangeConfirmationJobData;
       await this.mailService.sendEmailChangeConfirmation(to, token);
+      return;
+    }
+
+    if (job.name === DOWNGRADE_NOTIFICATION_JOB_NAME) {
+      const { to, name, newPlan } = job.data as DowngradeNotificationJobData;
+      await this.mailService.sendDowngradeNotification(to, name, newPlan);
+      return;
+    }
+
+    if (job.name === SUBSCRIPTION_CANCELLED_JOB_NAME) {
+      const { to, name } = job.data as SubscriptionCancelledJobData;
+      await this.mailService.sendSubscriptionCancelled(to, name);
       return;
     }
 

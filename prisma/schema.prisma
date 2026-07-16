@@ -123,3 +123,12 @@ model Transaction {
 
   @@map("transactions")
 }
+
+model ProcessedStripeEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  eventId     String   @unique @map("event_id")
+  type        String
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("processed_stripe_events")
+}
