@@ -36,7 +36,8 @@ const mockLogger = {
 const makeEvent = (
   type: string,
   object: Record<string, unknown>,
-): Stripe.Event => ({ type, data: { object } }) as unknown as Stripe.Event;
+): Stripe.Event =>
+  ({ id: 'evt_test', type, data: { object } }) as unknown as Stripe.Event;
 
 const baseUser = {
   id: 'user_1',
