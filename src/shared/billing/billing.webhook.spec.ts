@@ -9,7 +9,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import Stripe from 'stripe';
 import { BillingWebhookHandler } from './billing.webhook';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
-import { MailService } from '@shared/mail/mail.service';
+import { MailQueueService } from '@shared/mail/mail-queue.service';
+import { StripeEventsRepository } from './stripe-events.repository';
 import { Plan } from '@modules/users/entities/User';
 
 const mockUsersRepository = {
@@ -17,9 +18,14 @@ const mockUsersRepository = {
   update: jest.fn(),
 };
 
-const mockMailService = {
-  sendDowngradeNotification: jest.fn(),
-  sendSubscriptionCancelled: jest.fn(),
+const mockMailQueueService = {
+  queueDowngradeNotification: jest.fn(),
+  queueSubscriptionCancelled: jest.fn(),
+};
+
+const mockStripeEventsRepository = {
+  register: jest.fn(),
+  unregister: jest.fn(),
 };
 
 const makeEvent = (
@@ -45,11 +51,17 @@ describe('BillingWebhookHandler', () => {
       providers: [
         BillingWebhookHandler,
         { provide: UsersRepository, useValue: mockUsersRepository },
-        { provide: MailService, useValue: mockMailService },
+        { provide: MailQueueService, useValue: mockMailQueueService },
+        {
+          provide: StripeEventsRepository,
+          useValue: mockStripeEventsRepository,
+        },
       ],
     }).compile();
 
     handler = module.get<BillingWebhookHandler>(BillingWebhookHandler);
+
+    mockStripeEventsRepository.register.mockResolvedValue(true);
   });
 
   describe('handle — invoice.payment_succeeded', () => {
@@ -133,7 +145,7 @@ describe('BillingWebhookHandler', () => {
         makeInvoice('cus_test', 'price_gold'),
       );
       await handler.handle(event);
-      expect(mockMailService.sendDowngradeNotification).toHaveBeenCalledWith(
+      expect(mockMailQueueService.queueDowngradeNotification).toHaveBeenCalledWith(
         baseUser.email,
         baseUser.name,
         Plan.GOLD,
@@ -151,7 +163,7 @@ describe('BillingWebhookHandler', () => {
         makeInvoice('cus_test', 'price_gold'),
       );
       await handler.handle(event);
-      expect(mockMailService.sendDowngradeNotification).not.toHaveBeenCalled();
+      expect(mockMailQueueService.queueDowngradeNotification).not.toHaveBeenCalled();
     });
   });
 
@@ -163,7 +175,7 @@ describe('BillingWebhookHandler', () => {
       });
       await handler.handle(event);
       expect(mockUsersRepository.update).not.toHaveBeenCalled();
-      expect(mockMailService.sendSubscriptionCancelled).not.toHaveBeenCalled();
+      expect(mockMailQueueService.queueSubscriptionCancelled).not.toHaveBeenCalled();
     });
 
     it('sets plan FREE, stripePriceId null and sends cancellation email', async () => {
@@ -180,7 +192,7 @@ describe('BillingWebhookHandler', () => {
         plan: Plan.FREE,
         stripePriceId: null,
       });
-      expect(mockMailService.sendSubscriptionCancelled).toHaveBeenCalledWith(
+      expect(mockMailQueueService.queueSubscriptionCancelled).toHaveBeenCalledWith(
         baseUser.email,
         baseUser.name,
       );
@@ -256,7 +268,7 @@ describe('BillingWebhookHandler', () => {
         }),
       );
       await handler.handle(event);
-      expect(mockMailService.sendDowngradeNotification).toHaveBeenCalledWith(
+      expect(mockMailQueueService.queueDowngradeNotification).toHaveBeenCalledWith(
         baseUser.email,
         baseUser.name,
         Plan.GOLD,
@@ -270,8 +282,61 @@ describe('BillingWebhookHandler', () => {
       await handler.handle(event);
       expect(mockUsersRepository.findByStripeCustomerId).not.toHaveBeenCalled();
       expect(mockUsersRepository.update).not.toHaveBeenCalled();
-      expect(mockMailService.sendDowngradeNotification).not.toHaveBeenCalled();
-      expect(mockMailService.sendSubscriptionCancelled).not.toHaveBeenCalled();
+      expect(mockMailQueueService.queueDowngradeNotification).not.toHaveBeenCalled();
+      expect(mockMailQueueService.queueSubscriptionCancelled).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('idempotency', () => {
+    it('registers the event id before processing', async () => {
+      mockUsersRepository.findByStripeCustomerId.mockResolvedValue(null);
+      const event = {
+        id: 'evt_123',
+        type: 'customer.subscription.deleted',
+        data: { object: { customer: 'cus_1' } },
+      } as unknown as Stripe.Event;
+
+      await handler.handle(event);
+
+      expect(mockStripeEventsRepository.register).toHaveBeenCalledWith(
+        'evt_123',
+        'customer.subscription.deleted',
+      );
+    });
+
+    it('skips processing entirely on a duplicate delivery', async () => {
+      mockStripeEventsRepository.register.mockResolvedValue(false);
+      const event = {
+        id: 'evt_dup',
+        type: 'customer.subscription.deleted',
+        data: { object: { customer: 'cus_1' } },
+      } as unknown as Stripe.Event;
+
+      await handler.handle(event);
+
+      expect(
+        mockUsersRepository.findByStripeCustomerId,
+      ).not.toHaveBeenCalled();
+      expect(mockUsersRepository.update).not.toHaveBeenCalled();
+      expect(
+        mockMailQueueService.queueSubscriptionCancelled,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('unregisters the event and rethrows when processing fails', async () => {
+      mockUsersRepository.findByStripeCustomerId.mockRejectedValue(
+        new Error('db down'),
+      );
+      const event = {
+        id: 'evt_fail',
+        type: 'customer.subscription.deleted',
+        data: { object: { customer: 'cus_1' } },
+      } as unknown as Stripe.Event;
+
+      await expect(handler.handle(event)).rejects.toThrow('db down');
+      expect(mockStripeEventsRepository.unregister).toHaveBeenCalledWith(
+        'evt_fail',
+      );
     });
   });
 });
