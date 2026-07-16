@@ -22,7 +22,7 @@ fi
 
 echo "Running e2e tests (real DB, ~45-50s)..."
 # Determine real pass/fail from Jest's own results, not the raw exit code:
-# a known, tracked BullMQ/Redis teardown race (see task-5-report.md) can crash
+# a known, tracked BullMQ/Redis teardown race (see docs/known-issues/bullmq-teardown-race.md) can crash
 # the process with a non-zero exit AFTER all tests complete. That same crash
 # preempts Jest's built-in --json/--outputFile serialization (written at the
 # very end), so we use a tiny custom reporter that writes the pass/fail summary
@@ -50,7 +50,7 @@ if [ "$e2e_failed_tests" != "0" ] || [ "$e2e_failed_suites" != "0" ]; then
 fi
 
 if [ $e2e_status -ne 0 ]; then
-  echo "E2E tests: all assertions passed. Non-zero exit code is a known, tracked BullMQ/Redis teardown race (see .superpowers/sdd/task-5-report.md) — occurs after all tests complete, not a real failure."
+  echo "E2E tests: all assertions passed. Non-zero exit code is a known, tracked BullMQ/Redis teardown race (see docs/known-issues/bullmq-teardown-race.md) — occurs after all tests complete, not a real failure."
 fi
 
 rm -rf .nyc_merge

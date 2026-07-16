@@ -4,7 +4,7 @@
 // race can crash the process and preempt Jest's own --json/--outputFile
 // serialization. scripts/test-combined.sh reads this file to determine real
 // pass/fail from Jest's own results rather than the teardown-polluted exit
-// code. See .superpowers/sdd/task-5-report.md.
+// code. See docs/known-issues/bullmq-teardown-race.md.
 const fs = require('fs');
 
 class E2eResultsReporter {

@@ -132,7 +132,7 @@ npm test              # both, merged coverage report — the number that matters
 
 E2E requires Docker running (`docker compose up -d`, which provisions the `fincheck`/`fincheck_test` Postgres databases plus Redis and RedisInsight for the email retry queue) and a local `.env.test` file (same shape as `.env`, fake credentials for Resend/AWS/Stripe/Google — gitignored, never used for a real network call).
 
-Note: running `npm run test:e2e` standalone can occasionally exit non-zero from a known, tracked BullMQ/Redis teardown race that occurs *after* all tests pass (see `.superpowers/sdd/task-5-report.md`). `npm test` is unaffected — it determines pass/fail from Jest's own result summary instead of the raw exit code, so it's the command that gates `npm run lint`/pre-push/CI.
+Note: running `npm run test:e2e` standalone can occasionally exit non-zero from a known, tracked BullMQ/Redis teardown race that occurs *after* all tests pass (see `docs/known-issues/bullmq-teardown-race.md`). `npm test` is unaffected — it determines pass/fail from Jest's own result summary instead of the raw exit code, so it's the command that gates `npm run lint`/pre-push/CI.
 
 ## Git Hooks (Husky)
 

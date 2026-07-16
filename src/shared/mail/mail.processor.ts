@@ -16,7 +16,7 @@ import {
   // Short idle poll interval (default 5s) so worker.close() during test
   // teardown doesn't wait long for a blocking Redis read to return —
   // reduces (though doesn't eliminate) a known BullMQ teardown race across
-  // e2e's per-file app boot/close cycle, see .superpowers/sdd/task-5-report.md.
+  // e2e's per-file app boot/close cycle, see docs/known-issues/bullmq-teardown-race.md.
   drainDelay: 1,
   settings: {
     backoffStrategy: (attemptsMade: number, type?: string) => {
