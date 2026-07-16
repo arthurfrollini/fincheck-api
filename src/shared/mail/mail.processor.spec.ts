@@ -20,6 +20,8 @@ import { MailService } from './mail.service';
 import {
   WELCOME_JOB_NAME,
   EMAIL_CHANGE_CONFIRMATION_JOB_NAME,
+  DOWNGRADE_NOTIFICATION_JOB_NAME,
+  SUBSCRIPTION_CANCELLED_JOB_NAME,
   EMAIL_RETRY_MAX_DELAY_MS,
 } from './mail-job.types';
 
@@ -28,7 +30,13 @@ const makeJob = (name: string, data: object): Job =>
 
 describe('MailProcessor', () => {
   let mockMailService: jest.Mocked<
-    Pick<MailService, 'sendWelcome' | 'sendEmailChangeConfirmation'>
+    Pick<
+      MailService,
+      | 'sendWelcome'
+      | 'sendEmailChangeConfirmation'
+      | 'sendDowngradeNotification'
+      | 'sendSubscriptionCancelled'
+    >
   >;
   let mockLogger: { error: jest.Mock };
   let processor: MailProcessor;
@@ -37,6 +45,8 @@ describe('MailProcessor', () => {
     mockMailService = {
       sendWelcome: jest.fn().mockResolvedValue(undefined),
       sendEmailChangeConfirmation: jest.fn().mockResolvedValue(undefined),
+      sendDowngradeNotification: jest.fn().mockResolvedValue(undefined),
+      sendSubscriptionCancelled: jest.fn().mockResolvedValue(undefined),
     };
     mockLogger = { error: jest.fn() };
     processor = new MailProcessor(
@@ -70,6 +80,36 @@ describe('MailProcessor', () => {
     expect(mockMailService.sendEmailChangeConfirmation).toHaveBeenCalledWith(
       'user@example.com',
       'tok-123',
+    );
+  });
+
+  it('calls sendDowngradeNotification for a downgrade-notification job', async () => {
+    const job = makeJob(DOWNGRADE_NOTIFICATION_JOB_NAME, {
+      to: 'user@example.com',
+      name: 'Arthur',
+      newPlan: 'GOLD',
+    });
+
+    await processor.process(job);
+
+    expect(mockMailService.sendDowngradeNotification).toHaveBeenCalledWith(
+      'user@example.com',
+      'Arthur',
+      'GOLD',
+    );
+  });
+
+  it('calls sendSubscriptionCancelled for a subscription-cancelled job', async () => {
+    const job = makeJob(SUBSCRIPTION_CANCELLED_JOB_NAME, {
+      to: 'user@example.com',
+      name: 'Arthur',
+    });
+
+    await processor.process(job);
+
+    expect(mockMailService.sendSubscriptionCancelled).toHaveBeenCalledWith(
+      'user@example.com',
+      'Arthur',
     );
   });
 

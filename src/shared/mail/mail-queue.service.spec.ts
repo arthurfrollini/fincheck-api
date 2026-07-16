@@ -4,6 +4,8 @@ import { MailQueueService } from './mail-queue.service';
 import {
   WELCOME_JOB_NAME,
   EMAIL_CHANGE_CONFIRMATION_JOB_NAME,
+  DOWNGRADE_NOTIFICATION_JOB_NAME,
+  SUBSCRIPTION_CANCELLED_JOB_NAME,
   EMAIL_RETRY_BACKOFF_TYPE,
   EMAIL_RETRY_MAX_ATTEMPTS,
   COMPLETED_JOB_RETENTION_SECONDS,
@@ -47,6 +49,30 @@ describe('MailQueueService', () => {
     expect(mockQueue.add).toHaveBeenCalledWith(
       EMAIL_CHANGE_CONFIRMATION_JOB_NAME,
       { to: 'user@example.com', token: 'tok-123' },
+      EXPECTED_JOB_OPTIONS,
+    );
+  });
+
+  it('enqueues a downgrade-notification job with the retry config', async () => {
+    await service.queueDowngradeNotification(
+      'user@example.com',
+      'Arthur',
+      'GOLD',
+    );
+
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      DOWNGRADE_NOTIFICATION_JOB_NAME,
+      { to: 'user@example.com', name: 'Arthur', newPlan: 'GOLD' },
+      EXPECTED_JOB_OPTIONS,
+    );
+  });
+
+  it('enqueues a subscription-cancelled job with the retry config', async () => {
+    await service.queueSubscriptionCancelled('user@example.com', 'Arthur');
+
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      SUBSCRIPTION_CANCELLED_JOB_NAME,
+      { to: 'user@example.com', name: 'Arthur' },
       EXPECTED_JOB_OPTIONS,
     );
   });

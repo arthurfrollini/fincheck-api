@@ -6,12 +6,16 @@ import {
   MAIL_QUEUE_NAME,
   WELCOME_JOB_NAME,
   EMAIL_CHANGE_CONFIRMATION_JOB_NAME,
+  DOWNGRADE_NOTIFICATION_JOB_NAME,
+  SUBSCRIPTION_CANCELLED_JOB_NAME,
   EMAIL_RETRY_BACKOFF_TYPE,
   EMAIL_RETRY_MAX_ATTEMPTS,
   COMPLETED_JOB_RETENTION_SECONDS,
   FAILED_JOB_RETENTION_SECONDS,
   WelcomeJobData,
   EmailChangeConfirmationJobData,
+  DowngradeNotificationJobData,
+  SubscriptionCancelledJobData,
 } from './mail-job.types';
 
 @Injectable()
@@ -39,6 +43,24 @@ export class MailQueueService {
     await this.enqueue<EmailChangeConfirmationJobData>(
       EMAIL_CHANGE_CONFIRMATION_JOB_NAME,
       { to, token },
+    );
+  }
+
+  async queueDowngradeNotification(
+    to: string,
+    name: string,
+    newPlan: string,
+  ): Promise<void> {
+    await this.enqueue<DowngradeNotificationJobData>(
+      DOWNGRADE_NOTIFICATION_JOB_NAME,
+      { to, name, newPlan },
+    );
+  }
+
+  async queueSubscriptionCancelled(to: string, name: string): Promise<void> {
+    await this.enqueue<SubscriptionCancelledJobData>(
+      SUBSCRIPTION_CANCELLED_JOB_NAME,
+      { to, name },
     );
   }
 
