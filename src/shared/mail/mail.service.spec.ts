@@ -42,6 +42,7 @@ describe('MailService', () => {
             'http://localhost:3000/users/confirm-email?token=abc-token-123',
           ),
         }),
+        { signal: expect.any(AbortSignal) },
       );
     });
   });
@@ -58,6 +59,7 @@ describe('MailService', () => {
           subject: 'Bem-vindo ao Fincheck!',
           html: expect.stringContaining('Olá, Arthur!'),
         }),
+        { signal: expect.any(AbortSignal) },
       );
     });
   });
@@ -78,11 +80,13 @@ describe('MailService', () => {
           subject: 'Seu plano Fincheck foi alterado',
           html: expect.stringContaining('Olá, Arthur!'),
         }),
+        { signal: expect.any(AbortSignal) },
       );
       expect(sendMock).toHaveBeenCalledWith(
         expect.objectContaining({
           html: expect.stringContaining('<strong>FREE</strong>'),
         }),
+        { signal: expect.any(AbortSignal) },
       );
     });
   });
@@ -99,6 +103,7 @@ describe('MailService', () => {
           subject: 'Sua assinatura Fincheck foi cancelada',
           html: expect.stringContaining('Olá, Arthur!'),
         }),
+        { signal: expect.any(AbortSignal) },
       );
     });
   });
