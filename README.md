@@ -10,7 +10,7 @@ REST API for a personal finance management app. Users track bank accounts and tr
 - **Email:** Resend (welcome, email change confirmation, billing notifications)
 - **Storage:** AWS S3 (avatar upload via presigned URL)
 - **Billing:** Stripe (subscriptions, webhooks, dunning)
-- **Tests:** Jest 30 + Supertest — 141 unit + 66 e2e tests, 96%+ combined coverage
+- **Tests:** Jest 30 + Supertest — 154 unit + 67 e2e tests, 96%+ combined coverage
 
 ## Architecture
 
@@ -73,7 +73,7 @@ Shared concerns (auth guards, plan enforcement, mail, storage, billing) live in 
 6. `POST /billing/cancel` → `cancel_at_period_end: true`, user keeps plan until billing period ends
 7. `customer.subscription.deleted` (dunning failure / period end) → resets `user.plan` to FREE
 
-Webhook endpoint: `POST /billing/webhook` — validates Stripe signature via `rawBody`.
+Webhook endpoint: `POST /billing/webhook` — validates Stripe signature via `rawBody`. Processing is idempotent: every `event.id` is recorded in `processed_stripe_events` (record-first, compensating delete on failure), so Stripe's at-least-once redelivery never double-applies plan changes or duplicates notification emails. Billing emails go through the same Redis-backed retry queue as signup/email-change. Dedup rows are pruned after 30 days by a daily cron.
 
 ## Local Setup
 
@@ -118,8 +118,8 @@ STRIPE_PRICE_PLATINUM=
 
 Two independent suites, kept deliberately separate — each covers a different architectural layer, so either report in isolation is misleading. "Coverage" only means something combined.
 
-- **Unit** (`test:unit`) — Jest, testing the `application`/`domain` layer in isolation. Dependencies mocked with Jest's own `jest.fn()`/`jest.mock()` — no Sinon, no ts-mockito, no separate mocking library. 141 tests.
-- **E2E** (`test:e2e`) — Jest + Supertest, booting the real `AppModule` against a dedicated `fincheck_test` Postgres database (`PrismaService` is never mocked). Only `MailService`, `StorageService`, `BillingService`, and the Stripe webhook handler are replaced with mocks — everything else runs for real, including the BullMQ email retry queue (real Redis, real worker, only the final Resend call is mocked) and Stripe webhook signature verification (via `stripe.webhooks.generateTestHeaderString`, pure local HMAC, no network call). 66 tests across 8 spec files: auth, users, admin routes, bank-accounts, categories, transactions, billing, api-reference.
+- **Unit** (`test:unit`) — Jest, testing the `application`/`domain` layer in isolation. Dependencies mocked with Jest's own `jest.fn()`/`jest.mock()` — no Sinon, no ts-mockito, no separate mocking library. 154 tests.
+- **E2E** (`test:e2e`) — Jest + Supertest, booting the real `AppModule` against a dedicated `fincheck_test` Postgres database (`PrismaService` is never mocked). Only `MailService`, `StorageService`, `BillingService`, and the Stripe webhook handler are replaced with mocks — everything else runs for real, including the BullMQ email retry queue (real Redis, real worker, only the final Resend call is mocked) and Stripe webhook signature verification (via `stripe.webhooks.generateTestHeaderString`, pure local HMAC, no network call). 67 tests across 8 spec files: auth, users, admin routes, bank-accounts, categories, transactions, billing, api-reference.
 - No browser/UI E2E — no Playwright, no Cypress. This is an API-only project; the HTTP layer is tested directly with Supertest, no browser needed.
 
 ```bash
