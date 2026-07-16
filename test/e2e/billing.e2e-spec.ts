@@ -4,10 +4,13 @@ import Stripe from 'stripe';
 import {
   createApp,
   mockBillingService,
-  mockBillingWebhookHandler,
+  mockMailService,
 } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
+import { PrismaService } from '../../src/shared/database/prisma.service';
+import { cleanMailQueue, waitForLatestMailJob } from '../helpers/queue-helper';
+import { SUBSCRIPTION_CANCELLED_JOB_NAME } from '../../src/shared/mail/mail-job.types';
 
 describe('Billing (e2e)', () => {
   let app: INestApplication;
@@ -23,6 +26,7 @@ describe('Billing (e2e)', () => {
 
   beforeEach(async () => {
     await cleanDatabase(app);
+    await cleanMailQueue(app);
     jest.clearAllMocks();
     ({ accessToken } = await signUpAndGetTokens(app));
   });
@@ -123,19 +127,25 @@ describe('Billing (e2e)', () => {
       expect(res.status).toBe(401);
     });
 
-    it('returns 200 and calls the webhook handler with a valid signature', async () => {
+    it('processes a subscription-deleted event for real: resets plan and queues the email', async () => {
+      // Give the signed-up user a Stripe customer id + a paid plan so the
+      // cancellation event has something to act on.
+      const prisma = app.get(PrismaService);
+      const user = await prisma.user.findFirstOrThrow();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { stripeCustomerId: 'cus_e2e_test', plan: 'GOLD' },
+      });
+      mockMailService.sendSubscriptionCancelled.mockClear();
+
       const event = {
-        id: 'evt_test',
+        id: 'evt_e2e_deleted_1',
         object: 'event',
         type: 'customer.subscription.deleted',
-        data: { object: {} },
+        data: { object: { customer: 'cus_e2e_test' } },
       };
       const { payload, header } = signedPayload(event);
 
-      // Must send `payload` as a raw string, not `event` or `Buffer.from(payload)` —
-      // the signature was computed over these exact bytes, and superagent
-      // JSON.stringifies a Buffer body under a JSON content-type, corrupting it
-      // before the server's HMAC check ever sees it.
       const res = await request(app.getHttpServer())
         .post('/billing/webhook')
         .set('stripe-signature', header)
@@ -143,8 +153,69 @@ describe('Billing (e2e)', () => {
         .send(payload);
 
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ received: true });
-      expect(mockBillingWebhookHandler.handle).toHaveBeenCalledTimes(1);
+
+      const updated = await prisma.user.findUniqueOrThrow({
+        where: { id: user.id },
+      });
+      expect(updated.plan).toBe('FREE');
+      expect(updated.stripePriceId).toBeNull();
+
+      await waitForLatestMailJob(app, SUBSCRIPTION_CANCELLED_JOB_NAME);
+      expect(mockMailService.sendSubscriptionCancelled).toHaveBeenCalledTimes(
+        1,
+      );
+
+      const dedupRow = await prisma.processedStripeEvent.findUnique({
+        where: { eventId: 'evt_e2e_deleted_1' },
+      });
+      expect(dedupRow).not.toBeNull();
+    });
+
+    it('deduplicates a duplicate delivery: second POST is a no-op', async () => {
+      const prisma = app.get(PrismaService);
+      const user = await prisma.user.findFirstOrThrow();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { stripeCustomerId: 'cus_e2e_dup', plan: 'GOLD' },
+      });
+      mockMailService.sendSubscriptionCancelled.mockClear();
+
+      const event = {
+        id: 'evt_e2e_duplicate',
+        object: 'event',
+        type: 'customer.subscription.deleted',
+        data: { object: { customer: 'cus_e2e_dup' } },
+      };
+      const { payload, header } = signedPayload(event);
+
+      const first = await request(app.getHttpServer())
+        .post('/billing/webhook')
+        .set('stripe-signature', header)
+        .set('Content-Type', 'application/json')
+        .send(payload);
+      expect(first.status).toBe(200);
+
+      await waitForLatestMailJob(app, SUBSCRIPTION_CANCELLED_JOB_NAME);
+
+      // Same exact signed payload again — Stripe redelivery.
+      const second = await request(app.getHttpServer())
+        .post('/billing/webhook')
+        .set('stripe-signature', header)
+        .set('Content-Type', 'application/json')
+        .send(payload);
+      expect(second.status).toBe(200);
+
+      // Give the worker a beat: if a second job HAD been enqueued, it would
+      // process within this window and break the call-count assertion.
+      await new Promise((r) => setTimeout(r, 1500));
+
+      expect(mockMailService.sendSubscriptionCancelled).toHaveBeenCalledTimes(
+        1,
+      );
+      const rows = await prisma.processedStripeEvent.findMany({
+        where: { eventId: 'evt_e2e_duplicate' },
+      });
+      expect(rows).toHaveLength(1);
     });
   });
 });

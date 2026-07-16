@@ -9,7 +9,6 @@ import { AppModule } from '../../src/app.module';
 import { MailService } from '../../src/shared/mail/mail.service';
 import { StorageService } from '../../src/shared/storage/storage.service';
 import { BillingService } from '../../src/shared/billing/billing.service';
-import { BillingWebhookHandler } from '../../src/shared/billing/billing.webhook';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env.test') });
 
@@ -37,10 +36,6 @@ export const mockBillingService = {
   createCustomerAndSubscribe: jest.fn().mockResolvedValue(undefined),
 };
 
-export const mockBillingWebhookHandler = {
-  handle: jest.fn().mockResolvedValue(undefined),
-};
-
 export async function createApp(): Promise<INestApplication> {
   const module: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
@@ -51,8 +46,6 @@ export async function createApp(): Promise<INestApplication> {
     .useValue(mockStorageService)
     .overrideProvider(BillingService)
     .useValue(mockBillingService)
-    .overrideProvider(BillingWebhookHandler)
-    .useValue(mockBillingWebhookHandler)
     .compile();
 
   const app = module.createNestApplication({
