@@ -87,7 +87,7 @@ Two new job names in `mail-job.types.ts` (`downgrade-notification`, `subscriptio
 | DB failure during plan update | `unregister` compensation runs → error propagates → 500 → Stripe retries → full reprocess. |
 | Redis down when enqueueing the email | Caught/logged inside `MailQueueService` (existing behavior) → handler still succeeds → event stays registered. Email lost (logged). |
 | Resend down when the worker processes the job | BullMQ retries per `email-retry` backoff for ~24h — webhook already answered 200, unaffected. |
-| `unregister` itself fails after a processing failure | Event stuck as processed, plan not updated; original error logged with stack + errorId by the global filter. Accepted residual risk. |
+| `unregister` itself fails after a processing failure | Unregister failure is caught and logged separately; the ORIGINAL processing error still propagates to the global filter (stack + errorId). Event stays marked processed while the plan update didn't happen — accepted residual risk. |
 | Unhandled event type | Registered then no-op (switch falls through) — duplicate deliveries of ignored types are also deduped. Harmless. |
 
 ## Testing

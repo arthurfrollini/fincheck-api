@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import Stripe from 'stripe';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
 import { MailQueueService } from '@shared/mail/mail-queue.service';
 import { Plan } from '@modules/users/entities/User';
@@ -12,6 +13,8 @@ export class BillingWebhookHandler {
     private readonly usersRepository: UsersRepository,
     private readonly mailQueueService: MailQueueService,
     private readonly stripeEventsRepository: StripeEventsRepository,
+    @InjectPinoLogger(BillingWebhookHandler.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async handle(event: Stripe.Event): Promise<void> {
@@ -38,7 +41,17 @@ export class BillingWebhookHandler {
     } catch (err) {
       // Compensation: a real processing failure must not burn the event —
       // removing the record lets Stripe's retry reprocess from scratch.
-      await this.stripeEventsRepository.unregister(event.id);
+      // The unregister is itself guarded so its failure can never mask the
+      // original error; if it fails, the event stays registered (accepted
+      // residual risk — see the design spec's failure matrix).
+      try {
+        await this.stripeEventsRepository.unregister(event.id);
+      } catch (unregisterErr) {
+        this.logger.error(
+          { err: unregisterErr, eventId: event.id },
+          'Failed to unregister Stripe event after processing failure — event stays marked processed',
+        );
+      }
       throw err;
     }
   }

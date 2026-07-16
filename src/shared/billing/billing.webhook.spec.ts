@@ -7,6 +7,7 @@ jest.mock('@shared/config/env', () => ({
 
 import { Test, TestingModule } from '@nestjs/testing';
 import Stripe from 'stripe';
+import { getLoggerToken } from 'nestjs-pino';
 import { BillingWebhookHandler } from './billing.webhook';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
 import { MailQueueService } from '@shared/mail/mail-queue.service';
@@ -26,6 +27,10 @@ const mockMailQueueService = {
 const mockStripeEventsRepository = {
   register: jest.fn(),
   unregister: jest.fn(),
+};
+
+const mockLogger = {
+  error: jest.fn(),
 };
 
 const makeEvent = (
@@ -56,12 +61,17 @@ describe('BillingWebhookHandler', () => {
           provide: StripeEventsRepository,
           useValue: mockStripeEventsRepository,
         },
+        {
+          provide: getLoggerToken(BillingWebhookHandler.name),
+          useValue: mockLogger,
+        },
       ],
     }).compile();
 
     handler = module.get<BillingWebhookHandler>(BillingWebhookHandler);
 
     mockStripeEventsRepository.register.mockResolvedValue(true);
+    mockStripeEventsRepository.unregister.mockResolvedValue(undefined);
   });
 
   describe('handle — invoice.payment_succeeded', () => {
@@ -337,6 +347,22 @@ describe('BillingWebhookHandler', () => {
       expect(mockStripeEventsRepository.unregister).toHaveBeenCalledWith(
         'evt_fail',
       );
+    });
+
+    it('rethrows the original error even when unregister itself fails', async () => {
+      mockUsersRepository.findByStripeCustomerId.mockRejectedValue(
+        new Error('original failure'),
+      );
+      mockStripeEventsRepository.unregister.mockRejectedValue(
+        new Error('unregister also failed'),
+      );
+      const event = {
+        id: 'evt_double_fail',
+        type: 'customer.subscription.deleted',
+        data: { object: { customer: 'cus_1' } },
+      } as unknown as Stripe.Event;
+
+      await expect(handler.handle(event)).rejects.toThrow('original failure');
     });
   });
 });
