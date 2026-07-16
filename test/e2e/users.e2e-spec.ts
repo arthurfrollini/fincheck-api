@@ -66,6 +66,23 @@ describe('Users (e2e)', () => {
       expect(res.body).toHaveProperty('uploadUrl');
       expect(res.body).toHaveProperty('avatarUrl');
     });
+
+    it('returns 400 for a non-allowlisted extension', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/users/me/avatar-upload-url')
+        .query({ ext: 'svg' })
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 when ext is missing', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/users/me/avatar-upload-url')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      expect(res.status).toBe(400);
+    });
   });
 
   describe('PATCH /users/me/email', () => {
