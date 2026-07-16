@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import Stripe from 'stripe';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
@@ -18,6 +18,18 @@ export class BillingWebhookHandler {
     private readonly logger: PinoLogger,
     @Inject(STRIPE_CLIENT) private readonly stripe: Stripe,
   ) {}
+
+  constructEvent(rawBody: Buffer, signature: string): Stripe.Event {
+    try {
+      return this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        env.stripeWebhookSecret,
+      );
+    } catch {
+      throw new UnauthorizedException('Invalid webhook signature.');
+    }
+  }
 
   async handle(event: Stripe.Event): Promise<void> {
     // Record-first: a concurrent duplicate delivery hits the unique

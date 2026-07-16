@@ -2,11 +2,13 @@ jest.mock('@shared/config/env', () => ({
   env: {
     stripePriceGold: 'price_gold',
     stripePricePlatinum: 'price_platinum',
+    stripeWebhookSecret: 'whsec_test',
   },
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
 import Stripe from 'stripe';
+import { UnauthorizedException } from '@nestjs/common';
 import { getLoggerToken } from 'nestjs-pino';
 import { BillingWebhookHandler } from './billing.webhook';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
@@ -371,6 +373,32 @@ describe('BillingWebhookHandler', () => {
       } as unknown as Stripe.Event;
 
       await expect(handler.handle(event)).rejects.toThrow('original failure');
+    });
+  });
+
+  describe('constructEvent', () => {
+    it('returns the parsed event when the signature is valid', () => {
+      const event = { id: 'evt_1', type: 'x' } as unknown as Stripe.Event;
+      mockStripe.webhooks.constructEvent.mockReturnValue(event);
+
+      const result = handler.constructEvent(Buffer.from('raw'), 'sig_valid');
+
+      expect(result).toBe(event);
+      expect(mockStripe.webhooks.constructEvent).toHaveBeenCalledWith(
+        Buffer.from('raw'),
+        'sig_valid',
+        'whsec_test',
+      );
+    });
+
+    it('throws UnauthorizedException when the signature is invalid', () => {
+      mockStripe.webhooks.constructEvent.mockImplementation(() => {
+        throw new Error('bad signature');
+      });
+
+      expect(() =>
+        handler.constructEvent(Buffer.from('raw'), 'sig_bad'),
+      ).toThrow(UnauthorizedException);
     });
   });
 });
