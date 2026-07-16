@@ -52,6 +52,27 @@ describe('Auth (e2e)', () => {
       expect(mockMailService.sendWelcome).toHaveBeenCalledTimes(1);
     });
 
+    it('retries a failed welcome email and succeeds on the second attempt', async () => {
+      // Proves the retry options are actually wired into queue.add — if
+      // someone drops attempts/backoff from MailQueueService, this fails.
+      // First delivery attempt rejects (Resend "down"), BullMQ re-schedules
+      // via the email-retry backoff (~1s for attempt 1), second succeeds.
+      mockMailService.sendWelcome.mockClear();
+      mockMailService.sendWelcome.mockRejectedValueOnce(
+        new Error('Resend unavailable'),
+      );
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/signup')
+        .send({ name: 'Arthur', email: uniqueEmail(), password: 'Test@1234' });
+
+      expect(res.status).toBe(201);
+
+      await waitForLatestMailJob(app, WELCOME_JOB_NAME);
+
+      expect(mockMailService.sendWelcome).toHaveBeenCalledTimes(2);
+    });
+
     it('returns 409 on duplicate email', async () => {
       const email = uniqueEmail();
       await request(app.getHttpServer())
