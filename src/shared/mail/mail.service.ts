@@ -11,7 +11,7 @@ export class MailService {
   async sendEmailChangeConfirmation(to: string, token: string) {
     const confirmUrl = `http://localhost:3000/users/confirm-email?token=${token}`;
 
-    await (this.resend.emails.send as any)(
+    await this.resend.emails.send(
       {
         from: env.resendFromEmail,
         to,
@@ -23,12 +23,12 @@ export class MailService {
         <p>O link expira em 1 hora. Se você não solicitou essa alteração, ignore este e-mail.</p>
       `,
       },
-      { signal: AbortSignal.timeout(RESEND_TIMEOUT_MS) },
+      { signal: AbortSignal.timeout(RESEND_TIMEOUT_MS) } as never,
     );
   }
 
   async sendWelcome(to: string, name: string) {
-    await (this.resend.emails.send as any)(
+    await this.resend.emails.send(
       {
         from: env.resendFromEmail,
         to,
@@ -39,7 +39,7 @@ export class MailService {
         <p>Comece agora a organizar suas finanças.</p>
       `,
       },
-      { signal: AbortSignal.timeout(RESEND_TIMEOUT_MS) },
+      { signal: AbortSignal.timeout(RESEND_TIMEOUT_MS) } as never,
     );
   }
 
@@ -48,7 +48,7 @@ export class MailService {
     name: string,
     newPlan: string,
   ): Promise<void> {
-    await (this.resend.emails.send as any)(
+    await this.resend.emails.send(
       {
         from: env.resendFromEmail,
         to,
@@ -60,12 +60,12 @@ export class MailService {
         <p>Para reativar todas as contas, faça upgrade do seu plano.</p>
       `,
       },
-      { signal: AbortSignal.timeout(RESEND_TIMEOUT_MS) },
+      { signal: AbortSignal.timeout(RESEND_TIMEOUT_MS) } as never,
     );
   }
 
   async sendSubscriptionCancelled(to: string, name: string): Promise<void> {
-    await (this.resend.emails.send as any)(
+    await this.resend.emails.send(
       {
         from: env.resendFromEmail,
         to,
@@ -77,7 +77,7 @@ export class MailService {
         <p>Para reativar, acesse o Fincheck e escolha um novo plano.</p>
       `,
       },
-      { signal: AbortSignal.timeout(RESEND_TIMEOUT_MS) },
+      { signal: AbortSignal.timeout(RESEND_TIMEOUT_MS) } as never,
     );
   }
 }
