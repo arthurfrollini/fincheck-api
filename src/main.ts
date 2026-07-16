@@ -13,6 +13,12 @@ async function bootstrap() {
   });
   app.useLogger(app.get(Logger));
 
+  // Without this, Nest never fires onModuleDestroy/onApplicationShutdown on
+  // SIGTERM/SIGINT — PrismaService wouldn't disconnect and the BullMQ worker
+  // wouldn't close gracefully on deploy/restart (an in-flight job would stall
+  // until the stalled-checker recovers it after the app comes back).
+  app.enableShutdownHooks();
+
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableCors({ origin: '*' });
 

@@ -10,7 +10,7 @@ REST API for a personal finance management app. Users track bank accounts and tr
 - **Email:** Resend (welcome, email change confirmation, billing notifications)
 - **Storage:** AWS S3 (avatar upload via presigned URL)
 - **Billing:** Stripe (subscriptions, webhooks, dunning)
-- **Tests:** Jest 30 + Supertest — 117 unit + 61 e2e tests, 97%+ combined coverage
+- **Tests:** Jest 30 + Supertest — 141 unit + 66 e2e tests, 96%+ combined coverage
 
 ## Architecture
 
@@ -118,8 +118,8 @@ STRIPE_PRICE_PLATINUM=
 
 Two independent suites, kept deliberately separate — each covers a different architectural layer, so either report in isolation is misleading. "Coverage" only means something combined.
 
-- **Unit** (`test:unit`) — Jest, testing the `application`/`domain` layer in isolation. Dependencies mocked with Jest's own `jest.fn()`/`jest.mock()` — no Sinon, no ts-mockito, no separate mocking library. 117 tests.
-- **E2E** (`test:e2e`) — Jest + Supertest, booting the real `AppModule` against a dedicated `fincheck_test` Postgres database (`PrismaService` is never mocked). Only `MailService`, `StorageService`, `BillingService`, and the Stripe webhook handler are replaced with mocks — everything else runs for real, including the BullMQ email retry queue (real Redis, real worker, only the final Resend call is mocked) and Stripe webhook signature verification (via `stripe.webhooks.generateTestHeaderString`, pure local HMAC, no network call). 65 tests across 7 spec files: auth, users, admin routes, bank-accounts, categories, transactions, billing.
+- **Unit** (`test:unit`) — Jest, testing the `application`/`domain` layer in isolation. Dependencies mocked with Jest's own `jest.fn()`/`jest.mock()` — no Sinon, no ts-mockito, no separate mocking library. 141 tests.
+- **E2E** (`test:e2e`) — Jest + Supertest, booting the real `AppModule` against a dedicated `fincheck_test` Postgres database (`PrismaService` is never mocked). Only `MailService`, `StorageService`, `BillingService`, and the Stripe webhook handler are replaced with mocks — everything else runs for real, including the BullMQ email retry queue (real Redis, real worker, only the final Resend call is mocked) and Stripe webhook signature verification (via `stripe.webhooks.generateTestHeaderString`, pure local HMAC, no network call). 66 tests across 8 spec files: auth, users, admin routes, bank-accounts, categories, transactions, billing, api-reference.
 - No browser/UI E2E — no Playwright, no Cypress. This is an API-only project; the HTTP layer is tested directly with Supertest, no browser needed.
 
 ```bash
@@ -128,11 +128,11 @@ npm run test:e2e      # e2e only, real DB, ~50s
 npm test              # both, merged coverage report — the number that matters
 ```
 
-`npm test` runs both suites and merges their coverage via `nyc`, since neither suite's own report reflects real coverage alone — unit only touches `application`/`domain`, e2e only touches `infra`/`http` (plus whatever it deliberately mocks). Combined: **97%+ statements**.
+`npm test` runs both suites and merges their coverage via `nyc`, since neither suite's own report reflects real coverage alone — unit only touches `application`/`domain`, e2e only touches `infra`/`http` (plus whatever it deliberately mocks). Combined: **96%+ statements**.
 
 E2E requires Docker running (`docker compose up -d`, which provisions the `fincheck`/`fincheck_test` Postgres databases plus Redis and RedisInsight for the email retry queue) and a local `.env.test` file (same shape as `.env`, fake credentials for Resend/AWS/Stripe/Google — gitignored, never used for a real network call).
 
-Note: running `npm run test:e2e` standalone can occasionally exit non-zero from a known, tracked BullMQ/Redis teardown race that occurs *after* all tests pass (see `.superpowers/sdd/task-5-report.md`). `npm test` is unaffected — it determines pass/fail from Jest's own result summary instead of the raw exit code, so it's the command that gates `npm run lint`/pre-push/CI.
+Note: running `npm run test:e2e` standalone can occasionally exit non-zero from a known, tracked BullMQ/Redis teardown race that occurs *after* all tests pass (see `docs/known-issues/bullmq-teardown-race.md`). `npm test` is unaffected — it determines pass/fail from Jest's own result summary instead of the raw exit code, so it's the command that gates `npm run lint`/pre-push/CI.
 
 ## Git Hooks (Husky)
 

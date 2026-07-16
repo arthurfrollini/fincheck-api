@@ -8,6 +8,8 @@ import {
   EMAIL_CHANGE_CONFIRMATION_JOB_NAME,
   EMAIL_RETRY_BACKOFF_TYPE,
   EMAIL_RETRY_MAX_ATTEMPTS,
+  COMPLETED_JOB_RETENTION_SECONDS,
+  FAILED_JOB_RETENTION_SECONDS,
   WelcomeJobData,
   EmailChangeConfirmationJobData,
 } from './mail-job.types';
@@ -48,6 +50,8 @@ export class MailQueueService {
       await this.mailQueue.add(jobName, data, {
         attempts: EMAIL_RETRY_MAX_ATTEMPTS,
         backoff: { type: EMAIL_RETRY_BACKOFF_TYPE },
+        removeOnComplete: { age: COMPLETED_JOB_RETENTION_SECONDS },
+        removeOnFail: { age: FAILED_JOB_RETENTION_SECONDS },
       });
     } catch (err) {
       this.logger.error(
