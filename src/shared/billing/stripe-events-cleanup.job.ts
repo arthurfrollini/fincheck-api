@@ -15,9 +15,7 @@ export class StripeEventsCleanupJob {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handle() {
-    const cutoff = new Date(
-      Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000,
-    );
+    const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000);
     await this.stripeEventsRepository.deleteOlderThan(cutoff);
   }
 }

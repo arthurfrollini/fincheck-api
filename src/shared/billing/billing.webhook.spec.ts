@@ -156,11 +156,9 @@ describe('BillingWebhookHandler', () => {
         makeInvoice('cus_test', 'price_gold'),
       );
       await handler.handle(event);
-      expect(mockMailQueueService.queueDowngradeNotification).toHaveBeenCalledWith(
-        baseUser.email,
-        baseUser.name,
-        Plan.GOLD,
-      );
+      expect(
+        mockMailQueueService.queueDowngradeNotification,
+      ).toHaveBeenCalledWith(baseUser.email, baseUser.name, Plan.GOLD);
     });
 
     it('does NOT send downgrade email on first payment (FREE→GOLD)', async () => {
@@ -174,7 +172,9 @@ describe('BillingWebhookHandler', () => {
         makeInvoice('cus_test', 'price_gold'),
       );
       await handler.handle(event);
-      expect(mockMailQueueService.queueDowngradeNotification).not.toHaveBeenCalled();
+      expect(
+        mockMailQueueService.queueDowngradeNotification,
+      ).not.toHaveBeenCalled();
     });
   });
 
@@ -186,7 +186,9 @@ describe('BillingWebhookHandler', () => {
       });
       await handler.handle(event);
       expect(mockUsersRepository.update).not.toHaveBeenCalled();
-      expect(mockMailQueueService.queueSubscriptionCancelled).not.toHaveBeenCalled();
+      expect(
+        mockMailQueueService.queueSubscriptionCancelled,
+      ).not.toHaveBeenCalled();
     });
 
     it('sets plan FREE, stripePriceId null and sends cancellation email', async () => {
@@ -203,10 +205,9 @@ describe('BillingWebhookHandler', () => {
         plan: Plan.FREE,
         stripePriceId: null,
       });
-      expect(mockMailQueueService.queueSubscriptionCancelled).toHaveBeenCalledWith(
-        baseUser.email,
-        baseUser.name,
-      );
+      expect(
+        mockMailQueueService.queueSubscriptionCancelled,
+      ).toHaveBeenCalledWith(baseUser.email, baseUser.name);
     });
   });
 
@@ -279,11 +280,9 @@ describe('BillingWebhookHandler', () => {
         }),
       );
       await handler.handle(event);
-      expect(mockMailQueueService.queueDowngradeNotification).toHaveBeenCalledWith(
-        baseUser.email,
-        baseUser.name,
-        Plan.GOLD,
-      );
+      expect(
+        mockMailQueueService.queueDowngradeNotification,
+      ).toHaveBeenCalledWith(baseUser.email, baseUser.name, Plan.GOLD);
     });
   });
 
@@ -293,8 +292,12 @@ describe('BillingWebhookHandler', () => {
       await handler.handle(event);
       expect(mockUsersRepository.findByStripeCustomerId).not.toHaveBeenCalled();
       expect(mockUsersRepository.update).not.toHaveBeenCalled();
-      expect(mockMailQueueService.queueDowngradeNotification).not.toHaveBeenCalled();
-      expect(mockMailQueueService.queueSubscriptionCancelled).not.toHaveBeenCalled();
+      expect(
+        mockMailQueueService.queueDowngradeNotification,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockMailQueueService.queueSubscriptionCancelled,
+      ).not.toHaveBeenCalled();
     });
   });
 
@@ -325,9 +328,7 @@ describe('BillingWebhookHandler', () => {
 
       await handler.handle(event);
 
-      expect(
-        mockUsersRepository.findByStripeCustomerId,
-      ).not.toHaveBeenCalled();
+      expect(mockUsersRepository.findByStripeCustomerId).not.toHaveBeenCalled();
       expect(mockUsersRepository.update).not.toHaveBeenCalled();
       expect(
         mockMailQueueService.queueSubscriptionCancelled,
