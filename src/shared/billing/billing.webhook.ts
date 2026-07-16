@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import Stripe from 'stripe';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
@@ -6,6 +6,7 @@ import { MailQueueService } from '@shared/mail/mail-queue.service';
 import { Plan } from '@modules/users/entities/User';
 import { env } from '@shared/config/env';
 import { StripeEventsRepository } from './stripe-events.repository';
+import { STRIPE_CLIENT } from './stripe.provider';
 
 @Injectable()
 export class BillingWebhookHandler {
@@ -15,6 +16,7 @@ export class BillingWebhookHandler {
     private readonly stripeEventsRepository: StripeEventsRepository,
     @InjectPinoLogger(BillingWebhookHandler.name)
     private readonly logger: PinoLogger,
+    @Inject(STRIPE_CLIENT) private readonly stripe: Stripe,
   ) {}
 
   async handle(event: Stripe.Event): Promise<void> {

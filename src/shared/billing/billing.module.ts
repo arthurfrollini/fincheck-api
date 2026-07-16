@@ -5,6 +5,7 @@ import { BillingController } from './billing.controller';
 import { StripeEventsRepository } from './stripe-events.repository';
 import { StripeEventsPrismaRepository } from './stripe-events.prisma.repository';
 import { StripeEventsCleanupJob } from './stripe-events-cleanup.job';
+import { stripeProvider } from './stripe.provider';
 import { UsersModule } from '@modules/users/users.module';
 
 @Global()
@@ -12,6 +13,7 @@ import { UsersModule } from '@modules/users/users.module';
   imports: [UsersModule],
   controllers: [BillingController],
   providers: [
+    stripeProvider,
     BillingService,
     BillingWebhookHandler,
     {

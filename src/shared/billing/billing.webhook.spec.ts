@@ -13,6 +13,7 @@ import { UsersRepository } from '@modules/users/domain/repositories/users.reposi
 import { MailQueueService } from '@shared/mail/mail-queue.service';
 import { StripeEventsRepository } from './stripe-events.repository';
 import { Plan } from '@modules/users/entities/User';
+import { STRIPE_CLIENT } from './stripe.provider';
 
 const mockUsersRepository = {
   findByStripeCustomerId: jest.fn(),
@@ -31,6 +32,10 @@ const mockStripeEventsRepository = {
 
 const mockLogger = {
   error: jest.fn(),
+};
+
+const mockStripe = {
+  webhooks: { constructEvent: jest.fn() },
 };
 
 const makeEvent = (
@@ -66,6 +71,7 @@ describe('BillingWebhookHandler', () => {
           provide: getLoggerToken(BillingWebhookHandler.name),
           useValue: mockLogger,
         },
+        { provide: STRIPE_CLIENT, useValue: mockStripe },
       ],
     }).compile();
 
