@@ -6,7 +6,16 @@ import {
   EMAIL_CHANGE_CONFIRMATION_JOB_NAME,
   EMAIL_RETRY_BACKOFF_TYPE,
   EMAIL_RETRY_MAX_ATTEMPTS,
+  COMPLETED_JOB_RETENTION_SECONDS,
+  FAILED_JOB_RETENTION_SECONDS,
 } from './mail-job.types';
+
+const EXPECTED_JOB_OPTIONS = {
+  attempts: EMAIL_RETRY_MAX_ATTEMPTS,
+  backoff: { type: EMAIL_RETRY_BACKOFF_TYPE },
+  removeOnComplete: { age: COMPLETED_JOB_RETENTION_SECONDS },
+  removeOnFail: { age: FAILED_JOB_RETENTION_SECONDS },
+};
 
 describe('MailQueueService', () => {
   let mockQueue: jest.Mocked<Pick<Queue, 'add' | 'on'>>;
@@ -28,10 +37,7 @@ describe('MailQueueService', () => {
     expect(mockQueue.add).toHaveBeenCalledWith(
       WELCOME_JOB_NAME,
       { to: 'user@example.com', name: 'Arthur' },
-      {
-        attempts: EMAIL_RETRY_MAX_ATTEMPTS,
-        backoff: { type: EMAIL_RETRY_BACKOFF_TYPE },
-      },
+      EXPECTED_JOB_OPTIONS,
     );
   });
 
@@ -41,10 +47,7 @@ describe('MailQueueService', () => {
     expect(mockQueue.add).toHaveBeenCalledWith(
       EMAIL_CHANGE_CONFIRMATION_JOB_NAME,
       { to: 'user@example.com', token: 'tok-123' },
-      {
-        attempts: EMAIL_RETRY_MAX_ATTEMPTS,
-        backoff: { type: EMAIL_RETRY_BACKOFF_TYPE },
-      },
+      EXPECTED_JOB_OPTIONS,
     );
   });
 
