@@ -107,4 +107,17 @@ describe('MailService', () => {
       );
     });
   });
+
+  describe('error handling', () => {
+    it('throws when Resend returns an error (so the job fails and retries)', async () => {
+      sendMock.mockResolvedValueOnce({
+        data: null,
+        error: { name: 'application_error', message: 'boom' },
+      });
+
+      await expect(
+        service.sendWelcome('user@example.com', 'Arthur'),
+      ).rejects.toThrow(/Resend failed to send email/);
+    });
+  });
 });
