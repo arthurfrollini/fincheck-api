@@ -47,7 +47,10 @@ export class UsersController {
     description: 'Get a presigned S3 URL to upload an avatar',
   })
   @ApiResponse({ status: 200, description: 'Returns uploadUrl and avatarUrl' })
-  @ApiResponse({ status: 400, description: 'ext must be jpg, jpeg, png or webp' })
+  @ApiResponse({
+    status: 400,
+    description: 'ext must be jpg, jpeg, png or webp',
+  })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   getAvatarUploadUrl(
     @ActiveUserId() userId: string,
