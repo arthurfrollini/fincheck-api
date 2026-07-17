@@ -1,15 +1,30 @@
 import { Injectable } from '@nestjs/common';
-import { Resend } from 'resend';
+import { CreateEmailOptions, Resend } from 'resend';
 import { env } from '../config/env';
+
+const RESEND_TIMEOUT_MS = 10000;
 
 @Injectable()
 export class MailService {
   private resend = new Resend(env.resendApiKey);
 
+  private async send(payload: CreateEmailOptions): Promise<void> {
+    const { error } = await this.resend.emails.send(payload, {
+      signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
+    } as never);
+
+    if (error) {
+      // Resend's SDK never throws — it returns { error } (including on our
+      // AbortSignal timeout). Throw so the mail-queue worker job fails and
+      // BullMQ retries it, instead of silently dropping the email.
+      throw new Error(`Resend failed to send email: ${JSON.stringify(error)}`);
+    }
+  }
+
   async sendEmailChangeConfirmation(to: string, token: string) {
     const confirmUrl = `http://localhost:3000/users/confirm-email?token=${token}`;
 
-    await this.resend.emails.send({
+    await this.send({
       from: env.resendFromEmail,
       to,
       subject: 'Confirme a alteração do seu e-mail',
@@ -23,7 +38,7 @@ export class MailService {
   }
 
   async sendWelcome(to: string, name: string) {
-    await this.resend.emails.send({
+    await this.send({
       from: env.resendFromEmail,
       to,
       subject: 'Bem-vindo ao Fincheck!',
@@ -40,7 +55,7 @@ export class MailService {
     name: string,
     newPlan: string,
   ): Promise<void> {
-    await this.resend.emails.send({
+    await this.send({
       from: env.resendFromEmail,
       to,
       subject: 'Seu plano Fincheck foi alterado',
@@ -54,7 +69,7 @@ export class MailService {
   }
 
   async sendSubscriptionCancelled(to: string, name: string): Promise<void> {
-    await this.resend.emails.send({
+    await this.send({
       from: env.resendFromEmail,
       to,
       subject: 'Sua assinatura Fincheck foi cancelada',

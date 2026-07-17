@@ -25,6 +25,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
+import { STRIPE_CLIENT } from './stripe.provider';
 
 const mockUsersRepository = {
   findById: jest.fn(),
@@ -54,6 +55,7 @@ describe('BillingService', () => {
       providers: [
         BillingService,
         { provide: UsersRepository, useValue: mockUsersRepository },
+        { provide: STRIPE_CLIENT, useValue: mockStripe },
       ],
     }).compile();
 

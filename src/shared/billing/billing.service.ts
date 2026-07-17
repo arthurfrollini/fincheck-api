@@ -1,19 +1,20 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import Stripe from 'stripe';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
 import { env } from '@shared/config/env';
+import { STRIPE_CLIENT } from './stripe.provider';
 
 @Injectable()
 export class BillingService {
-  private readonly stripe: Stripe;
-
-  constructor(private readonly usersRepository: UsersRepository) {
-    this.stripe = new Stripe(env.stripeSecretKey);
-  }
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    @Inject(STRIPE_CLIENT) private readonly stripe: Stripe,
+  ) {}
 
   private async getOrCreateCustomer(userId: string): Promise<string> {
     const user = await this.usersRepository.findById(userId);

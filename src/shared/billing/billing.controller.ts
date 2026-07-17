@@ -9,7 +9,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import Stripe from 'stripe';
 import {
   ApiBearerAuth,
   ApiExcludeEndpoint,
@@ -21,7 +20,6 @@ import { BillingService } from './billing.service';
 import { BillingWebhookHandler } from './billing.webhook';
 import { ActiveUserId } from '@shared/decorators/active-user-id.decorator';
 import { isPublic } from '@shared/decorators/public.decorator';
-import { env } from '@shared/config/env';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { ChangePlanDto } from './dto/change-plan.dto';
 
@@ -29,14 +27,10 @@ import { ChangePlanDto } from './dto/change-plan.dto';
 @ApiBearerAuth()
 @Controller('billing')
 export class BillingController {
-  private readonly stripe: Stripe;
-
   constructor(
     private readonly billingService: BillingService,
     private readonly billingWebhookHandler: BillingWebhookHandler,
-  ) {
-    this.stripe = new Stripe(env.stripeSecretKey);
-  }
+  ) {}
 
   @Post('setup')
   @ApiOperation({
@@ -110,16 +104,10 @@ export class BillingController {
     if (!signature)
       throw new UnauthorizedException('Missing stripe-signature header.');
 
-    let event: Stripe.Event;
-    try {
-      event = this.stripe.webhooks.constructEvent(
-        (req as any).rawBody,
-        signature,
-        env.stripeWebhookSecret,
-      );
-    } catch {
-      throw new UnauthorizedException('Invalid webhook signature.');
-    }
+    const event = this.billingWebhookHandler.constructEvent(
+      (req as any).rawBody,
+      signature,
+    );
 
     await this.billingWebhookHandler.handle(event);
     return { received: true };
