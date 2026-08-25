@@ -13,7 +13,9 @@ const sdk = new NodeSDK({
     [ATTR_SERVICE_NAME]: 'fincheck-api',
   }),
   traceExporter: new OTLPTraceExporter({
-    url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318/v1/traces',
+    url:
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT ??
+      'http://localhost:4318/v1/traces',
   }),
   instrumentations: [
     getNodeAutoInstrumentations({
