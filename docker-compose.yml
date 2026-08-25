@@ -69,9 +69,20 @@ services:
     ports:
       - '3100:3100'
 
+  grafana:
+    image: grafana/grafana:13.2.0
+    container_name: grafana
+    restart: unless-stopped
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    ports:
+      - '3001:3000'
+
 volumes:
   postgres_data:
   redis_data:
   redisinsight_data:
   prometheus_data:
   loki_data:
+  grafana_data:
