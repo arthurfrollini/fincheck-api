@@ -7,6 +7,7 @@ import { StripeEventsPrismaRepository } from './stripe-events.prisma.repository'
 import { StripeEventsCleanupJob } from './stripe-events-cleanup.job';
 import { stripeProvider } from './stripe.provider';
 import { UsersModule } from '@modules/users/users.module';
+import { BillingMetricsService } from './billing.metrics';
 
 @Global()
 @Module({
@@ -21,6 +22,7 @@ import { UsersModule } from '@modules/users/users.module';
       useClass: StripeEventsPrismaRepository,
     },
     StripeEventsCleanupJob,
+    BillingMetricsService,
   ],
   exports: [BillingService],
 })
