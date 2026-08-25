@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: fincheck-api
+    # The app runs on the host during dev, not as a compose service — from
+    # inside this container "localhost" means the container itself, so the
+    # target must be host.docker.internal (works out of the box on Docker
+    # Desktop for Mac/Windows; on Linux it needs an extra_hosts entry).
+    static_configs:
+      - targets: ['host.docker.internal:9464']
