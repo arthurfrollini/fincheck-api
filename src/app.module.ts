@@ -17,7 +17,22 @@ import { BillingModule } from '@shared/billing/billing.module';
 
 @Module({
   imports: [
-    LoggerModule.forRoot(),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport: {
+          targets: [
+            { target: 'pino/file', options: { destination: 1 } },
+            {
+              target: 'pino-loki',
+              options: {
+                host: process.env.LOKI_URL ?? 'http://localhost:3100',
+                labels: { app: 'fincheck-api' },
+              },
+            },
+          ],
+        },
+      },
+    }),
     UsersModule,
     DatabaseModule,
     AuthModule,

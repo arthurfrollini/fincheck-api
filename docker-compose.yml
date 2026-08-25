@@ -58,8 +58,20 @@ services:
     ports:
       - '9090:9090'
 
+  loki:
+    image: grafana/loki:3.7.6
+    container_name: loki
+    restart: unless-stopped
+    command: ['-config.file=/etc/loki/loki-config.yaml']
+    volumes:
+      - ./docker/loki/loki-config.yaml:/etc/loki/loki-config.yaml
+      - loki_data:/loki
+    ports:
+      - '3100:3100'
+
 volumes:
   postgres_data:
   redis_data:
   redisinsight_data:
   prometheus_data:
+  loki_data:
