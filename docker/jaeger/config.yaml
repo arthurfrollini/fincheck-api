@@ -1,0 +1,41 @@
+# Trimmed-down Jaeger v2 all-in-one config for local dev.
+# Based on the official example (cmd/jaeger/config.yaml in jaegertracing/jaeger),
+# stripped of what we don't use: zipkin/legacy-jaeger receivers, adaptive
+# sampling, pprof, healthcheck, and the AI/MCP extension.
+service:
+  extensions: [jaeger_storage, jaeger_query]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger_storage_exporter]
+
+extensions:
+  jaeger_query:
+    storage:
+      traces: memstore
+    ui:
+      config_file: /etc/jaeger/config-ui.json
+
+  jaeger_storage:
+    backends:
+      memstore:
+        memory:
+          max_traces: 100000
+
+receivers:
+  otlp:
+    protocols:
+      # Unlike v1, v2's OTLP receiver defaults to 127.0.0.1 — unreachable
+      # through Docker's published ports from outside the container.
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: memstore

@@ -31,6 +31,23 @@ services:
     volumes:
       - redisinsight_data:/data
 
+  jaeger:
+    # Jaeger v1 (all-in-one) reached end-of-life 2025-12-31 — v2 is a
+    # rearchitecture on the OpenTelemetry Collector and is config-file-only
+    # (no more COLLECTOR_OTLP_ENABLED-style env vars). Dark mode is a v2-only
+    # UI feature, enabled via config-ui.json below.
+    image: jaegertracing/jaeger:2.20.0
+    container_name: jaeger
+    restart: unless-stopped
+    command: ['--config', '/etc/jaeger/config.yaml']
+    volumes:
+      - ./docker/jaeger/config.yaml:/etc/jaeger/config.yaml
+      - ./docker/jaeger/config-ui.json:/etc/jaeger/config-ui.json
+    ports:
+      - '16686:16686' # UI
+      - '4317:4317' # OTLP gRPC receiver
+      - '4318:4318' # OTLP HTTP receiver
+
 volumes:
   postgres_data:
   redis_data:
