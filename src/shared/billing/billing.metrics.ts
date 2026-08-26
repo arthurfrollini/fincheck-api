@@ -16,7 +16,8 @@ export class BillingMetricsService implements OnModuleInit {
     const meter = metrics.getMeter('fincheck-api');
     meter
       .createObservableGauge('fincheck_active_subscriptions', {
-        description: 'Number of users currently on a paid plan (GOLD or PLATINUM)',
+        description:
+          'Number of users currently on a paid plan (GOLD or PLATINUM)',
       })
       .addCallback(async (result) => {
         result.observe(await this.getActiveSubscriptionsCount());
