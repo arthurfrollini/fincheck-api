@@ -7,9 +7,7 @@ describe('BillingMetricsService', () => {
 
   beforeEach(() => {
     mockPrisma = { user: { count: jest.fn().mockResolvedValue(0) } };
-    service = new BillingMetricsService(
-      mockPrisma as unknown as PrismaService,
-    );
+    service = new BillingMetricsService(mockPrisma as unknown as PrismaService);
   });
 
   it('counts users on GOLD or PLATINUM plans', async () => {
