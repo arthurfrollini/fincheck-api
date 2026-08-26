@@ -3,6 +3,8 @@
   "rootDir": "..",
   "testEnvironment": "node",
   "testRegex": "test/e2e/.+\\.e2e-spec\\.ts$",
+  "testPathIgnorePatterns": ["/node_modules/", "<rootDir>/.worktrees/"],
+  "modulePathIgnorePatterns": ["<rootDir>/.worktrees/"],
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },

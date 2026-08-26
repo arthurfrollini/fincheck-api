@@ -48,6 +48,10 @@ lerna-debug.log*
 .temp
 .tmp
 
+# git worktrees / subagent-driven-development scratch
+/.worktrees
+/.superpowers
+
 # Runtime data
 pids
 *.pid

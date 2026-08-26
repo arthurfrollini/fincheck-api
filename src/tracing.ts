@@ -7,6 +7,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { PrismaInstrumentation } from '@prisma/instrumentation';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
+import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 
 const sdk = new NodeSDK({
   resource: resourceFromAttributes({
@@ -17,6 +18,7 @@ const sdk = new NodeSDK({
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT ??
       'http://localhost:4318/v1/traces',
   }),
+  metricReader: new PrometheusExporter({ port: 9464 }),
   instrumentations: [
     getNodeAutoInstrumentations({
       // Every module file read becomes a span otherwise — pure startup

@@ -48,7 +48,41 @@ services:
       - '4317:4317' # OTLP gRPC receiver
       - '4318:4318' # OTLP HTTP receiver
 
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - '9090:9090'
+
+  loki:
+    image: grafana/loki:3.7.6
+    container_name: loki
+    restart: unless-stopped
+    command: ['-config.file=/etc/loki/loki-config.yaml']
+    volumes:
+      - ./docker/loki/loki-config.yaml:/etc/loki/loki-config.yaml
+      - loki_data:/loki
+    ports:
+      - '3100:3100'
+
+  grafana:
+    image: grafana/grafana:13.2.0
+    container_name: grafana
+    restart: unless-stopped
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    ports:
+      - '3001:3000'
+
 volumes:
   postgres_data:
   redis_data:
   redisinsight_data:
+  prometheus_data:
+  loki_data:
+  grafana_data:
