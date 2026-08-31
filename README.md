@@ -10,6 +10,7 @@ REST API for a personal finance management app. Users track bank accounts and tr
 - **Email:** Resend (welcome, email change confirmation, billing notifications)
 - **Storage:** AWS S3 (avatar upload via presigned URL)
 - **Billing:** Stripe (subscriptions, webhooks, dunning)
+- **Observability:** OpenTelemetry (traces + metrics) → Jaeger + Prometheus, structured logs (`nestjs-pino`) → Loki, all unified in Grafana
 - **Tests:** Jest 30 + Supertest — 158 unit + 69 e2e tests, 96%+ combined coverage
 
 ## Architecture
@@ -76,10 +77,31 @@ Shared concerns (auth guards, plan enforcement, mail, storage, billing) live in 
 
 Webhook endpoint: `POST /billing/webhook` — validates Stripe signature via `rawBody`. Processing is idempotent: every `event.id` is recorded in `processed_stripe_events` (record-first, compensating delete on failure), so Stripe's at-least-once redelivery never double-applies plan changes or duplicates notification emails. Billing emails go through the same Redis-backed retry queue as signup/email-change. Dedup rows are pruned after 30 days by a daily cron.
 
+## Developer Tools
+
+Everything below is optional for basic API work — the app runs fine with just `db` + `redis` up. Bring in the rest as needed.
+
+| Tool | URL | Notes |
+|------|-----|-------|
+| API reference (Scalar) | http://localhost:3000/reference | Built into the app itself — no separate service, just needs `npm run start:dev` running |
+| Prisma Studio | `npx prisma studio` → http://localhost:5555 | DB browser/editor, not a Docker service |
+| RedisInsight | http://localhost:5540 | Inspect the BullMQ email retry queue |
+| Jaeger UI | http://localhost:16686 | Distributed traces |
+| Prometheus UI | http://localhost:9090 | Raw metrics + scrape target status |
+| Grafana | http://localhost:3001 (`admin` / `admin`) | Single pane for traces (Jaeger), metrics (Prometheus), and logs (Loki) — provisioned automatically, no manual datasource setup |
+
+```bash
+# Start just the observability stack (Jaeger, Prometheus, Loki, Grafana)
+npm run observability:up
+```
+
+The app exposes its own Prometheus metrics at `http://localhost:9464/metrics` (scraped by the `prometheus` container via `host.docker.internal`, since the app runs on the host in dev, not in a container).
+
 ## Local Setup
 
 ```bash
-# 1. Start PostgreSQL
+# 1. Start PostgreSQL (+ Redis; add jaeger/prometheus/loki/grafana too if you
+#    want observability — or run `npm run observability:up` separately)
 docker compose up -d
 
 # 2. Install dependencies
@@ -113,6 +135,10 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_PRICE_GOLD=
 STRIPE_PRICE_PLATINUM=
+
+# Optional — observability, both already default to the local Docker services
+OTEL_EXPORTER_OTLP_ENDPOINT=  # default: http://localhost:4318/v1/traces (Jaeger)
+LOKI_URL=                     # default: http://localhost:3100
 ```
 
 ## Tests

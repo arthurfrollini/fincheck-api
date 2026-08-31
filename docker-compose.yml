@@ -1,3 +1,13 @@
+# Pinned so the Compose project identity doesn't drift with whatever
+# directory this file happens to be invoked from (it defaults to the
+# invoking directory's basename otherwise — running from a git worktree vs.
+# the main checkout gives two different project names for the same stack,
+# which causes container-name conflicts instead of adopting the running
+# containers). Matches the name the stack was originally created under —
+# renaming it would orphan the existing data volumes (Compose scopes volume
+# names by project), so don't change this without migrating volumes first.
+name: observability-metrics-logs-grafana
+
 services:
   db:
     image: postgres:17
