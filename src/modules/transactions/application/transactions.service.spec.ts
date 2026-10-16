@@ -13,6 +13,7 @@ import { ValidateBankAccountOwnershipService } from '@modules/bank-accounts/appl
 import { ValidateCategoryOwnershipService } from '@modules/categories/application/validate-category-ownership.service';
 import { ValidateTransactionOwnershipService } from './validate-transaction-ownership.service';
 import { PlanGuardService } from '@shared/plan/plan-guard.service';
+import { CategorizationQueueService } from '../infra/queue/categorization-queue.service';
 
 const mockTransactionsRepository = {
   findMany: jest.fn(),
@@ -39,6 +40,10 @@ const mockPlanGuardService = {
   validateBankAccountIsActive: jest.fn(),
 };
 
+const mockCategorizationQueueService = {
+  enqueue: jest.fn(),
+};
+
 const makeService = async () => {
   const module: TestingModule = await Test.createTestingModule({
     providers: [
@@ -60,6 +65,10 @@ const makeService = async () => {
         provide: PlanGuardService,
         useValue: mockPlanGuardService,
       },
+      {
+        provide: CategorizationQueueService,
+        useValue: mockCategorizationQueueService,
+      },
     ],
   }).compile();
   return module.get<TransactionsService>(TransactionsService);
@@ -71,6 +80,46 @@ describe('TransactionsService', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     service = await makeService();
+  });
+
+  describe('create categorization', () => {
+    const createDto = {
+      bankAccountId: 'bank-account-1',
+      name: 'Mercadinho Barcelona',
+      value: 47.98,
+      date: '2026-09-25',
+      type: 'EXPENSE' as const,
+    };
+
+    beforeEach(() => {
+      mockTransactionsRepository.create.mockResolvedValue({ id: 'tx-1' });
+    });
+
+    it('enqueues categorization when categoryId is absent', async () => {
+      await service.create('user-1', createDto);
+
+      expect(mockCategorizationQueueService.enqueue).toHaveBeenCalledWith(
+        'user-1',
+        'tx-1',
+      );
+      expect(
+        mockValidateCategoryOwnershipService.validate,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('does not enqueue when categoryId is present', async () => {
+      await service.create('user-1', { ...createDto, categoryId: 'cat-1' });
+
+      expect(mockCategorizationQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('never enqueues on update, even without categoryId', async () => {
+      mockTransactionsRepository.update.mockResolvedValue({ id: 'tx-1' });
+
+      await service.update('user-1', 'tx-1', createDto);
+
+      expect(mockCategorizationQueueService.enqueue).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAllByUserId', () => {

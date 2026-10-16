@@ -7,6 +7,7 @@ import { ValidateCategoryOwnershipService } from '@modules/categories/applicatio
 import { ValidateTransactionOwnershipService } from './validate-transaction-ownership.service';
 import { type TransactionFilters } from '../entities/Transaction';
 import { PlanGuardService } from '@shared/plan/plan-guard.service';
+import { CategorizationQueueService } from '../infra/queue/categorization-queue.service';
 
 @Injectable()
 export class TransactionsService {
@@ -16,6 +17,7 @@ export class TransactionsService {
     private readonly validateCategoryOwnershipService: ValidateCategoryOwnershipService,
     private readonly validateTransactionOwnershipService: ValidateTransactionOwnershipService,
     private readonly planGuardService: PlanGuardService,
+    private readonly categorizationQueueService: CategorizationQueueService,
   ) {}
 
   async create(userId: string, createTransactionDto: CreateTransactionDto) {
@@ -28,7 +30,7 @@ export class TransactionsService {
       this.planGuardService.validateBankAccountIsActive(userId, bankAccountId),
     ]);
 
-    return this.transactionsRepository.create({
+    const transaction = await this.transactionsRepository.create({
       userId,
       bankAccountId,
       categoryId,
@@ -37,6 +39,13 @@ export class TransactionsService {
       date: new Date(date),
       type,
     });
+
+    // Never throws: the response does not wait for, or depend on, the model.
+    if (!categoryId) {
+      await this.categorizationQueueService.enqueue(userId, transaction.id);
+    }
+
+    return transaction;
   }
 
   async findAllByUserId(userId: string, filters: TransactionFilters) {

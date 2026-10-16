@@ -9,6 +9,7 @@ import { AppModule } from '../../src/app.module';
 import { MailService } from '../../src/shared/mail/mail.service';
 import { StorageService } from '../../src/shared/storage/storage.service';
 import { BillingService } from '../../src/shared/billing/billing.service';
+import { LlmService } from '../../src/shared/llm/llm.service';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env.test') });
 
@@ -36,6 +37,12 @@ export const mockBillingService = {
   createCustomerAndSubscribe: jest.fn().mockResolvedValue(undefined),
 };
 
+// The Claude API is an external boundary like Resend or Stripe: e2e never
+// calls it. Specs that exercise categorization set return values per test.
+export const mockLlmService = {
+  parse: jest.fn(),
+};
+
 export async function createApp(): Promise<INestApplication> {
   const module: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
@@ -46,6 +53,8 @@ export async function createApp(): Promise<INestApplication> {
     .useValue(mockStorageService)
     .overrideProvider(BillingService)
     .useValue(mockBillingService)
+    .overrideProvider(LlmService)
+    .useValue(mockLlmService)
     .compile();
 
   const app = module.createNestApplication({
