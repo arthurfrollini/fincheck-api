@@ -19,6 +19,7 @@
     "test:unit:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "eval:categorization": "ts-node -r tsconfig-paths/register evals/categorization/run.ts",
+    "rag:ingest": "ts-node -r tsconfig-paths/register scripts/rag-ingest.ts",
     "llm:record-fixtures": "ts-node -r tsconfig-paths/register scripts/record-llm-fixtures.ts",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",

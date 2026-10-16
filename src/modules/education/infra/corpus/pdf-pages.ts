@@ -1,4 +1,7 @@
 import { execFile } from 'child_process';
+import { mkdtemp, rm, writeFile } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { promisify } from 'util';
 import { type PageText } from '../../application/chunking';
 
@@ -17,4 +20,18 @@ export async function extractPdfPages(filePath: string): Promise<PageText[]> {
     .split('\f')
     .map((text, i) => ({ page: i + 1, text }))
     .filter((p) => p.text.trim() !== '');
+}
+
+// pdftotext reads files, not buffers.
+export async function extractPdfPagesFromBytes(
+  pdf: Uint8Array,
+): Promise<PageText[]> {
+  const dir = await mkdtemp(join(tmpdir(), 'corpus-'));
+  try {
+    const file = join(dir, 'document.pdf');
+    await writeFile(file, pdf);
+    return await extractPdfPages(file);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 }
