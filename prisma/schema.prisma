@@ -29,10 +29,10 @@ enum Plan {
 }
 
 model User {
-  id       String @id @default(uuid()) @db.Uuid
+  id       String  @id @default(uuid()) @db.Uuid
   name     String
-  role     Role   @default(USER)
-  plan     Plan   @default(FREE)
+  role     Role    @default(USER)
+  plan     Plan    @default(FREE)
   password String?
 
   email               String    @unique
@@ -44,10 +44,11 @@ model User {
   stripeCustomerId    String?   @unique @map("stripe_customer_id")
   stripePriceId       String?   @map("stripe_price_id")
 
-  bankAccounts   BankAccount[]
-  categories     Category[]
-  transactions   Transaction[]
-  refreshTokens  RefreshToken[]
+  bankAccounts  BankAccount[]
+  categories    Category[]
+  transactions  Transaction[]
+  refreshTokens RefreshToken[]
+  agentRuns     AgentRun[]
 
   @@map("users")
 }
@@ -151,4 +152,33 @@ model KnowledgeChunk {
 
   @@unique([documentSha, chunkIndex])
   @@map("knowledge_chunks")
+}
+
+enum AgentRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  DEGRADED
+  FAILED
+
+  @@map("agent_run_status")
+}
+
+model AgentRun {
+  id             String         @id @default(uuid()) @db.Uuid
+  userId         String         @map("user_id") @db.Uuid
+  // Client-supplied Idempotency-Key; null when the client sent none.
+  idempotencyKey String?        @map("idempotency_key")
+  question       String
+  status         AgentRunStatus
+  answer         String?
+  steps          Int            @default(0)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  completedAt    DateTime?      @map("completed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Postgres treats NULLs as distinct, so runs without a key never collide.
+  @@unique([userId, idempotencyKey])
+  @@map("agent_runs")
 }
