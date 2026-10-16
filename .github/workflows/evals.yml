@@ -101,3 +101,45 @@ jobs:
         run: |
           set -o pipefail
           npm run --silent eval:rag-answers | tee -a "$GITHUB_STEP_SUMMARY"
+
+  agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        # pgvector image: the migrations create the vector extension.
+        image: pgvector/pgvector:pg17-trixie
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: fincheck_eval
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U root"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://root:root@localhost:5432/fincheck_eval?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma migrate deploy
+
+      - name: Run agent eval (Sonnet 5.5 agent, Opus 5.5 judge)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -o pipefail
+          npm run --silent eval:agent | tee -a "$GITHUB_STEP_SUMMARY"
