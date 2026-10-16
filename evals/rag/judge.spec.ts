@@ -5,6 +5,7 @@ import {
   passes,
   runAnswerEval,
   type Verdict,
+  summarizeAnswerRun,
 } from './judge';
 
 const verdict = (v: Partial<Verdict>): Verdict => ({
@@ -131,5 +132,47 @@ describe('runAnswerEval', () => {
       ['q3', false, 'error'],
     ]);
     expect(judge).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('summarizeAnswerRun', () => {
+  const ok = (id: string, passed: boolean) => ({
+    id,
+    passed,
+    outcome: 'ok' as const,
+  });
+
+  it('scores passes and gates against the baseline with a 2-case tolerance', () => {
+    const fiveCases = (passed: number) =>
+      ['a', 'b', 'c', 'd', 'e'].map((id, i) => ok(id, i < passed));
+    const baseline = { correct: 5, total: 5 };
+
+    expect(summarizeAnswerRun(fiveCases(3), baseline, false).correct).toBe(3);
+    expect(summarizeAnswerRun(fiveCases(3), baseline, false).gate?.status).toBe(
+      'pass',
+    );
+    const regressed = summarizeAnswerRun(fiveCases(2), baseline, false);
+    expect(regressed.gate?.status).toBe('fail');
+    expect(regressed.exitCode).toBe(1);
+  });
+
+  it('records a new baseline only when no case errored', () => {
+    const clean = summarizeAnswerRun(
+      [ok('a', true), ok('b', false)],
+      undefined,
+      true,
+    );
+    expect(clean.newBaseline).toEqual(
+      expect.objectContaining({ correct: 1, total: 2 }),
+    );
+    expect(clean.gate).toBeUndefined();
+
+    const dirty = summarizeAnswerRun(
+      [ok('a', true), { id: 'b', passed: false, outcome: 'error' as const }],
+      undefined,
+      true,
+    );
+    expect(dirty.newBaseline).toBeUndefined();
+    expect(dirty.exitCode).toBe(1);
   });
 });

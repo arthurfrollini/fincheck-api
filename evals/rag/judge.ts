@@ -3,6 +3,11 @@ import * as path from 'path';
 import { z } from 'zod';
 import { type LlmService } from '@shared/llm/llm.service';
 import { type RagAnswer } from '@modules/education/application/answer-question.service';
+import {
+  compareToBaseline,
+  type Baseline,
+  type GateResult,
+} from '../lib/baseline';
 import { loadQuerySet } from './query-set';
 
 export const JUDGE_MODEL = 'claude-opus-5-5' as const;
@@ -153,4 +158,39 @@ export async function runAnswerEval(opts: {
     }
   }
   return results;
+}
+
+export interface AnswerRunSummary {
+  correct: number;
+  total: number;
+  errors: number;
+  gate?: GateResult;
+  newBaseline?: Baseline & { recordedAt: string };
+  exitCode: number;
+}
+
+// Same gate as categorization: the judge varies run to run, so a drop of
+// more than 2 of 20 cases fails, a smaller wobble doesn't.
+export function summarizeAnswerRun(
+  results: AnswerCaseResult[],
+  baseline: Baseline | undefined,
+  updateBaseline: boolean,
+): AnswerRunSummary {
+  const correct = results.filter((r) => r.passed).length;
+  const errors = results.filter((r) => r.outcome === 'error').length;
+  const score = { correct, total: results.length };
+
+  if (updateBaseline) {
+    return errors === 0
+      ? {
+          ...score,
+          errors,
+          newBaseline: { ...score, recordedAt: new Date().toISOString() },
+          exitCode: 0,
+        }
+      : { ...score, errors, exitCode: 1 };
+  }
+
+  const gate = compareToBaseline(score, baseline);
+  return { ...score, errors, gate, exitCode: gate.status === 'fail' ? 1 : 0 };
 }

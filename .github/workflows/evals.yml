@@ -49,3 +49,53 @@ jobs:
           name: categorization-eval
           path: eval-result.json
           if-no-files-found: ignore
+
+  rag-answers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17-trixie
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: fincheck_eval
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U root"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://root:root@localhost:5432/fincheck_eval?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install poppler
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+
+      - name: Cache corpus and embedding model
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: rag-${{ hashFiles('corpus/manifest.json', 'src/modules/education/infra/embeddings/transformers-embedding.provider.ts') }}
+
+      - run: npx prisma migrate deploy
+
+      - run: npm run --silent rag:ingest
+
+      - name: Run RAG answer eval (Sonnet 5.5 answers, Opus 5.5 judge)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: npm run --silent eval:rag-answers | tee -a "$GITHUB_STEP_SUMMARY"
