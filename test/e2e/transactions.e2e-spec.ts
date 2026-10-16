@@ -1,6 +1,8 @@
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
-import { createApp } from '../helpers/create-app';
+import * as fs from 'fs';
+import * as path from 'path';
+import { createApp, mockLlmService } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
 
@@ -77,6 +79,64 @@ describe('Transactions (e2e)', () => {
         .set('Authorization', `Bearer ${otherToken}`)
         .send(txPayload());
       expect(res.status).toBe(404);
+    });
+  });
+
+  describe('POST /transactions without categoryId (auto-categorization)', () => {
+    const okFixture = JSON.parse(
+      fs.readFileSync(
+        path.resolve(__dirname, '../fixtures/llm/categorization/ok.json'),
+        'utf8',
+      ),
+    );
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    let expenseCategoryId: string;
+
+    beforeEach(async () => {
+      mockLlmService.parse.mockReset();
+      const catRes = await request(app.getHttpServer())
+        .get('/categories')
+        .set('Authorization', `Bearer ${accessToken}`);
+      expenseCategoryId = catRes.body.find(
+        (c: { type: string }) => c.type === 'EXPENSE',
+      ).id;
+      mockLlmService.parse.mockResolvedValue({
+        ...okFixture,
+        parsed_output: { categoryId: expenseCategoryId, confidence: 0.92 },
+      });
+    });
+
+    const findCategoryId = async (id: string) => {
+      const res = await request(app.getHttpServer())
+        .get('/transactions')
+        .query({ month: 6, year: 2026 })
+        .set('Authorization', `Bearer ${accessToken}`);
+      return res.body.data.find((t: { id: string }) => t.id === id)
+        ?.categoryId as string | null;
+    };
+
+    it('returns 201 with categoryId null, then the worker fills it in', async () => {
+      const res = await createTransaction({ categoryId: undefined });
+
+      expect(res.status).toBe(201);
+      expect(res.body.categoryId).toBeNull();
+
+      let categoryIdAfter: string | null = null;
+      for (let i = 0; i < 50 && !categoryIdAfter; i++) {
+        await sleep(100);
+        categoryIdAfter = await findCategoryId(res.body.id);
+      }
+      expect(categoryIdAfter).toBe(expenseCategoryId);
+      expect(mockLlmService.parse).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call the model when categoryId is sent', async () => {
+      const res = await createTransaction();
+
+      expect(res.status).toBe(201);
+      await sleep(500);
+      expect(mockLlmService.parse).not.toHaveBeenCalled();
     });
   });
 

@@ -4,6 +4,7 @@ import { CategoriesRepository } from '@modules/categories/domain/repositories/ca
 import {
   type CategoryCreate,
   type CategoryEntity,
+  type CategoryType,
   type CategoryUpdate,
 } from '@modules/categories/entities/Category';
 
@@ -13,6 +14,13 @@ export class CategoriesPrismaRepository implements CategoriesRepository {
 
   findAllByUserId(userId: string): Promise<CategoryEntity[]> {
     return this.prismaService.category.findMany({ where: { userId } });
+  }
+
+  findAllByUserIdAndType(
+    userId: string,
+    type: CategoryType,
+  ): Promise<CategoryEntity[]> {
+    return this.prismaService.category.findMany({ where: { userId, type } });
   }
 
   findFirst(id: string, userId: string): Promise<CategoryEntity | null> {

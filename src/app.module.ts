@@ -8,6 +8,7 @@ import { AuthModule } from '@modules/auth/auth.module';
 import { CategoriesModule } from '@modules/categories/categories.module';
 import { DatabaseModule } from '@shared/database/database.module';
 import { MailModule } from '@shared/mail/mail.module';
+import { LlmModule } from '@shared/llm/llm.module';
 import { StorageModule } from '@shared/storage/storage.module';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { AllExceptionsFilter } from '@shared/filters/all-exceptions.filter';
@@ -39,6 +40,7 @@ import { BillingModule } from '@shared/billing/billing.module';
     DatabaseModule,
     AuthModule,
     MailModule,
+    LlmModule,
     StorageModule,
     CategoriesModule,
     BankAccountsModule,
