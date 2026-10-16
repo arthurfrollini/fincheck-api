@@ -1,0 +1,50 @@
+{"id": "r01", "name": "Mercadinho Barcelona", "type": "EXPENSE", "value": 47.98, "expected": "Mercado", "source": "real"}
+{"id": "r02", "name": "Assaí Atacadista", "type": "EXPENSE", "value": 109.8, "expected": "Mercado", "source": "real"}
+{"id": "r03", "name": "Mercado Lolali 2", "type": "EXPENSE", "value": 39.73, "expected": "Mercado", "source": "real"}
+{"id": "r04", "name": "Mercado Nicole", "type": "EXPENSE", "value": 15.65, "expected": "Mercado", "source": "real"}
+{"id": "r05", "name": "99 Food", "type": "EXPENSE", "value": 43.03, "expected": "Alimentação", "source": "real"}
+{"id": "r06", "name": "Clube iFood", "type": "EXPENSE", "value": 12.9, "expected": "Alimentação", "source": "real"}
+{"id": "r07", "name": "La Mexicana Restaurante", "type": "EXPENSE", "value": 155.5, "expected": "Alimentação", "source": "real"}
+{"id": "r08", "name": "Sabordeminas", "type": "EXPENSE", "value": 30.0, "expected": "Alimentação", "source": "real"}
+{"id": "r09", "name": "Helix Restaurantes", "type": "EXPENSE", "value": 53.9, "expected": "Alimentação", "source": "real"}
+{"id": "r10", "name": "Pao do Parque", "type": "EXPENSE", "value": 71.78, "expected": "Alimentação", "source": "real"}
+{"id": "r11", "name": "Cacau Show", "type": "EXPENSE", "value": 66.89, "expected": "Alimentação", "source": "real"}
+{"id": "r12", "name": "Zé Delivery", "type": "EXPENSE", "value": 71.96, "expected": "Alimentação", "source": "real"}
+{"id": "r13", "name": "Uber", "type": "EXPENSE", "value": 133.96, "expected": "Transporte", "source": "real"}
+{"id": "r14", "name": "99", "type": "EXPENSE", "value": 96.11, "expected": "Transporte", "source": "real"}
+{"id": "r15", "name": "NuTag*ECD2D34", "type": "EXPENSE", "value": 4.37, "expected": "Transporte", "source": "real"}
+{"id": "r16", "name": "Álamo Rent-a-car", "type": "EXPENSE", "value": 4056.15, "expected": "Viagem", "source": "real"}
+{"id": "r17", "name": "Ticketmaster", "type": "EXPENSE", "value": 600.0, "expected": "Lazer", "source": "real"}
+{"id": "r18", "name": "Spotify", "type": "EXPENSE", "value": 23.9, "expected": "Lazer", "source": "real"}
+{"id": "r19", "name": "Crunchyroll", "type": "EXPENSE", "value": 24.9, "expected": "Lazer", "source": "real"}
+{"id": "r20", "name": "Twitch", "type": "EXPENSE", "value": 9.9, "expected": "Lazer", "source": "real"}
+{"id": "r21", "name": "Nintendo", "type": "EXPENSE", "value": 4.54, "expected": "Lazer", "source": "real"}
+{"id": "r22", "name": "Viana Chaveiros", "type": "EXPENSE", "value": 30.0, "expected": "Casa", "source": "real"}
+{"id": "r23", "name": "VESTUARIO E CIA LTDA", "type": "EXPENSE", "value": 240.0, "expected": "Roupas", "source": "real", "note": "PIX from the account statement, not the card"}
+{"id": "r24", "name": "Oeste Farma Drogaria", "type": "EXPENSE", "value": 15.0, "expected": "Outro", "source": "real"}
+{"id": "r25", "name": "Drogasil", "type": "EXPENSE", "value": 54.99, "expected": "Outro", "source": "real"}
+{"id": "r26", "name": "Farmácias Pague Menos", "type": "EXPENSE", "value": 48.93, "expected": "Outro", "source": "real"}
+{"id": "r27", "name": "Mp *Barbearia", "type": "EXPENSE", "value": 80.0, "expected": "Outro", "source": "real"}
+{"id": "r28", "name": "Stb*Fdintermediacaoese", "type": "EXPENSE", "value": 42.0, "expected": "none", "source": "real"}
+{"id": "r29", "name": "Amazon Prime", "type": "EXPENSE", "value": 29.9, "expected": "Lazer", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r30", "name": "ANTHROPIC", "type": "EXPENSE", "value": 119.04, "expected": "Outro", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r31", "name": "ChatGPT", "type": "EXPENSE", "value": 107.41, "expected": "Outro", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r32", "name": "Apple", "type": "EXPENSE", "value": 42.9, "expected": "Outro", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r33", "name": "Amazon", "type": "EXPENSE", "value": 19.9, "expected": "Outro", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r34", "name": "Tokio Marine Seguradora", "type": "EXPENSE", "value": 453.69, "expected": "Transporte", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r35", "name": "Nuvem Singular Projet", "type": "EXPENSE", "value": 198.0, "expected": "Outro", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r36", "name": "7-Eleven", "type": "EXPENSE", "value": 186.72, "expected": "Transporte", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r37", "name": "Inti *Tomorrowland", "type": "EXPENSE", "value": 1650.0, "expected": "Lazer", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r38", "name": "OXXO", "type": "EXPENSE", "value": 40.56, "expected": "Mercado", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r39", "name": "Lacasa", "type": "EXPENSE", "value": 60.0, "expected": "Lazer", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r40", "name": "Plurall", "type": "EXPENSE", "value": 34.0, "expected": "Alimentação", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "r41", "name": "Zig", "type": "EXPENSE", "value": 25.0, "expected": "Lazer", "source": "real", "note": "debated label, see LABELING.md"}
+{"id": "s01", "name": "PIX RECEBIDO ACME TECNOLOGIA LTDA", "type": "INCOME", "value": 8500.0, "expected": "Salário", "source": "synthetic"}
+{"id": "s02", "name": "TED RECEBIDA CLIENTE NF 0042", "type": "INCOME", "value": 3200.0, "expected": "Freelance", "source": "synthetic"}
+{"id": "s03", "name": "RENDIMENTO POUPANCA", "type": "INCOME", "value": 12.37, "expected": "Outro", "source": "synthetic"}
+{"id": "s04", "name": "ESTORNO COMPRA", "type": "INCOME", "value": 59.9, "expected": "Outro", "source": "synthetic"}
+{"id": "s05", "name": "PAG*JOSEDASILVA", "type": "EXPENSE", "value": 35.0, "expected": "none", "source": "synthetic"}
+{"id": "s06", "name": "PIX ENVIADO", "type": "EXPENSE", "value": 120.0, "expected": "none", "source": "synthetic"}
+{"id": "s07", "name": "POSTO SHELL 1234", "type": "EXPENSE", "value": 250.0, "expected": "Transporte", "source": "synthetic"}
+{"id": "s08", "name": "ENEL SP CONTA ENERGIA", "type": "EXPENSE", "value": 187.42, "expected": "Casa", "source": "synthetic"}
+{"id": "s09", "name": "ALURA CURSOS ONLINE", "type": "EXPENSE", "value": 89.9, "expected": "Educação", "source": "synthetic"}

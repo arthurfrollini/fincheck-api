@@ -82,7 +82,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Format check
-        run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
+        run: npx prettier --check "src/**/*.ts" "test/**/*.ts" "evals/**/*.ts"
 
       - name: Test (unit + e2e, merged coverage)
         run: npm test
