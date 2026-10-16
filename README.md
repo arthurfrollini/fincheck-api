@@ -89,6 +89,7 @@ Everything below is optional for basic API work — the app runs fine with just 
 | Jaeger UI | http://localhost:16686 | Distributed traces |
 | Prometheus UI | http://localhost:9090 | Raw metrics + scrape target status |
 | Grafana | http://localhost:3001 (`admin` / `admin`) | Single pane for traces (Jaeger), metrics (Prometheus), and logs (Loki) — provisioned automatically, no manual datasource setup |
+| Grafana · LLM dashboard | http://localhost:3001/d/fincheck-llm | Claude API spend, tokens and outcomes per feature (categorization, RAG, agent) — provisioned from `docker/grafana/provisioning/dashboards/`. Counters are per API process, so they reset when the API restarts |
 
 ```bash
 # Start just the observability stack (Jaeger, Prometheus, Loki, Grafana)
