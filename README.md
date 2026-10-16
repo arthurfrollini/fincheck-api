@@ -1,40 +1,97 @@
 # Fincheck API
 
-REST API for a personal finance management app. Users track bank accounts and transactions, organized by category, with plan-based feature limits enforced via Stripe subscriptions.
+REST API for a personal finance app. Users track bank accounts and transactions by category, with plan-based limits enforced through Stripe subscriptions. Four AI features run on the Claude API, each one measured by its own eval:
+
+- automatic transaction categorization;
+- answers grounded in Banco Central do Brasil's financial education material, with citations;
+- a spending Q&A agent that calls tools over the user's own data.
 
 ## Stack
 
-- **Runtime:** Node.js + NestJS v11 (TypeScript)
-- **Database:** PostgreSQL via Prisma v6 (Docker)
+- **Runtime:** Node.js + NestJS 11 (TypeScript)
+- **Database:** PostgreSQL 17 with pgvector, via Prisma 6 (Docker image `pgvector/pgvector:pg17-trixie`)
+- **Queues:** BullMQ on Redis (email retries, transaction categorization, agent runs)
+- **AI:** Claude API. Haiku 5.5 categorizes, Sonnet 5.5 answers and runs the agent, Opus 5.5 judges eval answers. Local multilingual embeddings come from transformers.js (`Xenova/multilingual-e5-small`).
 - **Auth:** JWT access token + UUID refresh token + Google OAuth 2.0
-- **Email:** Resend (welcome, email change confirmation, billing notifications)
+- **Email:** Resend
 - **Storage:** AWS S3 (avatar upload via presigned URL)
 - **Billing:** Stripe (subscriptions, webhooks, dunning)
-- **Observability:** OpenTelemetry (traces + metrics) → Jaeger + Prometheus, structured logs (`nestjs-pino`) → Loki, all unified in Grafana
-- **Tests:** Jest 30 + Supertest — 158 unit + 69 e2e tests, 96%+ combined coverage
+- **Security:** IP rate limiting (`@nestjs/throttler`), per-plan AI quotas, a global daily AI spend ceiling
+- **Observability:** OpenTelemetry traces and metrics to Jaeger and Prometheus, structured logs (`nestjs-pino`) to Loki, all in Grafana, including an LLM spend dashboard
+- **Tests:** Jest 30 + Supertest. 440 unit tests (including the eval harness) and 95 e2e tests, 95.5% combined statement coverage.
 
 ## Architecture
 
-The codebase follows Clean Architecture principles with a clear separation between layers:
+The codebase follows Clean Architecture:
 
-- **Domain** (`domain/`) — entities, repository interfaces, no framework dependencies
-- **Application** (`application/`) — services containing business logic, depend only on domain abstractions
-- **Infrastructure** (`infra/`) — Prisma repository implementations, HTTP controllers, DTOs, NestJS decorators
+- **Domain** (`domain/`): entities and repository interfaces, no framework dependencies
+- **Application** (`application/`): services with the business logic, depending only on domain abstractions
+- **Infrastructure** (`infra/`): Prisma repositories, HTTP controllers and DTOs, queue processors
 
-Each module is self-contained and depends on abstractions, not concrete implementations. Repositories are defined as abstract classes in the domain layer and injected via NestJS DI — swapping the database requires only a new `infra/database` implementation.
+Repositories are abstract classes in the domain layer, injected through NestJS DI, so swapping storage means writing a new `infra/database` implementation. The same pattern covers the embedding model: `EmbeddingProvider` is a DI token, and moving from local to hosted embeddings is a one-line binding change.
 
-Shared concerns (auth guards, plan enforcement, mail, storage, billing) live in `src/shared/` and are exposed as NestJS modules, keeping feature modules focused on their own business rules.
+Shared concerns (auth guards, plan enforcement, mail, storage, billing, the Claude client) live in `src/shared/` as NestJS modules.
 
 ## Modules
 
 | Module | Description |
 |--------|-------------|
 | `auth` | Sign up, sign in, refresh token, sign out, Google OAuth |
-| `users` | Profile, avatar upload, email change flow, admin CRUD |
+| `users` | Profile, avatar upload, email change flow, admin CRUD (including setting a user's plan) |
 | `bank-accounts` | CRUD + current balance computed from transactions |
-| `categories` | CRUD — gated by plan (GOLD/PLATINUM only) |
-| `transactions` | CRUD with daily limit enforcement per plan |
-| `billing` | Stripe subscriptions — setup, subscribe, change plan, cancel, webhook |
+| `categories` | CRUD, gated by plan (GOLD/PLATINUM only) |
+| `transactions` | CRUD with a daily limit per plan; uncategorized transactions are categorized by AI |
+| `education` | Questions answered from BCB financial education material, with citations (RAG) |
+| `assistant` | Spending Q&A agent over the user's own transactions |
+| `billing` | Stripe subscriptions: setup, subscribe, change plan, cancel, webhook |
+
+## AI features
+
+Design specs and implementation plans are in `docs/superpowers/specs/` and `docs/superpowers/plans/`. Every Claude call logs its tokens, cost and latency (never user data), increments Prometheus counters, and writes an `ai_usage` row when it is made for a user.
+
+### Transaction categorization
+
+A transaction created without `categoryId` is saved immediately, and a BullMQ job asks `claude-haiku-5-5` to pick one of that user's categories of the same type. The request uses structured output with a hand-built JSON schema whose `enum` lists the user's category ids plus `none`. The SDK's `zodOutputFormat` helper would drop the `enum`, so it isn't used. The answer is validated again against the database for ownership and type, and written only if the transaction is still uncategorized, so a category the user sets meanwhile always wins.
+
+On the 50-case golden set (41 real merchant names from the owner's statements, 9 synthetic), Haiku 5.5 is right 84% of the time, the same as Opus 5.5, at 1/37 of the cost (US$ 0.006 vs US$ 0.23 per run).
+
+### Answers from BCB material (RAG)
+
+`POST /education/questions` answers from the *Caderno de Educação Financeira: Conteúdo Básico* (Banco Central do Brasil, 2026).
+
+- **Ingestion:** the PDF is copyrighted, so it is downloaded at ingest time, checked against the sha256 in `corpus/manifest.json`, and never committed. `pdftotext` extracts it, and paragraphs are merged into chunks that never cross a page (173 chunks).
+- **Retrieval:** chunks are embedded locally and stored in pgvector with an HNSW cosine index. If even the best chunk is below a measured similarity floor, the model isn't called and the answer says the material doesn't cover the question.
+- **Answering:** `claude-sonnet-5-5` gets the top 6 chunks as document blocks with the Citations API, so every citation carries the exact cited text, mapped back to a page.
+
+Retrieval on 30 user-phrased questions: recall@5 50%, hit@1 23%, MRR@10 0.34. `evals/rag/README.md` explains why that is low and what to try next. Answer quality: 14 of 20 answers pass an Opus 5.5 judge, and all 20 cite sources.
+
+### Spending Q&A agent
+
+`POST /assistant/questions` returns 202 with a `runId`; `GET /assistant/runs/:runId` returns the status and the answer.
+
+- **Execution:** each run is one BullMQ job. Inside it, `claude-sonnet-5-5` calls three read-only tools: `fetch_categories`, `query_transactions` and `compute_totals`.
+- **Tenant scope:** the tool schemas have no user field. Handlers close over the run's user, taken from the authenticated request, so the model cannot reach another user's data.
+- **Idempotency:** a repeated `Idempotency-Key` returns the same run without starting a new one.
+- **Failure handling:** a run makes at most 6 model calls. Two consecutive rounds of failing tools, or a refusal, end it with a fixed degraded answer. A run whose job gives up is marked `FAILED`.
+
+On 10 questions with exact expected amounts derived from a seeded user, 8 pass: the amount is in the answer, and an Opus 5.5 judge confirms it came from the tool results. The 2 misses hit the step limit and degraded rather than answering wrong.
+
+### Evals
+
+| Where | When | What |
+|---|---|---|
+| `ci.yml` | every PR and push to `main` | Fixture tests (schema validation, ownership checks, retry paths) and the retrieval eval, keyless and deterministic; any drop in recall@5 or MRR fails the build |
+| `evals.yml` | 1st of each month, and on demand | Categorization golden set, RAG answers judged by Opus 5.5, agent cases; fails on a drop of more than 2 cases against the stored baseline |
+
+```bash
+npm run eval:retrieval                 # free: local embeddings + pgvector (run rag:ingest first)
+npm run eval:categorization -- --models claude-haiku-5-5,claude-opus-5-5
+npm run eval:rag-answers
+npm run eval:agent                     # seeds its own user in DATABASE_URL
+# add -- --update-baseline to record a new baseline after an intended change
+```
+
+Baselines live in `evals/baselines/`. Labels and their provenance are in `evals/categorization/LABELING.md`, `evals/rag/README.md` and `evals/agent/README.md`.
 
 ## Plans
 
@@ -43,84 +100,99 @@ Shared concerns (auth guards, plan enforcement, mail, storage, billing) live in 
 | Bank accounts | 3 | 5 | unlimited |
 | Transactions/day | 50 | 200 | unlimited |
 | Categories (CRUD) | read-only | full | full |
+| AI categorization | yes | yes | yes |
+| Education questions (RAG)/day | none | 20 | 50 |
+| Assistant questions (agent)/day | none | 20 | 50 |
 | Price | free | R$35/mo | R$65/mo |
+
+Days are UTC. On top of the plan quotas, a global ceiling (`AI_DAILY_SPEND_LIMIT_USD`, default US$ 1) stops RAG and agent answers for everyone once a day's recorded Claude spend reaches it. FREE accounts get no RAG or agent questions, so creating free accounts in bulk can't spend AI credit. ADMINISTRATOR has no quota.
 
 ## Auth Flow
 
-1. **Sign up / Sign in** → returns `accessToken` (JWT, short-lived) + `refreshToken` (UUID, 7 days)
-2. **Access token expires** → `POST /auth/refresh` with `refreshToken` → new pair issued, old token deleted
-3. **Sign out** → `POST /auth/signout` deletes the refresh token
-4. **Google OAuth** → `GET /auth/google` → callback links or creates account
+1. **Sign up / Sign in** returns an `accessToken` (JWT, short-lived) and a `refreshToken` (UUID, 7 days).
+2. When the access token expires, `POST /auth/refresh` with the `refreshToken` issues a new pair and deletes the old token.
+3. `POST /auth/signout` deletes the refresh token.
+4. `GET /auth/google` starts Google OAuth; the callback links or creates the account.
+
+Sign in, sign up and refresh allow 5 requests per minute per client IP. Every other route allows 100, and the AI endpoints 10.
 
 ## Email Flow (Resend)
 
-- Welcome email on signup
-- Email change confirmation — user receives a token link, `GET /users/confirm-email/:token` applies the change
-- Billing: downgrade notification, subscription cancellation on payment failure
-- Every Resend call has a 10s request timeout, so a hung provider can't stall the mail-queue worker (a timed-out send fails and is retried by the queue).
+- A welcome email on signup.
+- Email change confirmation: the new address receives a token link, and `GET /users/confirm-email?token=…` applies the change.
+- Billing: downgrade notification, and cancellation after payment failure.
+- Every Resend call has a 10s timeout, so a hung provider can't stall the mail-queue worker; a timed-out send fails and the queue retries it.
+- `MAIL_REDIRECT_TO` sends every email to one inbox (local dev). `MAIL_ENABLED=false` skips sending entirely.
 
 ## Avatar Upload (AWS S3)
 
-1. `GET /users/me/avatar-upload-url?ext=jpg` → returns `{ uploadUrl, avatarUrl }` (`ext` is validated against an image allowlist: jpg, jpeg, png, webp)
-2. Frontend uploads directly to S3 via the presigned URL
-3. Frontend calls `PATCH /users/me` with `{ avatarUrl }` to save
+1. `GET /users/me/avatar-upload-url?ext=jpg` returns `{ uploadUrl, avatarUrl }`. `ext` is checked against an image allowlist: jpg, jpeg, png, webp.
+2. The frontend uploads directly to S3 with the presigned URL.
+3. The frontend calls `PATCH /users/me` with `{ avatarUrl }` to save it.
 
 ## Billing Flow (Stripe)
 
-1. `POST /billing/setup` → creates Stripe Customer + SetupIntent, returns `clientSecret` for Stripe Elements
-2. User completes card setup on frontend
-3. `POST /billing/subscribe` with `{ planId: 'GOLD' | 'PLATINUM' }` → creates subscription
-4. Stripe fires `invoice.payment_succeeded` → webhook updates `user.plan` in DB
-5. `POST /billing/change-plan` → upgrades invoice immediately (`always_invoice`), downgrades at period end (`none`)
-6. `POST /billing/cancel` → `cancel_at_period_end: true`, user keeps plan until billing period ends
-7. `customer.subscription.deleted` (dunning failure / period end) → resets `user.plan` to FREE
+1. `POST /billing/setup` creates a Stripe Customer and SetupIntent, and returns the `clientSecret` for Stripe Elements.
+2. The user completes card setup on the frontend.
+3. `POST /billing/subscribe` with `{ planId: 'GOLD' | 'PLATINUM' }` creates the subscription.
+4. Stripe fires `invoice.payment_succeeded`, and the webhook updates `user.plan`.
+5. `POST /billing/change-plan` invoices upgrades immediately (`always_invoice`) and applies downgrades at period end (`none`).
+6. `POST /billing/cancel` sets `cancel_at_period_end: true`; the user keeps the plan until the period ends.
+7. `customer.subscription.deleted` (dunning failure or period end) resets `user.plan` to FREE.
 
-Webhook endpoint: `POST /billing/webhook` — validates Stripe signature via `rawBody`. Processing is idempotent: every `event.id` is recorded in `processed_stripe_events` (record-first, compensating delete on failure), so Stripe's at-least-once redelivery never double-applies plan changes or duplicates notification emails. Billing emails go through the same Redis-backed retry queue as signup/email-change. Dedup rows are pruned after 30 days by a daily cron.
+The webhook (`POST /billing/webhook`) validates the Stripe signature against the raw body. Processing is idempotent: every `event.id` is recorded in `processed_stripe_events` first, with a compensating delete on failure, so Stripe's at-least-once redelivery never applies a plan change twice or duplicates an email. A daily cron prunes those rows after 30 days.
+
+With `BILLING_ENABLED=false`, setup, subscribe, change-plan and cancel answer 404, and an admin sets plans through `PATCH /users/:id`. The webhook keeps working.
 
 ## Developer Tools
 
-Everything below is optional for basic API work — the app runs fine with just `db` + `redis` up. Bring in the rest as needed.
+The app runs with just `db` and `redis` up; the rest is optional.
 
 | Tool | URL | Notes |
 |------|-----|-------|
-| API reference (Scalar) | http://localhost:3000/reference | Built into the app itself — no separate service, just needs `npm run start:dev` running |
-| Prisma Studio | `npx prisma studio` → http://localhost:5555 | DB browser/editor, not a Docker service |
-| RedisInsight | http://localhost:5540 | Inspect the BullMQ email retry queue |
+| API reference (Scalar) | http://localhost:3000/reference | Served by the app itself while `npm run start:dev` runs |
+| Prisma Studio | `npx prisma studio` → http://localhost:5555 | Database browser |
+| RedisInsight | http://localhost:5540 | BullMQ queues: mail, categorization, agent |
 | Jaeger UI | http://localhost:16686 | Distributed traces |
-| Prometheus UI | http://localhost:9090 | Raw metrics + scrape target status |
-| Grafana | http://localhost:3001 (`admin` / `admin`) | Single pane for traces (Jaeger), metrics (Prometheus), and logs (Loki) — provisioned automatically, no manual datasource setup |
-| Grafana · LLM dashboard | http://localhost:3001/d/fincheck-llm | Claude API spend, tokens and outcomes per feature (categorization, RAG, agent) — provisioned from `docker/grafana/provisioning/dashboards/`. Counters are per API process, so they reset when the API restarts |
+| Prometheus UI | http://localhost:9090 | Raw metrics and scrape target status |
+| Grafana | http://localhost:3001 (`admin` / `admin`) | Traces, metrics and logs in one place; datasources are provisioned automatically |
+| Grafana LLM dashboard | http://localhost:3001/d/fincheck-llm | Claude API spend, tokens and outcomes per feature, provisioned from `docker/grafana/provisioning/dashboards/`. The counters belong to the API process and reset when it restarts. |
 
 ```bash
-# Start just the observability stack (Jaeger, Prometheus, Loki, Grafana)
+# Start only the observability stack (Jaeger, Prometheus, Loki, Grafana)
 npm run observability:up
 ```
 
-The app exposes its own Prometheus metrics at `http://localhost:9464/metrics` (scraped by the `prometheus` container via `host.docker.internal`, since the app runs on the host in dev, not in a container).
+The app exposes Prometheus metrics at `http://localhost:9464/metrics`; the `prometheus` container scrapes them through `host.docker.internal`, since in dev the app runs on the host.
 
 ## Local Setup
 
 ```bash
-# 1. Start PostgreSQL (+ Redis; add jaeger/prometheus/loki/grafana too if you
-#    want observability — or run `npm run observability:up` separately)
+# 1. Postgres (with pgvector) and Redis; add the observability containers if you want them
 docker compose up -d
 
-# 2. Install dependencies
+# 2. Dependencies (poppler's pdftotext is also needed for rag:ingest: brew install poppler)
 npm install
 
-# 3. Configure environment
-cp .env.example .env  # fill in values
+# 3. Environment
+cp .env.example .env  # fill in the values
 
-# 4. Run migrations
-npx prisma migrate dev
+# 4. Migrations
+npx prisma migrate deploy
 
-# 5. Start dev server
+# 5. Load the RAG corpus (downloads the BCB PDF and the embedding model, ~10s)
+npm run rag:ingest
+
+# 6. Dev server
 npm run start:dev
 ```
+
+Prisma can't express the pgvector HNSW index, so `prisma migrate dev` generates `DROP INDEX "knowledge_chunks_embedding_hnsw_idx"` in every new migration. Delete that line before applying it.
 
 ## Environment Variables
 
 ```env
+# Required (validated at startup)
 DATABASE_URL=
 JWT_SECRET=
 RESEND_API_KEY=
@@ -136,32 +208,57 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_PRICE_GOLD=
 STRIPE_PRICE_PLATINUM=
+REDIS_HOST=
+REDIS_PORT=
+ANTHROPIC_API_KEY=
 
-# Optional — observability, both already default to the local Docker services
-OTEL_EXPORTER_OTLP_ENDPOINT=  # default: http://localhost:4318/v1/traces (Jaeger)
-LOKI_URL=                     # default: http://localhost:3100
+# Optional
+PORT=                      # default 3000
+TRUST_PROXY=               # proxy hops (usually 1) behind a hosting proxy, so rate limits key on the client IP
+AI_DAILY_SPEND_LIMIT_USD=  # default 1
+BILLING_ENABLED=           # false turns off self-service billing routes (404); the webhook keeps working
+MAIL_ENABLED=              # false skips sending email
+MAIL_REDIRECT_TO=          # send every email to this address (local dev)
+BULLMQ_PREFIX=             # default bull; .env.test uses bull-test so tests never share queues with a dev API
+THROTTLE_DEFAULT_LIMIT=    # requests/min per route and IP, default 100
+THROTTLE_AUTH_LIMIT=       # signin, signup, refresh; default 5
+THROTTLE_AI_LIMIT=         # RAG and agent endpoints; default 10
+TRANSFORMERS_CACHE=        # embedding model cache, default .cache/models
+OTEL_EXPORTER_OTLP_ENDPOINT=  # default http://localhost:4318/v1/traces (Jaeger)
+LOKI_URL=                     # default http://localhost:3100
 ```
+
+## Production Notes
+
+- Stripe stays in test mode, and production runs with `BILLING_ENABLED=false`, so nobody can upgrade with Stripe's test card. Plans are set by an admin.
+- `npm run admin:promote -- <email>` makes an existing account ADMINISTRATOR (role and plan). Run it once against a new database; after that, manage plans through `PATCH /users/:id`.
+- Run with `MAIL_ENABLED=false` until Resend has a verified domain; without one, sends to anyone but the account owner fail.
+- Set `TRUST_PROXY=1` behind the hosting proxy so rate limits see the client IP.
+- The Anthropic account is prepaid with no auto-reload, which caps the worst case regardless of the in-app limits.
+- `npm run build && npm run start:prod` runs `dist/main.js`; CI checks that the build emits it.
 
 ## Tests
 
-Two independent suites, kept deliberately separate — each covers a different architectural layer, so either report in isolation is misleading. "Coverage" only means something combined.
+Two suites, kept separate because each covers a different layer. Coverage only means something when the two are combined.
 
-- **Unit** (`test:unit`) — Jest, testing the `application`/`domain` layer in isolation. Dependencies mocked with Jest's own `jest.fn()`/`jest.mock()` — no Sinon, no ts-mockito, no separate mocking library. 158 tests.
-- **E2E** (`test:e2e`) — Jest + Supertest, booting the real `AppModule` against a dedicated `fincheck_test` Postgres database (`PrismaService` is never mocked). Only `MailService`, `StorageService`, and `BillingService` are replaced with mocks — everything else runs for real, including the BullMQ email retry queue (real Redis, real worker, only the final Resend call is mocked), the Stripe webhook handler with its `processed_stripe_events` dedup, and Stripe webhook signature verification (via `stripe.webhooks.generateTestHeaderString`, pure local HMAC, no network call). 69 tests across 8 spec files: auth, users, admin routes, bank-accounts, categories, transactions, billing, api-reference.
-- No browser/UI E2E — no Playwright, no Cypress. This is an API-only project; the HTTP layer is tested directly with Supertest, no browser needed.
+- **Unit** (`test:unit`): Jest, testing the `application`/`domain` layers and the eval harness in isolation, with Jest's own mocks. 440 tests.
+- **E2E** (`test:e2e`): Jest + Supertest, booting the real `AppModule` against a dedicated `fincheck_test` Postgres database (with pgvector) and real Redis.
+  - Mocked external boundaries: `MailService`, `StorageService`, `BillingService`, `LlmService` (the Claude API) and `EmbeddingProvider` (a deterministic fake instead of the 120 MB model).
+  - Everything else runs for real: the queues and their workers, the Stripe webhook handler and signature check, pgvector search, the agent's tools over Postgres, quotas and rate limiting.
+  - 95 tests across 12 spec files.
 
 ```bash
-npm run test:unit     # unit only, ~2s
-npm run test:e2e      # e2e only, real DB, ~50s
-npm test              # both, merged coverage report — the number that matters
+npm run test:unit     # unit only
+npm run test:e2e      # e2e only, real DB
+npm test              # both, with the merged coverage report
 ```
 
-`npm test` runs both suites and merges their coverage via `nyc`, since neither suite's own report reflects real coverage alone — unit only touches `application`/`domain`, e2e only touches `infra`/`http` (plus whatever it deliberately mocks). Combined: **96%+ statements**.
+`npm test` merges both coverage reports with `nyc`: unit touches `application`/`domain`, and e2e touches `infra`/`http`. Combined: 95.5% statements.
 
-E2E requires Docker running (`docker compose up -d`, which provisions the `fincheck`/`fincheck_test` Postgres databases plus Redis and RedisInsight for the email retry queue) and a local `.env.test` file (same shape as `.env`, fake credentials for Resend/AWS/Stripe/Google — gitignored, never used for a real network call).
+E2E needs Docker running (`docker compose up -d`) and a local `.env.test`, with the same shape as `.env` but fake credentials, high `THROTTLE_*` limits and `BULLMQ_PREFIX=bull-test`. It is gitignored and never used for a real network call.
 
-Note: running `npm run test:e2e` standalone can occasionally exit non-zero from a known, tracked BullMQ/Redis teardown race that occurs *after* all tests pass (see `docs/known-issues/bullmq-teardown-race.md`). `npm test` is unaffected — it determines pass/fail from Jest's own result summary instead of the raw exit code, so it's the command that gates `npm run lint`/pre-push/CI.
+Running `npm run test:e2e` on its own can occasionally exit non-zero because of a known BullMQ/Redis teardown race that happens after every test has passed (`docs/known-issues/bullmq-teardown-race.md`). `npm test` reads pass/fail from Jest's result summary instead, so it is the command behind the pre-push hook and CI.
 
 ## Git Hooks (Husky)
 
-- **pre-push:** `eslint + tsc --noEmit + prettier --check (src/ and test/) + npm test` — blocks push on any failure
+- **pre-push:** `eslint` + `tsc --noEmit` + `prettier --check` (src, test, evals) + `npm test`. Any failure blocks the push.
