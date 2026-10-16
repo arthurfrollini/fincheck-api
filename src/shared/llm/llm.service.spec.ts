@@ -182,3 +182,72 @@ describe('LlmService', () => {
     expect(logged).not.toContain(USER_TEXT);
   });
 });
+
+describe('LlmService.complete', () => {
+  let create: jest.Mock;
+  let metrics: jest.Mocked<Pick<LlmMetrics, 'record'>>;
+  let service: LlmService;
+  const params = {
+    model: 'claude-sonnet-5-5' as const,
+    max_tokens: 4096,
+    messages: [{ role: 'user' as const, content: USER_TEXT }],
+  };
+
+  beforeEach(() => {
+    create = jest.fn().mockResolvedValue(message('An answer.'));
+    metrics = { record: jest.fn() };
+    service = new LlmService(
+      { messages: { create } } as unknown as Anthropic,
+      metrics as unknown as LlmMetrics,
+      { info: jest.fn(), warn: jest.fn() } as unknown as PinoLogger,
+    );
+  });
+
+  it('returns the message and records outcome ok', async () => {
+    const result = await service.complete('rag', params);
+
+    expect(result.content).toEqual(
+      expect.arrayContaining([expect.objectContaining({ text: 'An answer.' })]),
+    );
+    expect(metrics.record).toHaveBeenCalledWith(
+      'claude-sonnet-5-5',
+      'rag',
+      usage(),
+      'ok',
+    );
+  });
+
+  it.each(['refusal', 'max_tokens'] as const)(
+    'records outcome %s',
+    async (stopReason) => {
+      create.mockResolvedValueOnce(message('x', { stop_reason: stopReason }));
+
+      await service.complete('rag', params);
+
+      expect(metrics.record).toHaveBeenCalledWith(
+        'claude-sonnet-5-5',
+        'rag',
+        usage(),
+        stopReason,
+      );
+    },
+  );
+
+  it('rethrows SDK errors recording outcome error', async () => {
+    const error = new Anthropic.InternalServerError(
+      500,
+      undefined,
+      'x',
+      new Headers(),
+    );
+    create.mockRejectedValueOnce(error);
+
+    await expect(service.complete('rag', params)).rejects.toBe(error);
+    expect(metrics.record).toHaveBeenCalledWith(
+      'claude-sonnet-5-5',
+      'rag',
+      null,
+      'error',
+    );
+  });
+});

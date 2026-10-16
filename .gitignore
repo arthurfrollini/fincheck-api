@@ -70,3 +70,5 @@ arthur.MD
 
 #
 .env
+# Downloaded corpus and embedding model (never committed)
+.cache/

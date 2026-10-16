@@ -57,3 +57,16 @@ describe('computeCostUsd', () => {
     ).toBeCloseTo(0.000055, 9);
   });
 });
+
+describe('computeCostUsd for sonnet 5.5', () => {
+  it('prices sonnet 5.5 input and output', () => {
+    expect(
+      computeCostUsd('claude-sonnet-5-5', {
+        input_tokens: 1_000_000,
+        output_tokens: 1_000_000,
+        cache_creation_input_tokens: null,
+        cache_read_input_tokens: null,
+      } as never),
+    ).toBeCloseTo(12);
+  });
+});
