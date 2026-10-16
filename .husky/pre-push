@@ -8,7 +8,7 @@ if ! npx tsc --noEmit; then
   exit 1
 fi
 
-if ! npx prettier --check "src/**/*.ts" "test/**/*.ts"; then
+if ! npx prettier --check "src/**/*.ts" "test/**/*.ts" "evals/**/*.ts"; then
   echo '❌ Prettier check failed. Run "npm run format" and try again.'
   exit 1
 fi
