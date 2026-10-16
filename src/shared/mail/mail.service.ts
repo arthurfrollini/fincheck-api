@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreateEmailOptions, Resend } from 'resend';
 import { env } from '../config/env';
 
@@ -7,9 +7,21 @@ const RESEND_TIMEOUT_MS = 10000;
 @Injectable()
 export class MailService {
   private resend = new Resend(env.resendApiKey);
+  private readonly logger = new Logger(MailService.name);
 
   private async send(payload: CreateEmailOptions): Promise<void> {
-    const { error } = await this.resend.emails.send(payload, {
+    // Production runs with mail off until Resend has a verified domain:
+    // without one, sends to anyone but the account owner fail and would be
+    // retried for a day.
+    if (process.env.MAIL_ENABLED === 'false') {
+      this.logger.log(
+        `Mail disabled (MAIL_ENABLED=false): "${payload.subject}" not sent`,
+      );
+      return;
+    }
+    // Local dev points every email at one inbox instead of real addresses.
+    const to = process.env.MAIL_REDIRECT_TO || payload.to;
+    const { error } = await this.resend.emails.send({ ...payload, to }, {
       signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
     } as never);
 

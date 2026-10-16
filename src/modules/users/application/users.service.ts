@@ -112,11 +112,8 @@ export class UsersService {
       emailTokenExpiresAt: expiresAt,
     });
 
-    // TODO: trocar 'arthur.frollini@gmail.com' por user.email quando houver domínio verificado no Resend
-    await this.mailQueueService.queueEmailChangeConfirmation(
-      'arthur.frollini@gmail.com',
-      token,
-    );
+    // To the new address: confirming it proves the user controls it.
+    await this.mailQueueService.queueEmailChangeConfirmation(newEmail, token);
   }
 
   async confirmEmailChange(token: string) {

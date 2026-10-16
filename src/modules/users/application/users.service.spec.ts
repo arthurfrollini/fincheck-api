@@ -304,7 +304,7 @@ describe('UsersService', () => {
 
       expect(
         mockMailQueueService.queueEmailChangeConfirmation,
-      ).toHaveBeenCalledWith(expect.any(String), 'test-uuid');
+      ).toHaveBeenCalledWith('new@example.com', 'test-uuid');
     });
   });
 
