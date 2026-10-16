@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import {
@@ -17,6 +18,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { BillingService } from './billing.service';
+import { BillingEnabledGuard } from './billing-enabled.guard';
 import { BillingWebhookHandler } from './billing.webhook';
 import { ActiveUserId } from '@shared/decorators/active-user-id.decorator';
 import { isPublic } from '@shared/decorators/public.decorator';
@@ -33,6 +35,7 @@ export class BillingController {
   ) {}
 
   @Post('setup')
+  @UseGuards(BillingEnabledGuard)
   @ApiOperation({
     summary: '/setup',
     description: 'Create a Stripe SetupIntent for adding a card',
@@ -47,6 +50,7 @@ export class BillingController {
   }
 
   @Post('subscribe')
+  @UseGuards(BillingEnabledGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: '/subscribe',
@@ -63,6 +67,7 @@ export class BillingController {
   }
 
   @Post('change-plan')
+  @UseGuards(BillingEnabledGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: '/change-plan',
@@ -82,6 +87,7 @@ export class BillingController {
   }
 
   @Post('cancel')
+  @UseGuards(BillingEnabledGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: '/cancel',

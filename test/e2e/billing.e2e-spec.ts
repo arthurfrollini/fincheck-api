@@ -97,6 +97,38 @@ describe('Billing (e2e)', () => {
     });
   });
 
+  describe('with BILLING_ENABLED=false (production)', () => {
+    beforeEach(() => {
+      process.env.BILLING_ENABLED = 'false';
+    });
+    afterEach(() => {
+      delete process.env.BILLING_ENABLED;
+    });
+
+    it.each(['setup', 'subscribe', 'change-plan', 'cancel'])(
+      'POST /billing/%s answers 404 and never reaches Stripe',
+      async (route) => {
+        const res = await request(app.getHttpServer())
+          .post(`/billing/${route}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ planId: 'GOLD' });
+
+        expect(res.status).toBe(404);
+        expect(mockBillingService.createSubscription).not.toHaveBeenCalled();
+        expect(mockBillingService.changePlan).not.toHaveBeenCalled();
+      },
+    );
+
+    it('still verifies the Stripe webhook (401 on a bad signature, not 404)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/billing/webhook')
+        .set('stripe-signature', 'not-a-real-signature')
+        .send({ type: 'test' });
+
+      expect(res.status).toBe(401);
+    });
+  });
+
   describe('POST /billing/webhook', () => {
     const stripe = new Stripe('sk_test_fake');
     const secret = 'whsec_fake'; // matches .env.test STRIPE_WEBHOOK_SECRET
