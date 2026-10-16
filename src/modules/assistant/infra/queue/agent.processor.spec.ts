@@ -62,6 +62,14 @@ describe('AgentProcessor', () => {
     expect(service.markFailed).toHaveBeenCalledWith('run-1');
   });
 
+  it('never lets a failure inside the failed handler escape (it would be an unhandled rejection)', async () => {
+    service.markFailed.mockRejectedValueOnce(new Error('db blip'));
+
+    await expect(
+      processor.onFailed(job(3, 3), new Error('boom')),
+    ).resolves.toBeUndefined();
+  });
+
   it('leaves the run alone while retries remain', async () => {
     await processor.onFailed(job(1, 3), new Error('blip'));
     expect(service.markFailed).not.toHaveBeenCalled();

@@ -7,27 +7,45 @@ import { type TransactionsRepository } from '@modules/transactions/domain/reposi
 // closure in buildToolHandlers, from the authenticated request. A model that
 // hallucinates another user's id has no parameter to put it in.
 
+// 366 inclusive days: a full leap year, or "the last 12 months".
 const MAX_RANGE_DAYS = 366;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'dates must be YYYY-MM-DD')
-  .transform((s) => new Date(`${s}T00:00:00.000Z`))
-  .refine((d) => !Number.isNaN(d.getTime()), 'invalid date');
+  // Date silently rolls "2026-09-31" over to Oct 1; a round trip catches it.
+  .refine((s) => {
+    const d = new Date(`${s}T00:00:00.000Z`);
+    return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
+  }, 'not a real calendar date')
+  .transform((s) => new Date(`${s}T00:00:00.000Z`));
 
 const range = {
   from: isoDate,
   to: isoDate,
   type: z.enum(['INCOME', 'EXPENSE']).optional(),
-  categoryId: z.string().optional(),
+  // Category ids are UUIDs; a category *name* here would reach Postgres as
+  // an invalid uuid and look like an outage instead of a bad input.
+  categoryId: z.uuid().optional(),
 };
+
+// zod 4 still runs object-level refinements when a field already failed
+// (e.g. an impossible date left as a raw string), so these only judge real
+// dates and let the field's own issue speak.
+const bothDates = (v: { from: unknown; to: unknown }) =>
+  v.from instanceof Date && v.to instanceof Date;
 
 function withinRange<T extends { from: Date; to: Date }>(schema: z.ZodType<T>) {
   return schema
-    .refine((v) => v.from <= v.to, '"from" must not be after "to"')
     .refine(
-      (v) => (v.to.getTime() - v.from.getTime()) / DAY_MS <= MAX_RANGE_DAYS,
+      (v) => !bothDates(v) || v.from <= v.to,
+      '"from" must not be after "to"',
+    )
+    .refine(
+      (v) =>
+        !bothDates(v) ||
+        (v.to.getTime() - v.from.getTime()) / DAY_MS + 1 <= MAX_RANGE_DAYS,
       `the date range must be at most ${MAX_RANGE_DAYS} days`,
     );
 }
@@ -42,12 +60,20 @@ const queryInput = withinRange(
   }),
 );
 
+// type is required for totals: summing income and expenses together gives a
+// number that means nothing ("quanto sobrou" is income total minus expense
+// total, two calls).
 const totalsInput = withinRange(
-  z.object({ ...range, groupBy: z.enum(['none', 'category', 'month']) }),
+  z.object({
+    ...range,
+    type: z.enum(['INCOME', 'EXPENSE']),
+    groupBy: z.enum(['none', 'category', 'month']),
+  }),
 );
 
 const dateProp = (what: string) => ({
   type: 'string',
+  format: 'date',
   description: `${what} date, inclusive, YYYY-MM-DD`,
 });
 const rangeProps = {
@@ -60,7 +86,8 @@ const rangeProps = {
   },
   categoryId: {
     type: 'string',
-    description: 'A category id from fetch_categories',
+    format: 'uuid',
+    description: 'A category id from fetch_categories (not its name)',
   },
 };
 
@@ -101,7 +128,7 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
   {
     name: 'compute_totals',
     description:
-      "Sum the user's transactions in a date range (max 366 days), optionally grouped by category or by month. Always use this for totals instead of adding numbers yourself.",
+      "Sum the user's income or expenses (type is required) in a date range (max 366 days), optionally grouped by category or by month. Always use this for totals instead of adding numbers yourself; for a balance, call it once per type.",
     strict: true,
     input_schema: {
       type: 'object',
@@ -109,7 +136,7 @@ export const AGENT_TOOLS: Anthropic.Tool[] = [
         ...rangeProps,
         groupBy: { type: 'string', enum: ['none', 'category', 'month'] },
       },
-      required: ['from', 'to', 'groupBy'],
+      required: ['from', 'to', 'type', 'groupBy'],
       additionalProperties: false,
     },
   },
@@ -173,6 +200,8 @@ export function buildToolHandlers(
 export async function runTool(
   handlers: ToolHandlers,
   block: Anthropic.ToolUseBlock,
+  // Reports internal failures (never the input, which is user data).
+  onError?: (tool: string, err: unknown) => void,
 ): Promise<Anthropic.ToolResultBlockParam> {
   const handler = handlers[block.name as ToolName];
   if (!handler) {
@@ -191,6 +220,7 @@ export async function runTool(
       content: JSON.stringify(result),
     };
   } catch (err) {
+    if (!(err instanceof z.ZodError)) onError?.(block.name, err);
     const content =
       err instanceof z.ZodError
         ? `Invalid input: ${err.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; ')}`

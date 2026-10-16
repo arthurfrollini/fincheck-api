@@ -1,7 +1,9 @@
 import { type LlmModel } from '@shared/llm/llm-pricing';
 
 export const AGENT_MODEL: LlmModel = 'claude-sonnet-5-5';
-export const AGENT_MAX_TOKENS = 4096;
+// Adaptive thinking counts toward max_tokens; a tight cap cuts a tool call
+// off mid-input.
+export const AGENT_MAX_TOKENS = 16000;
 // Model calls per run. Typical questions need 2-3 (look up the category,
 // compute, answer); 6 leaves room for one correction without letting a
 // confused run burn tokens indefinitely.

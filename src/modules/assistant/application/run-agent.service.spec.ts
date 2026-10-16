@@ -197,6 +197,44 @@ describe('runAgentLoop', () => {
     expect(result.trace.map((t) => t.isError)).toEqual([true, false]);
   });
 
+  it('does not run tools from a response cut off by max_tokens', async () => {
+    const cut = {
+      ...toolCall(totals),
+      stop_reason: 'max_tokens',
+    } as Anthropic.Message;
+    const llm = { complete: jest.fn().mockResolvedValue(cut) };
+    const h = handlers();
+
+    const result = await runAgentLoop({
+      question: 'q',
+      llm: llm,
+      handlers: h,
+      now: NOW,
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'DEGRADED',
+        answer: INCOMPLETE_ANSWER,
+        steps: 1,
+      }),
+    );
+    expect(h.compute_totals).not.toHaveBeenCalled();
+  });
+
+  it('leaves room for adaptive thinking plus the answer', async () => {
+    const llm = { complete: jest.fn().mockResolvedValue(final('ok')) };
+    await runAgentLoop({
+      question: 'q',
+      llm: llm,
+      handlers: handlers(),
+      now: NOW,
+    });
+    expect(
+      (llm.complete.mock.calls[0][1] as { max_tokens: number }).max_tokens,
+    ).toBeGreaterThanOrEqual(16000);
+  });
+
   it('degrades on refusal', async () => {
     const llm = {
       complete: jest.fn().mockResolvedValue({
@@ -286,15 +324,18 @@ describe('RunAgentService', () => {
   let repo: { findById: jest.Mock; markRunning: jest.Mock; finish: jest.Mock };
   let llm: { complete: jest.Mock };
   let service: RunAgentService;
+  let logger: { info: jest.Mock; warn: jest.Mock };
 
   beforeEach(() => {
     repo = { findById: jest.fn(), markRunning: jest.fn(), finish: jest.fn() };
     llm = { complete: jest.fn().mockResolvedValue(final('R$ 10,00')) };
+    logger = { info: jest.fn(), warn: jest.fn() };
     service = new RunAgentService(
       repo as never,
       { search: jest.fn(), totals: jest.fn() } as never,
       { findAllByUserId: jest.fn() } as never,
       llm as never,
+      logger as never,
     );
   });
 

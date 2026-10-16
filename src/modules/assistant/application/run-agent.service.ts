@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type Anthropic from '@anthropic-ai/sdk';
 import { metrics, type Counter } from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { LlmService } from '@shared/llm/llm.service';
 import { CategoriesRepository } from '@modules/categories/domain/repositories/categories.repository';
 import { TransactionsRepository } from '@modules/transactions/domain/repositories/transactions.repository';
@@ -54,6 +55,7 @@ export async function runAgentLoop(opts: {
   llm: Pick<LlmService, 'complete'>;
   handlers: ToolHandlers;
   now: Date;
+  onToolError?: (tool: string, err: unknown) => void;
 }): Promise<AgentLoopResult> {
   const messages: Anthropic.MessageParam[] = [
     { role: 'user', content: opts.question },
@@ -73,6 +75,17 @@ export async function runAgentLoop(opts: {
 
     if (message.stop_reason === 'refusal') {
       return { status: 'DEGRADED', answer: REFUSAL_ANSWER, steps: step, trace };
+    }
+
+    // A tool call cut off by max_tokens can still be valid JSON with a filter
+    // missing (e.g. no categoryId), which would answer the wrong question.
+    if (message.stop_reason === 'max_tokens') {
+      return {
+        status: 'DEGRADED',
+        answer: INCOMPLETE_ANSWER,
+        steps: step,
+        trace,
+      };
     }
 
     // Append-only: the assistant turn goes back exactly as received,
@@ -99,7 +112,7 @@ export async function runAgentLoop(opts: {
     // All results of a round go back in one user message; splitting them
     // teaches the model to stop calling tools in parallel.
     const results = await Promise.all(
-      toolUses.map((use) => runTool(opts.handlers, use)),
+      toolUses.map((use) => runTool(opts.handlers, use, opts.onToolError)),
     );
     messages.push({ role: 'user', content: results });
     toolUses.forEach((use, i) =>
@@ -133,18 +146,23 @@ export async function runAgentLoop(opts: {
 @Injectable()
 export class RunAgentService {
   private readonly runs: Counter;
+  private readonly steps: Counter;
 
   constructor(
     private readonly agentRunsRepository: AgentRunsRepository,
     private readonly transactionsRepository: TransactionsRepository,
     private readonly categoriesRepository: CategoriesRepository,
     private readonly llmService: LlmService,
+    @InjectPinoLogger(RunAgentService.name)
+    private readonly logger: PinoLogger,
   ) {
-    this.runs = metrics
-      .getMeter('fincheck-api')
-      .createCounter('fincheck_agent_runs', {
-        description: 'Agent runs finished, by status',
-      });
+    const meter = metrics.getMeter('fincheck-api');
+    this.runs = meter.createCounter('fincheck_agent_runs', {
+      description: 'Agent runs finished, by status',
+    });
+    this.steps = meter.createCounter('fincheck_agent_steps', {
+      description: 'Model calls made by agent runs',
+    });
   }
 
   async run(runId: string): Promise<void> {
@@ -163,6 +181,15 @@ export class RunAgentService {
         categories: this.categoriesRepository,
       }),
       now: new Date(),
+      onToolError: (tool, err) =>
+        this.logger.warn(
+          {
+            runId,
+            tool,
+            code: (err as { code?: string }).code ?? (err as Error).name,
+          },
+          'Agent tool failed',
+        ),
     });
 
     await this.agentRunsRepository.finish(runId, {
@@ -171,6 +198,17 @@ export class RunAgentService {
       steps: result.steps,
     });
     this.runs.add(1, { status: result.status });
+    this.steps.add(result.steps);
+    // Ids and counts only: the question and tool data are user financial data.
+    this.logger.info(
+      {
+        runId,
+        status: result.status,
+        steps: result.steps,
+        tools: result.trace.map((t) => t.tool),
+      },
+      'Agent run finished',
+    );
   }
 
   // Called when the queue gives up on a run; a run that already finished

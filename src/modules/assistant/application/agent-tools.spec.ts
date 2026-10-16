@@ -160,6 +160,89 @@ describe('agent tools', () => {
     },
   );
 
+  it.each([
+    [
+      'an impossible date',
+      {
+        from: '2026-09-01',
+        to: '2026-09-31',
+        type: 'EXPENSE',
+        groupBy: 'none',
+      },
+    ],
+    [
+      'a 367-day range',
+      {
+        from: '2025-01-01',
+        to: '2026-01-02',
+        type: 'EXPENSE',
+        groupBy: 'none',
+      },
+    ],
+    [
+      'a missing type (income and expenses would be summed together)',
+      { from: '2026-09-01', to: '2026-09-30', groupBy: 'none' },
+    ],
+  ])('rejects %s as invalid input', async (_label, input) => {
+    const d = deps();
+    const result = await runTool(
+      buildToolHandlers('u1', d),
+      use('compute_totals', input),
+    );
+
+    expect(result.is_error).toBe(true);
+    expect(result.content).toMatch(/^Invalid input/);
+    expect(d.transactions.totals).not.toHaveBeenCalled();
+  });
+
+  it('accepts a 366-day range', async () => {
+    const result = await runTool(
+      buildToolHandlers('u1', deps()),
+      use('compute_totals', {
+        from: '2025-01-01',
+        to: '2026-01-01',
+        type: 'EXPENSE',
+        groupBy: 'none',
+      }),
+    );
+    expect(result.is_error).toBeFalsy();
+  });
+
+  it('reports a category name passed as categoryId as invalid input, not as a database outage', async () => {
+    const d = deps();
+    const result = await runTool(
+      buildToolHandlers('u1', d),
+      use('query_transactions', {
+        from: '2026-09-01',
+        to: '2026-09-30',
+        categoryId: 'Alimentação',
+      }),
+    );
+
+    expect(result.is_error).toBe(true);
+    expect(result.content).toMatch(/^Invalid input.*categoryId/);
+    expect(d.transactions.search).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed read to the error callback with the tool name, never the input', async () => {
+    const d = deps();
+    d.transactions.search.mockRejectedValueOnce(
+      Object.assign(new Error('boom'), { code: 'P1001' }),
+    );
+    const onError = jest.fn();
+
+    await runTool(
+      buildToolHandlers('u1', d),
+      use('query_transactions', { from: '2026-09-01', to: '2026-09-30' }),
+      onError,
+    );
+
+    expect(onError).toHaveBeenCalledWith(
+      'query_transactions',
+      expect.any(Error),
+    );
+  });
+
   it('turns a repository failure into an is_error result without leaking internals', async () => {
     const d = deps();
     d.transactions.search.mockRejectedValueOnce(

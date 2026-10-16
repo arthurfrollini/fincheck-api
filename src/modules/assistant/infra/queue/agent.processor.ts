@@ -26,10 +26,18 @@ export class AgentProcessor extends WorkerHost {
   @OnWorkerEvent('failed')
   async onFailed(job: Job, err: Error): Promise<void> {
     const outOfAttempts = job.attemptsMade >= (job.opts.attempts ?? 1);
-    if (outOfAttempts || err instanceof UnrecoverableError) {
-      const { runId } = job.data as RunAgentJobData;
-      this.logger.error({ err, runId }, 'Agent run failed permanently');
+    if (!outOfAttempts && !(err instanceof UnrecoverableError)) return;
+    const { runId } = job.data as RunAgentJobData;
+    this.logger.error({ err, runId }, 'Agent run failed permanently');
+    // BullMQ doesn't await event handlers: a rejection here would be an
+    // unhandled rejection and could take the process down.
+    try {
       await this.runAgentService.markFailed(runId);
+    } catch (markErr) {
+      this.logger.error(
+        { err: markErr, runId },
+        'Could not mark agent run FAILED',
+      );
     }
   }
 
