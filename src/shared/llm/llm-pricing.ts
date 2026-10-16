@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 
-export type LlmModel = 'claude-haiku-5-5' | 'claude-opus-5-5';
+export type LlmModel =
+  'claude-haiku-5-5' | 'claude-sonnet-5-5' | 'claude-opus-5-5';
 
 interface ModelPricing {
   input: number;
@@ -18,6 +19,12 @@ export const LLM_PRICING: Record<LlmModel, ModelPricing> = {
     output: 0.5,
     cacheWrite: 0.125,
     cacheRead: 0.01,
+  },
+  'claude-sonnet-5-5': {
+    input: 2,
+    output: 10,
+    cacheWrite: 2.5,
+    cacheRead: 0.2,
   },
   'claude-opus-5-5': { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
 };
