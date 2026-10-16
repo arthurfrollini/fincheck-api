@@ -1,0 +1,193 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import Anthropic from '@anthropic-ai/sdk';
+import { ServiceUnavailableException } from '@nestjs/common';
+import { metrics } from '@opentelemetry/api';
+import { LlmService } from '@shared/llm/llm.service';
+import { type ScoredKnowledgeChunk } from '../entities/KnowledgeChunk';
+import { EmbeddingProvider } from '../domain/embedding-provider';
+import { KnowledgeChunksRepository } from '../domain/repositories/knowledge-chunks.repository';
+import { AnswerQuestionService } from './answer-question.service';
+import {
+  NOT_COVERED_ANSWER,
+  RAG_MIN_SIMILARITY,
+  RAG_SYSTEM_PROMPT,
+  RAG_TOP_K,
+  REFUSAL_ANSWER,
+} from './rag.constants';
+
+const FIXTURES = path.resolve(__dirname, '../../../../test/fixtures/llm/rag');
+const fixture = (name: string) =>
+  JSON.parse(
+    fs.readFileSync(path.join(FIXTURES, `${name}.json`), 'utf8'),
+  ) as Anthropic.Message;
+
+const chunk = (
+  id: string,
+  page: number,
+  similarity: number,
+): ScoredKnowledgeChunk => ({
+  id,
+  documentSha: 'sha',
+  chunkIndex: page,
+  page,
+  text: `texto do chunk ${id}`,
+  similarity,
+});
+
+describe('AnswerQuestionService', () => {
+  let embeddings: { embedQuery: jest.Mock };
+  let repo: { count: jest.Mock; searchSimilar: jest.Mock };
+  let llm: { complete: jest.Mock };
+  let results: { add: jest.Mock };
+  let service: AnswerQuestionService;
+
+  // Retrieved in this order; the fixture cites document_index 1 then 0.
+  const retrieved = [
+    chunk('chunk-a', 12, RAG_MIN_SIMILARITY + 0.05),
+    chunk('chunk-b', 40, RAG_MIN_SIMILARITY + 0.03),
+  ];
+
+  beforeEach(() => {
+    results = { add: jest.fn() };
+    jest.spyOn(metrics, 'getMeter').mockReturnValue({
+      createCounter: () => results,
+    } as unknown as ReturnType<typeof metrics.getMeter>);
+    embeddings = { embedQuery: jest.fn().mockResolvedValue([0.1, 0.2]) };
+    repo = {
+      count: jest.fn().mockResolvedValue(173),
+      searchSimilar: jest.fn().mockResolvedValue(retrieved),
+    };
+    llm = { complete: jest.fn().mockResolvedValue(fixture('cited')) };
+    service = new AnswerQuestionService(
+      embeddings as unknown as EmbeddingProvider,
+      repo as unknown as KnowledgeChunksRepository,
+      llm as unknown as LlmService,
+    );
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('answers with citations mapped to the chunk at each document_index', async () => {
+    const result = await service.answer('quanto guardar por mês?');
+
+    expect(result.result).toBe('answered');
+    expect(result.answer).toBe(
+      'Segundo o material do Banco Central, a reserva financeira deve cobrir de 3 a 6 meses de despesas, e o ideal é poupar todo mês antes de gastar.',
+    );
+    expect(result.citations).toEqual([
+      {
+        citedText: 'reserva financeira deve cobrir de 3 a 6 meses de despesas',
+        page: 40,
+        chunkId: 'chunk-b',
+      },
+      {
+        citedText: 'poupar todo mês antes de gastar',
+        page: 12,
+        chunkId: 'chunk-a',
+      },
+    ]);
+    expect(results.add).toHaveBeenCalledWith(1, { result: 'answered' });
+  });
+
+  it('sends one cited document block per chunk, in retrieval order, then the question', async () => {
+    await service.answer('quanto guardar por mês?');
+
+    expect(embeddings.embedQuery).toHaveBeenCalledWith(
+      'quanto guardar por mês?',
+    );
+    expect(repo.searchSimilar).toHaveBeenCalledWith([0.1, 0.2], RAG_TOP_K);
+    const [feature, params] = llm.complete.mock.calls[0] as [
+      string,
+      Anthropic.MessageCreateParamsNonStreaming,
+    ];
+    expect(feature).toBe('rag');
+    expect(params.model).toBe('claude-sonnet-5-5');
+    expect(params.system).toBe(RAG_SYSTEM_PROMPT);
+    expect(params).not.toHaveProperty('output_config.format');
+    const content = params.messages[0].content as Anthropic.ContentBlockParam[];
+    expect(content).toEqual([
+      {
+        type: 'document',
+        source: {
+          type: 'text',
+          media_type: 'text/plain',
+          data: 'texto do chunk chunk-a',
+        },
+        title: 'Caderno de Educação Financeira (BCB), p. 12',
+        citations: { enabled: true },
+      },
+      expect.objectContaining({
+        type: 'document',
+        title: 'Caderno de Educação Financeira (BCB), p. 40',
+      }),
+      { type: 'text', text: 'quanto guardar por mês?' },
+    ]);
+  });
+
+  it('does not call the model when the best match is below the similarity floor', async () => {
+    repo.searchSimilar.mockResolvedValueOnce([
+      chunk('chunk-x', 5, RAG_MIN_SIMILARITY - 0.01),
+    ]);
+
+    const result = await service.answer('receita de bolo de cenoura');
+
+    expect(llm.complete).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      answer: NOT_COVERED_ANSWER,
+      citations: [],
+      model: 'claude-sonnet-5-5',
+      result: 'not_covered',
+    });
+  });
+
+  it('returns 503 when nothing has been ingested', async () => {
+    repo.count.mockResolvedValueOnce(0);
+
+    await expect(service.answer('x')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+    expect(embeddings.embedQuery).not.toHaveBeenCalled();
+  });
+
+  it('returns a fixed answer on refusal', async () => {
+    llm.complete.mockResolvedValueOnce(fixture('refusal'));
+
+    const result = await service.answer('x');
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        answer: REFUSAL_ANSWER,
+        citations: [],
+        result: 'refusal',
+      }),
+    );
+  });
+
+  it('flags an answer with no citations as uncited', async () => {
+    llm.complete.mockResolvedValueOnce(fixture('uncited'));
+
+    const result = await service.answer('x');
+
+    expect(result.result).toBe('uncited');
+    expect(result.answer).toBe('Guarde o que puder.');
+  });
+
+  it('turns Claude API errors into 503 without counting a result', async () => {
+    llm.complete.mockRejectedValueOnce(
+      new Anthropic.RateLimitError(429, undefined, 'x', new Headers()),
+    );
+
+    await expect(service.answer('x')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+    expect(results.add).not.toHaveBeenCalled();
+  });
+
+  it('rethrows non-API errors unchanged', async () => {
+    const error = new Error('db down');
+    repo.searchSimilar.mockRejectedValueOnce(error);
+
+    await expect(service.answer('x')).rejects.toBe(error);
+  });
+});
