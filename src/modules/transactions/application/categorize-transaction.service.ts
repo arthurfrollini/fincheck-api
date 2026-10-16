@@ -41,6 +41,14 @@ export type CategorizationAnswer = z.infer<
   ReturnType<typeof categorizationSchema>
 >;
 
+// The single place that turns a model answer into a write decision. The eval
+// runner uses it too, so measured accuracy is production's accuracy.
+export function interpretAnswer(answer: CategorizationAnswer): string | null {
+  if (answer.categoryId === NO_CATEGORY) return null;
+  if (answer.confidence < CATEGORIZATION_MIN_CONFIDENCE) return null;
+  return answer.categoryId;
+}
+
 export function buildCategorizationRequest(
   transaction: Pick<TransactionEntity, 'name' | 'type' | 'value'>,
   candidates: Pick<CategoryEntity, 'id' | 'name'>[],
@@ -158,13 +166,8 @@ export class CategorizeTransactionService {
       return 'failed';
     }
 
-    const { categoryId, confidence } = response.parsed_output;
-    if (
-      categoryId === NO_CATEGORY ||
-      confidence < CATEGORIZATION_MIN_CONFIDENCE
-    ) {
-      return 'uncategorized';
-    }
+    const categoryId = interpretAnswer(response.parsed_output);
+    if (!categoryId) return 'uncategorized';
 
     // The schema enum already limits answers to this user's ids. This check
     // is the authorization layer and must not rely on the schema.
