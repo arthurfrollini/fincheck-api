@@ -1,4 +1,4 @@
-export type LlmFeature = 'categorization' | 'rag' | 'judge';
+export type LlmFeature = 'categorization' | 'rag' | 'judge' | 'agent';
 
 export type LlmOutcome = 'ok' | 'refusal' | 'max_tokens' | 'unparsed' | 'error';
 
