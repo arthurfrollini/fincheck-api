@@ -141,6 +141,11 @@ model KnowledgeChunk {
   text        String
   // pgvector column; Prisma has no native type, so reads and similarity
   // search go through $queryRaw in KnowledgeChunksPrismaRepository.
+  // WARNING: Prisma can't express the HNSW index created in migration
+  // 20261016140429_add_knowledge_chunks, so `prisma migrate dev` will
+  // generate a DROP INDEX "knowledge_chunks_embedding_hnsw_idx". Delete that
+  // line from any generated migration (search stays correct without it, but
+  // falls back to a full scan).
   embedding   Unsupported("vector(384)")
   createdAt   DateTime                   @default(now()) @map("created_at")
 

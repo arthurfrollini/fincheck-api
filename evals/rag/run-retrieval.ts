@@ -21,8 +21,12 @@ import {
   type RetrievalMetrics,
 } from './retrieval';
 
-// override: Prisma's client already loaded .env on import; DOTENV_PATH must win.
-dotenv.config({ path: process.env.DOTENV_PATH ?? '.env', override: true });
+// Prisma's client loads .env on import, so an explicit DOTENV_PATH must
+// override it; without one, values exported in the shell keep precedence.
+dotenv.config({
+  path: process.env.DOTENV_PATH ?? '.env',
+  override: Boolean(process.env.DOTENV_PATH),
+});
 
 const BASELINE_FILE = path.resolve(__dirname, '../baselines/retrieval.json');
 const K = 10;

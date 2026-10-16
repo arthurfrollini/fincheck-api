@@ -10,7 +10,7 @@ const page = (n: number, words: number) => ({
 
 function deps(expectedSha = sha) {
   const repository = {
-    upsertMany: jest.fn((chunks: unknown[]) => Promise.resolve(chunks.length)),
+    replaceAll: jest.fn((chunks: unknown[]) => Promise.resolve(chunks.length)),
     searchSimilar: jest.fn(),
     count: jest.fn(),
     findAll: jest.fn(),
@@ -36,7 +36,7 @@ describe('ingestCorpus', () => {
 
     await expect(ingestCorpus(d.input)).rejects.toThrow(/sha256/i);
     expect(d.extractPages).not.toHaveBeenCalled();
-    expect(d.repository.upsertMany).not.toHaveBeenCalled();
+    expect(d.repository.replaceAll).not.toHaveBeenCalled();
   });
 
   it('stores each chunk with its own embedding, keyed by the document hash', async () => {
@@ -44,7 +44,7 @@ describe('ingestCorpus', () => {
 
     const result = await ingestCorpus(d.input);
 
-    const stored = d.repository.upsertMany.mock.calls[0][0] as {
+    const stored = d.repository.replaceAll.mock.calls[0][0] as {
       documentSha: string;
       chunkIndex: number;
       page: number;
@@ -55,16 +55,17 @@ describe('ingestCorpus', () => {
       [1, 2, [1]],
     ]);
     expect(stored.every((c) => c.documentSha === sha)).toBe(true);
-    expect(result).toEqual({ chunks: 2, inserted: 2 });
+    expect(result).toEqual({ chunks: 2, stored: 2 });
   });
 
-  it('reports zero inserted when the same document is ingested again', async () => {
+  it('re-ingesting replaces the stored chunks instead of adding to them', async () => {
     const d = deps();
-    d.repository.upsertMany.mockResolvedValueOnce(0);
 
+    await ingestCorpus(d.input);
     await expect(ingestCorpus(d.input)).resolves.toEqual({
       chunks: 2,
-      inserted: 0,
+      stored: 2,
     });
+    expect(d.repository.replaceAll).toHaveBeenCalledTimes(2);
   });
 });

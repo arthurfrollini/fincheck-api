@@ -46,10 +46,16 @@ describe('KnowledgeChunksPrismaRepository', () => {
     );
   });
 
-  it('inserts with ON CONFLICT DO NOTHING and returns the inserted count', async () => {
-    prisma.$executeRaw.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+  it('replaces every stored chunk in one transaction, so editions and chunkers never mix', async () => {
+    const tx = {
+      knowledgeChunk: { deleteMany: jest.fn() },
+      $executeRaw: jest.fn().mockResolvedValue(1),
+    };
+    (prisma as unknown as { $transaction: jest.Mock }).$transaction = jest.fn(
+      (fn: (t: typeof tx) => unknown) => fn(tx),
+    );
 
-    const inserted = await repository.upsertMany([
+    const stored = await repository.replaceAll([
       {
         documentSha: 'sha',
         chunkIndex: 0,
@@ -66,10 +72,10 @@ describe('KnowledgeChunksPrismaRepository', () => {
       },
     ]);
 
-    expect(inserted).toBe(1);
-    const sql = sqlOf(prisma.$executeRaw.mock.calls[0]);
-    expect(sql.sql).toMatch(/ON CONFLICT .* DO NOTHING/i);
-    expect(sql.values).toContain('[0.1]');
+    expect(stored).toBe(2);
+    expect(tx.knowledgeChunk.deleteMany).toHaveBeenCalledWith({});
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(2);
+    expect(sqlOf(tx.$executeRaw.mock.calls[0]).values).toContain('[0.1]');
   });
 
   it('never uses the unsafe raw query APIs', () => {

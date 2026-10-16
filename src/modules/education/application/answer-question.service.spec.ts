@@ -173,6 +173,20 @@ describe('AnswerQuestionService', () => {
     expect(result.answer).toBe('Guarde o que puder.');
   });
 
+  it('drops a citation whose document_index points past the retrieved chunks', async () => {
+    const message = fixture('cited');
+    const block = message.content.find(
+      (b): b is Anthropic.TextBlock => b.type === 'text' && !!b.citations,
+    )!;
+    (block.citations![0] as Anthropic.CitationCharLocation).document_index = 99;
+    llm.complete.mockResolvedValueOnce(message);
+
+    const result = await service.answer('x');
+
+    expect(result.citations.every((c) => c.chunkId !== undefined)).toBe(true);
+    expect(result.citations).toHaveLength(1);
+  });
+
   it('turns Claude API errors into 503 without counting a result', async () => {
     llm.complete.mockRejectedValueOnce(
       new Anthropic.RateLimitError(429, undefined, 'x', new Headers()),

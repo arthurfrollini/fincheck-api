@@ -98,4 +98,6 @@ jobs:
       - name: Run RAG answer eval (Sonnet 5.5 answers, Opus 5.5 judge)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: npm run --silent eval:rag-answers | tee -a "$GITHUB_STEP_SUMMARY"
+        run: |
+          set -o pipefail
+          npm run --silent eval:rag-answers | tee -a "$GITHUB_STEP_SUMMARY"

@@ -41,7 +41,7 @@ describe('Education (e2e)', () => {
     mockLlmService.complete.mockReset().mockResolvedValue(cited);
     // Two chunks share the question's fake vector (similarity 1), so they
     // are the top two retrieved: document_index 0 and 1 in the fixture.
-    await app.get(KnowledgeChunksRepository).upsertMany([
+    await app.get(KnowledgeChunksRepository).replaceAll([
       {
         documentSha: 'e2e',
         chunkIndex: 0,

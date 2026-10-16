@@ -16,16 +16,22 @@ const toVectorLiteral = (embedding: number[]) => `[${embedding.join(',')}]`;
 export class KnowledgeChunksPrismaRepository implements KnowledgeChunksRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async upsertMany(chunks: KnowledgeChunkWithEmbedding[]): Promise<number> {
-    let inserted = 0;
-    for (const c of chunks) {
-      inserted += await this.prismaService.$executeRaw(Prisma.sql`
-        INSERT INTO knowledge_chunks (id, document_sha, chunk_index, page, text, embedding)
-        VALUES (gen_random_uuid(), ${c.documentSha}, ${c.chunkIndex}, ${c.page}, ${c.text}, ${toVectorLiteral(c.embedding)}::vector)
-        ON CONFLICT (document_sha, chunk_index) DO NOTHING
-      `);
-    }
-    return inserted;
+  async replaceAll(chunks: KnowledgeChunkWithEmbedding[]): Promise<number> {
+    // A few hundred rows: one transaction keeps readers from ever seeing a
+    // half-replaced corpus.
+    await this.prismaService.$transaction(
+      async (tx) => {
+        await tx.knowledgeChunk.deleteMany({});
+        for (const c of chunks) {
+          await tx.$executeRaw(Prisma.sql`
+            INSERT INTO knowledge_chunks (id, document_sha, chunk_index, page, text, embedding)
+            VALUES (gen_random_uuid(), ${c.documentSha}, ${c.chunkIndex}, ${c.page}, ${c.text}, ${toVectorLiteral(c.embedding)}::vector)
+          `);
+        }
+      },
+      { timeout: 60_000 },
+    );
+    return chunks.length;
   }
 
   async searchSimilar(

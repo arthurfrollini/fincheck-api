@@ -14,8 +14,12 @@ import { KnowledgeChunksPrismaRepository } from '../src/modules/education/infra/
 import { TransformersEmbeddingProvider } from '../src/modules/education/infra/embeddings/transformers-embedding.provider';
 import { type PrismaService } from '../src/shared/database/prisma.service';
 
-// override: Prisma's client already loaded .env on import; DOTENV_PATH must win.
-dotenv.config({ path: process.env.DOTENV_PATH ?? '.env', override: true });
+// Prisma's client loads .env on import, so an explicit DOTENV_PATH must
+// override it; without one, values exported in the shell keep precedence.
+dotenv.config({
+  path: process.env.DOTENV_PATH ?? '.env',
+  override: Boolean(process.env.DOTENV_PATH),
+});
 
 const ROOT = path.resolve(__dirname, '..');
 const manifest = JSON.parse(
@@ -50,7 +54,7 @@ async function main(): Promise<void> {
       ),
     });
     console.log(
-      `${manifest.title}: ${result.chunks} chunks, ${result.inserted} newly inserted.`,
+      `${manifest.title}: ${result.chunks} chunks stored (knowledge base replaced).`,
     );
   } finally {
     await prisma.$disconnect();

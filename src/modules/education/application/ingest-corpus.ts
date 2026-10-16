@@ -16,7 +16,7 @@ export interface IngestDeps {
 
 export async function ingestCorpus(
   deps: IngestDeps,
-): Promise<{ chunks: number; inserted: number }> {
+): Promise<{ chunks: number; stored: number }> {
   const sha = createHash('sha256').update(deps.pdf).digest('hex');
   if (sha !== deps.expectedSha) {
     throw new Error(
@@ -28,14 +28,14 @@ export async function ingestCorpus(
   const embeddings = await deps.embeddings.embedPassages(
     chunks.map((c) => c.text),
   );
-  // Keyed by (documentSha, chunkIndex): re-ingesting the same document is a
-  // no-op, ingesting a new edition adds its chunks alongside.
-  const inserted = await deps.repository.upsertMany(
+  // Replace, not append: re-running is idempotent, and a new edition,
+  // chunker or model never coexists with the old one in search results.
+  const stored = await deps.repository.replaceAll(
     chunks.map((c, i) => ({
       ...c,
       documentSha: sha,
       embedding: embeddings[i],
     })),
   );
-  return { chunks: chunks.length, inserted };
+  return { chunks: chunks.length, stored };
 }

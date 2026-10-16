@@ -54,6 +54,27 @@ describe('TransformersEmbeddingProvider', () => {
     expect(factory).toHaveBeenCalledTimes(1);
   });
 
+  it('retries the model load after a failed one instead of caching the failure', async () => {
+    const factory = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValueOnce(fakeExtractor());
+    const provider = new TransformersEmbeddingProvider(factory);
+
+    await expect(provider.embedQuery('a')).rejects.toThrow('network down');
+    await expect(provider.embedQuery('a')).resolves.toHaveLength(384);
+    expect(factory).toHaveBeenCalledTimes(2);
+  });
+
+  it('preloads the model on module init without failing boot when the load fails', async () => {
+    const factory = jest.fn().mockRejectedValue(new Error('offline'));
+    const provider = new TransformersEmbeddingProvider(factory);
+
+    expect(() => provider.onModuleInit()).not.toThrow();
+    await new Promise((r) => setImmediate(r));
+    expect(factory).toHaveBeenCalledTimes(1);
+  });
+
   // The real model is not exercised here: onnxruntime rejects typed arrays
   // from Jest's sandboxed globals. The retrieval eval (evals/rag) runs it for
   // real, outside Jest, on every CI run.

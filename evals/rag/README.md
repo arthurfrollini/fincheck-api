@@ -31,4 +31,19 @@ On the same run, out-of-scope questions peaked at a best-chunk similarity of 0.8
 
 ## Answer quality (`npm run eval:rag-answers`, scheduled, needs a key)
 
-See `answers.jsonl` and `judge.ts`.
+20 of the in-scope questions (`answers.jsonl`), each with 2-3 key points written by Claude from the passage that answers it. Every answer goes through the production path (local embeddings, pgvector, `claude-sonnet-5-5` with citations). `claude-opus-5-5` then grades it at low effort against a fixed rubric, and the full rubric is in `judge.ts`:
+
+- **grounded:** every claim is supported by the cited passages;
+- **coversKeyPoints:** the share of key points conveyed;
+- **citesSources:** the answer cites relevant passages.
+
+A case passes when it is grounded, cites sources and covers at least half the key points. The gate fails on a drop of more than 2 cases against `evals/baselines/rag-answers.json`.
+
+**Known judge biases:**
+
+- **Verbosity.** LLM judges favor longer answers. The rubric scores conveyed points, not length, and tells the judge so, but the bias is not eliminated.
+- **Same model family.** The judge and the answering model are both Claude. Comparing Sonnet with an answer model from another vendor would need a judge from a third family.
+
+## Runtime note
+
+The embedding model (~120 MB) is downloaded the first time it is used and cached in `TRANSFORMERS_CACHE` (default `.cache/models`). The app starts loading it at boot, without blocking. On a fresh machine with no cache, the first question can still wait for that download.

@@ -5,9 +5,11 @@ import {
 } from '../../entities/KnowledgeChunk';
 
 export abstract class KnowledgeChunksRepository {
-  // Idempotent: a chunk already stored for (documentSha, chunkIndex) is left
-  // untouched. Returns how many rows were actually inserted.
-  abstract upsertMany(chunks: KnowledgeChunkWithEmbedding[]): Promise<number>;
+  // Replaces the whole knowledge base atomically. Ingest always stores the
+  // complete current corpus, so a new edition, chunker or embedding model
+  // never leaves old rows to be retrieved alongside new ones. Returns how
+  // many chunks are stored.
+  abstract replaceAll(chunks: KnowledgeChunkWithEmbedding[]): Promise<number>;
   abstract searchSimilar(
     embedding: number[],
     k: number,
