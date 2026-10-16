@@ -29,6 +29,9 @@ describe('Education (e2e)', () => {
   });
 
   afterAll(async () => {
+    // Leave no fake-embedding chunks behind: CI ingests the real corpus into
+    // this same database right after the suite and runs the retrieval eval.
+    await cleanDatabase(app);
     await app.close();
   });
 

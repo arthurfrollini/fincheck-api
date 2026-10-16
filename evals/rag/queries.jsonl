@@ -1,0 +1,35 @@
+{"id": "q01", "question": "como faço pra realizar um sonho, tipo uma viagem grande, sem me enrolar?", "evidence": ["preparar o caminho para a realização de sonhos"], "inScope": true, "source": "claude"}
+{"id": "q02", "question": "eu decido compras no calor do momento, como evitar isso?", "evidence": ["basear suas escolhas equilibrando emoções e razão"], "inScope": true, "source": "claude"}
+{"id": "q03", "question": "se eu gastar muito agora, o que acontece com meu futuro financeiro?", "evidence": ["se você gasta muito dinheiro no presente"], "inScope": true, "source": "claude"}
+{"id": "q04", "question": "como eu sei se algo é necessidade ou só vontade minha?", "evidence": ["os desejos são ilimitados, porém os recursos são limitados"], "inScope": true, "source": "claude"}
+{"id": "q05", "question": "o que eu deixo de ganhar quando escolho gastar com uma coisa?", "evidence": ["custo de oportunidade refere-se ao preço"], "inScope": true, "source": "claude"}
+{"id": "q06", "question": "pra que serve fazer orçamento se eu já sei quanto ganho?", "evidence": ["ferramenta para você conhecer, administrar e equilibrar suas receitas e despesas"], "inScope": true, "source": "claude"}
+{"id": "q07", "question": "preciso mesmo anotar cada cafezinho que eu compro?", "evidence": ["anotar, de preferência diariamente"], "inScope": true, "source": "claude"}
+{"id": "q08", "question": "tem problema gastar tudo que eu ganho no mês?", "evidence": ["as despesas não devem ser superiores às receitas"], "inScope": true, "source": "claude"}
+{"id": "q09", "question": "como faço minha família ajudar a controlar os gastos da casa?", "evidence": ["participação e o comprometimento de cada membro da família"], "inScope": true, "source": "claude"}
+{"id": "q10", "question": "o que é crédito, explicado de um jeito simples?", "evidence": ["fonte adicional de recursos que não são seus"], "inScope": true, "source": "claude"}
+{"id": "q11", "question": "por que minha dívida cresce tão rápido de um mês pro outro?", "evidence": ["são incorporados ao capital principal e passam"], "inScope": true, "source": "claude"}
+{"id": "q12", "question": "por que pegar empréstimo sai mais caro do que parece?", "evidence": ["ao uso do crédito é o pagamento de juros"], "inScope": true, "source": "claude"}
+{"id": "q13", "question": "o banco me ofereceu aumentar o limite do cartão, devo aceitar?", "evidence": ["do cartão de crédito podem ser aumentados"], "inScope": true, "source": "claude"}
+{"id": "q14", "question": "cheque especial, cartão ou empréstimo: qual usar quando falta dinheiro?", "evidence": ["saber escolher a modalidade"], "inScope": true, "source": "claude"}
+{"id": "q15", "question": "tô enrolado com várias dívidas, por onde eu começo?", "evidence": ["negociar condições mais vantajosas para o pagamento das dívidas"], "inScope": true, "source": "claude"}
+{"id": "q16", "question": "dá pra levar minha dívida pra outro banco com juros menores?", "evidence": ["fazer a portabilidade da dívida"], "inScope": true, "source": "claude"}
+{"id": "q17", "question": "como não gastar demais no mercado?", "evidence": ["fazer uma lista de compras com os preços médios"], "inScope": true, "source": "claude"}
+{"id": "q18", "question": "faz diferença ir no supermercado com fome?", "evidence": ["quem faz compras com o estômago vazio compra mais por impulso"], "inScope": true, "source": "claude"}
+{"id": "q19", "question": "quais truques os supermercados usam pra gente comprar mais?", "evidence": ["produtos são colocados nos corredores dos caixas"], "inScope": true, "source": "claude"}
+{"id": "q20", "question": "meu jeito de consumir afeta o meio ambiente?", "evidence": ["nossas decisões de consumo afetam os recursos naturais"], "inScope": true, "source": "claude"}
+{"id": "q21", "question": "posso dobrar ou grampear nota de dinheiro?", "evidence": ["rasgadas, sujas, remendadas, rabiscadas, amassadas ou grampeadas"], "inScope": true, "source": "claude"}
+{"id": "q22", "question": "por que guardar dinheiro se eu ganho pouco?", "evidence": ["você acumula valores financeiros no presente para serem utilizados no futuro"], "inScope": true, "source": "claude"}
+{"id": "q23", "question": "qual a diferença entre guardar e investir dinheiro?", "evidence": ["poupança é a diferença entre as receitas e as despesas"], "inScope": true, "source": "claude"}
+{"id": "q24", "question": "se eu precisar do dinheiro de repente, consigo tirar rápido do investimento?", "evidence": ["capacidade de ser convertido em dinheiro vivo"], "inScope": true, "source": "claude"}
+{"id": "q25", "question": "se o banco quebrar eu perco o dinheiro da poupança?", "evidence": ["fundo garantidor de créditos (fgc)"], "inScope": true, "source": "claude"}
+{"id": "q26", "question": "como eu escolho onde investir meu dinheiro?", "evidence": ["o seu perfil de investidor"], "inScope": true, "source": "claude"}
+{"id": "q27", "question": "seguro vale a pena ou é dinheiro jogado fora?", "evidence": ["se obriga a indenizar a outra pela ocorrência de eventuais prejuízos"], "inScope": true, "source": "claude"}
+{"id": "q28", "question": "tenho 25 anos, já preciso pensar em aposentadoria?", "evidence": ["devemos nos preocupar com a aposentadoria, independentemente da idade"], "inScope": true, "source": "claude"}
+{"id": "q29", "question": "só o INSS é suficiente pra eu me aposentar bem?", "evidence": ["previdência complementar existe para"], "inScope": true, "source": "claude"}
+{"id": "q30", "question": "pix é seguro? cobra alguma taxa?", "evidence": ["é de graça! é prático, rápido e seguro"], "inScope": true, "source": "claude"}
+{"id": "o01", "question": "qual a melhor receita de bolo de cenoura?", "evidence": [], "inScope": false, "source": "claude"}
+{"id": "o02", "question": "quem ganhou a copa do mundo de 2002?", "evidence": [], "inScope": false, "source": "claude"}
+{"id": "o03", "question": "como troco o óleo do meu carro?", "evidence": [], "inScope": false, "source": "claude"}
+{"id": "o04", "question": "qual celular tem a melhor câmera hoje?", "evidence": [], "inScope": false, "source": "claude"}
+{"id": "o05", "question": "como faço pra aprender a tocar violão?", "evidence": [], "inScope": false, "source": "claude"}

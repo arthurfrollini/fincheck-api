@@ -14,7 +14,8 @@ import { KnowledgeChunksPrismaRepository } from '../src/modules/education/infra/
 import { TransformersEmbeddingProvider } from '../src/modules/education/infra/embeddings/transformers-embedding.provider';
 import { type PrismaService } from '../src/shared/database/prisma.service';
 
-dotenv.config({ path: process.env.DOTENV_PATH ?? '.env' });
+// override: Prisma's client already loaded .env on import; DOTENV_PATH must win.
+dotenv.config({ path: process.env.DOTENV_PATH ?? '.env', override: true });
 
 const ROOT = path.resolve(__dirname, '..');
 const manifest = JSON.parse(
