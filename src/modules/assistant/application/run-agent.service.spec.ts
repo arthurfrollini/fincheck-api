@@ -1,7 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { runAgentLoop } from './run-agent.service';
+import { RunAgentService, runAgentLoop } from './run-agent.service';
 import {
   AGENT_MODEL,
+  FAILED_ANSWER,
   INCOMPLETE_ANSWER,
   MAX_STEPS,
   REFUSAL_ANSWER,
@@ -270,5 +271,75 @@ describe('runAgentLoop', () => {
       role: 'user',
       content: 'quanto gastei com comida?',
     });
+  });
+});
+
+describe('RunAgentService', () => {
+  const base = {
+    id: 'run-1',
+    userId: 'u1',
+    idempotencyKey: null,
+    question: 'q',
+    answer: null,
+    steps: 0,
+  };
+  let repo: { findById: jest.Mock; markRunning: jest.Mock; finish: jest.Mock };
+  let llm: { complete: jest.Mock };
+  let service: RunAgentService;
+
+  beforeEach(() => {
+    repo = { findById: jest.fn(), markRunning: jest.fn(), finish: jest.fn() };
+    llm = { complete: jest.fn().mockResolvedValue(final('R$ 10,00')) };
+    service = new RunAgentService(
+      repo as never,
+      { search: jest.fn(), totals: jest.fn() } as never,
+      { findAllByUserId: jest.fn() } as never,
+      llm as never,
+    );
+  });
+
+  it('runs a queued run and records the result', async () => {
+    repo.findById.mockResolvedValue({ ...base, status: 'QUEUED' });
+
+    await service.run('run-1');
+
+    expect(repo.markRunning).toHaveBeenCalledWith('run-1');
+    expect(repo.finish).toHaveBeenCalledWith('run-1', {
+      status: 'COMPLETED',
+      answer: 'R$ 10,00',
+      steps: 1,
+    });
+  });
+
+  it.each(['COMPLETED', 'DEGRADED', 'FAILED'])(
+    'does nothing for a run already %s (duplicate delivery)',
+    async (status) => {
+      repo.findById.mockResolvedValue({ ...base, status });
+
+      await service.run('run-1');
+
+      expect(llm.complete).not.toHaveBeenCalled();
+      expect(repo.finish).not.toHaveBeenCalled();
+    },
+  );
+
+  it('markFailed finishes an unfinished run with the fixed answer', async () => {
+    repo.findById.mockResolvedValue({ ...base, status: 'RUNNING', steps: 2 });
+
+    await service.markFailed('run-1');
+
+    expect(repo.finish).toHaveBeenCalledWith('run-1', {
+      status: 'FAILED',
+      answer: FAILED_ANSWER,
+      steps: 2,
+    });
+  });
+
+  it('markFailed never overwrites a finished run', async () => {
+    repo.findById.mockResolvedValue({ ...base, status: 'COMPLETED' });
+
+    await service.markFailed('run-1');
+
+    expect(repo.finish).not.toHaveBeenCalled();
   });
 });

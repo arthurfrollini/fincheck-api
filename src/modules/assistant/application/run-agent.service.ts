@@ -9,6 +9,7 @@ import { type FinishedStatus } from '../entities/AgentRun';
 import {
   AGENT_MAX_TOKENS,
   AGENT_MODEL,
+  FAILED_ANSWER,
   INCOMPLETE_ANSWER,
   MAX_CONSECUTIVE_FAILED_ROUNDS,
   MAX_STEPS,
@@ -170,5 +171,18 @@ export class RunAgentService {
       steps: result.steps,
     });
     this.runs.add(1, { status: result.status });
+  }
+
+  // Called when the queue gives up on a run; a run that already finished
+  // (e.g. a stale duplicate failure event) is left as it is.
+  async markFailed(runId: string): Promise<void> {
+    const run = await this.agentRunsRepository.findById(runId);
+    if (!run || !['QUEUED', 'RUNNING'].includes(run.status)) return;
+    await this.agentRunsRepository.finish(runId, {
+      status: 'FAILED',
+      answer: FAILED_ANSWER,
+      steps: run.steps,
+    });
+    this.runs.add(1, { status: 'FAILED' });
   }
 }
