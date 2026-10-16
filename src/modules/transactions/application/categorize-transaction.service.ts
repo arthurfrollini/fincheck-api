@@ -156,7 +156,7 @@ export class CategorizeTransactionService {
       'categorization',
       params,
       schema,
-      { transactionId },
+      { transactionId, userId },
     );
     if (
       response.stop_reason === 'refusal' ||

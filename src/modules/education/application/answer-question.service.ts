@@ -68,13 +68,13 @@ export class AnswerQuestionService {
       });
   }
 
-  async answer(question: string): Promise<RagAnswer> {
-    const answer = await this.run(question);
+  async answer(userId: string, question: string): Promise<RagAnswer> {
+    const answer = await this.run(userId, question);
     this.results.add(1, { result: answer.result });
     return answer;
   }
 
-  private async run(question: string): Promise<RagAnswer> {
+  private async run(userId: string, question: string): Promise<RagAnswer> {
     if ((await this.knowledgeChunksRepository.count()) === 0) {
       throw new ServiceUnavailableException('Knowledge base not ingested.');
     }
@@ -96,6 +96,7 @@ export class AnswerQuestionService {
       message = await this.llmService.complete(
         'rag',
         buildRagRequest(question, chunks),
+        { userId },
       );
     } catch (err) {
       if (err instanceof Anthropic.AnthropicError) {

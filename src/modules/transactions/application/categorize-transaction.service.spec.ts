@@ -237,7 +237,7 @@ describe('CategorizeTransactionService', () => {
         'categorization',
         expect.anything(),
         expect.anything(),
-        { transactionId: TX_ID },
+        { transactionId: TX_ID, userId: USER_ID },
       );
       const params = request();
       expect(params.model).toBe('claude-haiku-5-5');

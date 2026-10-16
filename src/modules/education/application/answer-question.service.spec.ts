@@ -69,7 +69,7 @@ describe('AnswerQuestionService', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('answers with citations mapped to the chunk at each document_index', async () => {
-    const result = await service.answer('quanto guardar por mês?');
+    const result = await service.answer('u1', 'quanto guardar por mês?');
 
     expect(result.result).toBe('answered');
     expect(result.answer).toBe(
@@ -91,17 +91,19 @@ describe('AnswerQuestionService', () => {
   });
 
   it('sends one cited document block per chunk, in retrieval order, then the question', async () => {
-    await service.answer('quanto guardar por mês?');
+    await service.answer('u1', 'quanto guardar por mês?');
 
     expect(embeddings.embedQuery).toHaveBeenCalledWith(
       'quanto guardar por mês?',
     );
     expect(repo.searchSimilar).toHaveBeenCalledWith([0.1, 0.2], RAG_TOP_K);
-    const [feature, params] = llm.complete.mock.calls[0] as [
+    const [feature, params, context] = llm.complete.mock.calls[0] as [
       string,
       Anthropic.MessageCreateParamsNonStreaming,
+      Record<string, string>,
     ];
     expect(feature).toBe('rag');
+    expect(context).toEqual({ userId: 'u1' });
     expect(params.model).toBe('claude-sonnet-5-5');
     expect(params.system).toBe(RAG_SYSTEM_PROMPT);
     expect(params).not.toHaveProperty('output_config.format');
@@ -130,7 +132,7 @@ describe('AnswerQuestionService', () => {
       chunk('chunk-x', 5, RAG_MIN_SIMILARITY - 0.01),
     ]);
 
-    const result = await service.answer('receita de bolo de cenoura');
+    const result = await service.answer('u1', 'receita de bolo de cenoura');
 
     expect(llm.complete).not.toHaveBeenCalled();
     expect(result).toEqual({
@@ -144,7 +146,7 @@ describe('AnswerQuestionService', () => {
   it('returns 503 when nothing has been ingested', async () => {
     repo.count.mockResolvedValueOnce(0);
 
-    await expect(service.answer('x')).rejects.toBeInstanceOf(
+    await expect(service.answer('u1', 'x')).rejects.toBeInstanceOf(
       ServiceUnavailableException,
     );
     expect(embeddings.embedQuery).not.toHaveBeenCalled();
@@ -153,7 +155,7 @@ describe('AnswerQuestionService', () => {
   it('returns a fixed answer on refusal', async () => {
     llm.complete.mockResolvedValueOnce(fixture('refusal'));
 
-    const result = await service.answer('x');
+    const result = await service.answer('u1', 'x');
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -167,7 +169,7 @@ describe('AnswerQuestionService', () => {
   it('flags an answer with no citations as uncited', async () => {
     llm.complete.mockResolvedValueOnce(fixture('uncited'));
 
-    const result = await service.answer('x');
+    const result = await service.answer('u1', 'x');
 
     expect(result.result).toBe('uncited');
     expect(result.answer).toBe('Guarde o que puder.');
@@ -181,7 +183,7 @@ describe('AnswerQuestionService', () => {
     (block.citations![0] as Anthropic.CitationCharLocation).document_index = 99;
     llm.complete.mockResolvedValueOnce(message);
 
-    const result = await service.answer('x');
+    const result = await service.answer('u1', 'x');
 
     expect(result.citations.every((c) => c.chunkId !== undefined)).toBe(true);
     expect(result.citations).toHaveLength(1);
@@ -192,7 +194,7 @@ describe('AnswerQuestionService', () => {
       new Anthropic.RateLimitError(429, undefined, 'x', new Headers()),
     );
 
-    await expect(service.answer('x')).rejects.toBeInstanceOf(
+    await expect(service.answer('u1', 'x')).rejects.toBeInstanceOf(
       ServiceUnavailableException,
     );
     expect(results.add).not.toHaveBeenCalled();
@@ -202,6 +204,6 @@ describe('AnswerQuestionService', () => {
     const error = new Error('db down');
     repo.searchSimilar.mockRejectedValueOnce(error);
 
-    await expect(service.answer('x')).rejects.toBe(error);
+    await expect(service.answer('u1', 'x')).rejects.toBe(error);
   });
 });

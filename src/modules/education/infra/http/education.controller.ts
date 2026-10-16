@@ -6,6 +6,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AnswerQuestionService } from '../../application/answer-question.service';
+import { ActiveUserId } from '@shared/decorators/active-user-id.decorator';
 import { AskQuestionDto } from './dto/ask-question.dto';
 
 @ApiTags('education')
@@ -28,9 +29,12 @@ export class EducationController {
     status: 503,
     description: 'Knowledge base not ingested, or the model is unavailable',
   })
-  async ask(@Body() { question }: AskQuestionDto) {
+  async ask(
+    @ActiveUserId() userId: string,
+    @Body() { question }: AskQuestionDto,
+  ) {
     const { result: _result, ...answer } =
-      await this.answerQuestionService.answer(question);
+      await this.answerQuestionService.answer(userId, question);
     return answer;
   }
 }

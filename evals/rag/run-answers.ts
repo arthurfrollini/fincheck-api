@@ -58,7 +58,9 @@ async function main(): Promise<number> {
 
     const results = await runAnswerEval({
       cases: loadAnswerSet(),
-      answer: (q) => rag.answer(q),
+      // The eval's LlmService has no usage repository, so this id is never
+      // recorded; it only satisfies the signature.
+      answer: (q) => rag.answer('eval', q),
       judge: (input) => judgeAnswer(llm, input),
     });
 

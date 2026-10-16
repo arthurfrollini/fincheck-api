@@ -1,9 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type Anthropic from '@anthropic-ai/sdk';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { type ZodType } from 'zod';
 import { computeCostUsd, type LlmModel } from './llm-pricing';
 import { LlmMetrics } from './llm.metrics';
+import { AiUsageRepository } from './ai-usage.repository';
 import {
   ANTHROPIC_CLIENT,
   type LlmFeature,
@@ -27,6 +28,8 @@ export class LlmService {
     private readonly llmMetrics: LlmMetrics,
     @InjectPinoLogger(LlmService.name)
     private readonly logger: PinoLogger,
+    // Optional: evals and scripts build LlmService without a database.
+    @Optional() private readonly aiUsageRepository?: AiUsageRepository,
   ) {}
 
   // Uses messages.create and validates the JSON here rather than through
@@ -106,7 +109,32 @@ export class LlmService {
       'LLM call',
     );
 
+    await this.recordUsage(feature, params.model, usage, context.userId);
     return message;
+  }
+
+  // Quotas and the daily spend ceiling read these rows. A failed write is
+  // logged, never thrown: accounting must not fail a request that already
+  // got its answer.
+  private async recordUsage(
+    feature: LlmFeature,
+    model: LlmModel,
+    usage: Anthropic.Usage,
+    userId: string | undefined,
+  ): Promise<void> {
+    if (!userId || !this.aiUsageRepository) return;
+    try {
+      await this.aiUsageRepository.record({
+        userId,
+        feature,
+        model,
+        inputTokens: usage.input_tokens,
+        outputTokens: usage.output_tokens,
+        costUsd: computeCostUsd(model, usage),
+      });
+    } catch (err) {
+      this.logger.warn({ err, feature, userId }, 'Could not record AI usage');
+    }
   }
 }
 

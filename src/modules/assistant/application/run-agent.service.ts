@@ -56,6 +56,8 @@ export async function runAgentLoop(opts: {
   handlers: ToolHandlers;
   now: Date;
   onToolError?: (tool: string, err: unknown) => void;
+  // Passed to every model call: attributes usage to the user for quotas.
+  context?: Record<string, string>;
 }): Promise<AgentLoopResult> {
   const messages: Anthropic.MessageParam[] = [
     { role: 'user', content: opts.question },
@@ -64,14 +66,18 @@ export async function runAgentLoop(opts: {
   let failedRounds = 0;
 
   for (let step = 1; step <= MAX_STEPS; step++) {
-    const message = await opts.llm.complete('agent', {
-      model: AGENT_MODEL,
-      max_tokens: AGENT_MAX_TOKENS,
-      system: agentSystemPrompt(opts.now),
-      tools: AGENT_TOOLS,
-      output_config: { effort: 'medium' },
-      messages,
-    });
+    const message = await opts.llm.complete(
+      'agent',
+      {
+        model: AGENT_MODEL,
+        max_tokens: AGENT_MAX_TOKENS,
+        system: agentSystemPrompt(opts.now),
+        tools: AGENT_TOOLS,
+        output_config: { effort: 'medium' },
+        messages,
+      },
+      opts.context,
+    );
 
     if (message.stop_reason === 'refusal') {
       return { status: 'DEGRADED', answer: REFUSAL_ANSWER, steps: step, trace };
@@ -181,6 +187,7 @@ export class RunAgentService {
         categories: this.categoriesRepository,
       }),
       now: new Date(),
+      context: { userId: run.userId, runId },
       onToolError: (tool, err) =>
         this.logger.warn(
           {
