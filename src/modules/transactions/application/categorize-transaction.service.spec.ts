@@ -221,6 +221,10 @@ describe('CategorizeTransactionService', () => {
 
     await expect(service.categorize(USER_ID, TX_ID)).resolves.toBe('skipped');
     expect(llm.parse).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      { transactionId: TX_ID },
+      expect.stringContaining('budget'),
+    );
   });
 
   it('skips without calling the model when the user has no same-type categories', async () => {

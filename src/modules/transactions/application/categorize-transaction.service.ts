@@ -151,7 +151,13 @@ export class CategorizeTransactionService {
 
     // Daily AI spend ceiling reached: leave the transaction uncategorized
     // rather than fail the job (the write already succeeded).
-    if (await this.planGuardService.isAiBudgetExhausted()) return 'skipped';
+    if (await this.planGuardService.isAiBudgetExhausted()) {
+      this.logger.warn(
+        { transactionId },
+        'Daily AI budget spent; transaction left uncategorized',
+      );
+      return 'skipped';
+    }
 
     const { params, schema } = buildCategorizationRequest(
       transaction,

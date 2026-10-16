@@ -154,7 +154,11 @@ export class PlanGuardService {
   // The last guard against many accounts at once; the prepaid Anthropic
   // balance stays the hard backstop.
   async isAiBudgetExhausted(): Promise<boolean> {
-    const limit = Number(process.env.AI_DAILY_SPEND_LIMIT_USD) || 1;
+    // 0 is a valid setting (AI switched off); only unset or non-numeric
+    // values fall back to the default.
+    const raw = process.env.AI_DAILY_SPEND_LIMIT_USD;
+    const parsed = raw?.trim() ? Number(raw) : NaN;
+    const limit = Number.isNaN(parsed) ? 1 : parsed;
     return (await this.aiUsageRepository!.spendToday()) >= limit;
   }
 

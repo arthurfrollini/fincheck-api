@@ -281,6 +281,23 @@ describe('PlanGuardService AI limits', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('treats AI_DAILY_SPEND_LIMIT_USD=0 as AI switched off, not as the default', async () => {
+    process.env.AI_DAILY_SPEND_LIMIT_USD = '0';
+    await expect(
+      build('GOLD', { spend: 0 }).svc.validateGlobalAiBudget(),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
+  it('falls back to US$ 1 when AI_DAILY_SPEND_LIMIT_USD is not a number', async () => {
+    process.env.AI_DAILY_SPEND_LIMIT_USD = 'abc';
+    await expect(
+      build('GOLD', { spend: 0.5 }).svc.validateGlobalAiBudget(),
+    ).resolves.toBeUndefined();
+    await expect(
+      build('GOLD', { spend: 1 }).svc.validateGlobalAiBudget(),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
   it('reports whether the budget is exhausted without throwing (for background jobs)', async () => {
     await expect(
       build('GOLD', { spend: 2 }).svc.isAiBudgetExhausted(),

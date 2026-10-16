@@ -1,6 +1,6 @@
 # Fincheck API
 
-REST API for a personal finance app. Users track bank accounts and transactions by category, with plan-based limits enforced through Stripe subscriptions. Four AI features run on the Claude API, each one measured by its own eval:
+REST API for a personal finance app. Users track bank accounts and transactions by category, with plan-based limits enforced through Stripe subscriptions. Three AI features run on the Claude API, and each one has its own eval:
 
 - automatic transaction categorization;
 - answers grounded in Banco Central do Brasil's financial education material, with citations;
@@ -215,7 +215,7 @@ ANTHROPIC_API_KEY=
 # Optional
 PORT=                      # default 3000
 TRUST_PROXY=               # proxy hops (usually 1) behind a hosting proxy, so rate limits key on the client IP
-AI_DAILY_SPEND_LIMIT_USD=  # default 1
+AI_DAILY_SPEND_LIMIT_USD=  # default 1; 0 turns RAG, agent and categorization off
 BILLING_ENABLED=           # false turns off self-service billing routes (404); the webhook keeps working
 MAIL_ENABLED=              # false skips sending email
 MAIL_REDIRECT_TO=          # send every email to this address (local dev)
