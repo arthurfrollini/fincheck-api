@@ -20,15 +20,16 @@ Each label is one of the 12 categories every user starts with (`src/modules/cate
 
 ## Rules applied
 
-| Kind of transaction                                                            | Label       | Examples                                                     |
-| ------------------------------------------------------------------------------ | ----------- | ------------------------------------------------------------ |
-| Streaming, games, events, tickets                                              | Lazer       | Spotify, Amazon Prime, Ticketmaster, Inti *Tomorrowland, Zig |
-| Delivery apps, restaurants, food shops                                         | Alimentação | 99 Food, Zé Delivery, Cacau Show, Plurall                    |
-| Supermarkets, convenience stores                                               | Mercado     | Assaí, OXXO                                                  |
-| Ride-hailing, tolls, fuel, car insurance                                       | Transporte  | Uber, 99, NuTag, 7-Eleven (fuel, abroad), Tokio Marine (car) |
-| Car rental on a trip                                                           | Viagem      | Álamo Rent-a-car                                             |
-| Pharmacy, barber, software and AI subscriptions, unknown marketplace purchases | Outro       | Drogasil, Mp *Barbearia, ANTHROPIC, ChatGPT, Apple, Amazon   |
-| No recognizable merchant or purpose                                            | none        | Stb*Fdintermediacaoese, PIX ENVIADO, PAG*JOSEDASILVA         |
+| Kind of transaction                                                            | Label          | Examples                                                     |
+| ------------------------------------------------------------------------------ | -------------- | ------------------------------------------------------------ |
+| Streaming, games, events, tickets                                              | Lazer          | Spotify, Amazon Prime, Ticketmaster, Inti *Tomorrowland, Zig |
+| Delivery apps, restaurants, food shops                                         | Alimentação    | 99 Food, Zé Delivery, Cacau Show, Plurall                    |
+| Supermarkets, convenience stores                                               | Mercado        | Assaí, OXXO                                                  |
+| Ride-hailing, tolls, fuel, car insurance                                       | Transporte     | Uber, 99, NuTag, 7-Eleven (fuel, abroad), Tokio Marine (car) |
+| Car rental on a trip                                                           | Viagem         | Álamo Rent-a-car                                             |
+| Pharmacy, barber, software and AI subscriptions, unknown marketplace purchases | Outro          | Drogasil, Mp *Barbearia, ANTHROPIC, ChatGPT, Apple, Amazon   |
+| Refunds and other identifiable non-salary income                               | Outro (INCOME) | ESTORNO COMPRA, RENDIMENTO POUPANCA                          |
+| No recognizable merchant or purpose                                            | none           | Stb*Fdintermediacaoese, PIX ENVIADO, PAG*JOSEDASILVA         |
 
 Cases marked `"note": "debated label"` are the 13 the owner decided individually. They are the ones where two categories were defensible, so a model "miss" on them deserves a look before a prompt change.
 

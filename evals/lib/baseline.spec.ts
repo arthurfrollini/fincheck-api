@@ -27,9 +27,10 @@ describe('compareToBaseline', () => {
     );
   });
 
-  it('refuses to compare against a baseline of a different size', () => {
-    expect(() =>
-      compareToBaseline({ correct: 40, total: 49 }, baseline),
-    ).toThrow(/49/);
+  it('fails, asking for a re-record, when the set size differs from the baseline', () => {
+    const gate = compareToBaseline({ correct: 40, total: 51 }, baseline);
+    expect(gate.status).toBe('fail');
+    expect(gate.message).toContain('51');
+    expect(gate.message).toContain('--update-baseline');
   });
 });

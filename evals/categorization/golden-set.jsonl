@@ -42,7 +42,7 @@
 {"id": "s01", "name": "PIX RECEBIDO ACME TECNOLOGIA LTDA", "type": "INCOME", "value": 8500.0, "expected": "Salário", "source": "synthetic"}
 {"id": "s02", "name": "TED RECEBIDA CLIENTE NF 0042", "type": "INCOME", "value": 3200.0, "expected": "Freelance", "source": "synthetic"}
 {"id": "s03", "name": "RENDIMENTO POUPANCA", "type": "INCOME", "value": 12.37, "expected": "Outro", "source": "synthetic"}
-{"id": "s04", "name": "ESTORNO COMPRA", "type": "INCOME", "value": 59.9, "expected": "none", "source": "synthetic"}
+{"id": "s04", "name": "ESTORNO COMPRA", "type": "INCOME", "value": 59.9, "expected": "Outro", "source": "synthetic"}
 {"id": "s05", "name": "PAG*JOSEDASILVA", "type": "EXPENSE", "value": 35.0, "expected": "none", "source": "synthetic"}
 {"id": "s06", "name": "PIX ENVIADO", "type": "EXPENSE", "value": 120.0, "expected": "none", "source": "synthetic"}
 {"id": "s07", "name": "POSTO SHELL 1234", "type": "EXPENSE", "value": 250.0, "expected": "Transporte", "source": "synthetic"}

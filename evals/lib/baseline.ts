@@ -4,7 +4,9 @@ export interface Baseline {
 }
 
 export interface GateResult {
-  status: 'pass' | 'fail' | 'no-baseline';
+  // 'infra': the run itself failed (API down, bad key), so it was never
+  // compared. Set by the suite, never by compareToBaseline.
+  status: 'pass' | 'fail' | 'no-baseline' | 'infra';
   message: string;
 }
 
@@ -24,9 +26,10 @@ export function compareToBaseline(
     };
   }
   if (score.total !== baseline.total) {
-    throw new Error(
-      `Golden set has ${score.total} cases but the baseline was recorded on ${baseline.total}. Re-record the baseline.`,
-    );
+    return {
+      status: 'fail',
+      message: `Golden set has ${score.total} cases but the baseline was recorded on ${baseline.total}. Re-record it with --update-baseline.`,
+    };
   }
 
   const delta = score.correct - baseline.correct;

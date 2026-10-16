@@ -3,8 +3,8 @@
 //   npm run eval:categorization -- --models claude-haiku-5-5,claude-opus-5-5 \
 //     [--out eval-result.json] [--update-baseline]
 //
-// Only claude-haiku-5-5 (the production model) is gated. Exit 1 on a gated
-// regression or an infra failure.
+// Only claude-haiku-5-5 (the production model) is gated and baselined.
+// Exit 1 on a gated regression, a refused baseline update, or an infra failure.
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
@@ -12,18 +12,10 @@ import { PinoLogger } from 'nestjs-pino';
 import { createAnthropicClient } from '@shared/llm/anthropic-client';
 import { LlmMetrics } from '@shared/llm/llm.metrics';
 import { LlmService } from '@shared/llm/llm.service';
-import { type LlmModel } from '@shared/llm/llm-pricing';
 import { CATEGORIZATION_MODEL } from '@modules/transactions/application/categorization.constants';
-import { compareToBaseline, type Baseline } from '../lib/baseline';
-import { renderReport } from '../lib/report';
-import { score } from '../lib/score';
 import { loadGoldenSet } from './golden-set';
-import {
-  assertRealKey,
-  canUpdateBaseline,
-  runCategorizationEval,
-  shouldFailAsInfra,
-} from './runner';
+import { assertRealKey } from './runner';
+import { parseModels, runEvalSuite, type StoredBaselines } from './suite';
 
 dotenv.config();
 
@@ -37,84 +29,40 @@ function arg(name: string): string | undefined {
   return i === -1 ? undefined : process.argv[i + 1];
 }
 
-function readBaselines(): Record<string, Baseline & { recordedAt: string }> {
-  return fs.existsSync(BASELINE_FILE)
-    ? JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8'))
-    : {};
-}
+const toJson = (data: unknown) => `${JSON.stringify(data, null, 2)}\n`;
 
 async function main(): Promise<number> {
   const key = process.env.ANTHROPIC_API_KEY;
   assertRealKey(key);
-
-  const models = (arg('models') ?? CATEGORIZATION_MODEL).split(
-    ',',
-  ) as LlmModel[];
-  const updateBaseline = process.argv.includes('--update-baseline');
-  const cases = loadGoldenSet();
-  const baselines = readBaselines();
+  const models = parseModels(arg('models') ?? CATEGORIZATION_MODEL);
 
   // Not wrapped in Nest: no app, no database, no env.ts. The OTel meter is a
-  // no-op without the SDK registered, so metrics calls are free here. Per-call
-  // info logs are dropped; the report below is the output.
+  // no-op without the SDK registered. Per-call info logs are dropped; the
+  // report is the output.
   const logger = {
     info: () => undefined,
     warn: (obj: object, msg: string) => console.warn(msg, obj),
   } as unknown as PinoLogger;
-  const llm = new LlmService(
-    createAnthropicClient(key),
-    new LlmMetrics(),
-    logger,
-  );
 
-  const output: Record<string, unknown> = {};
-  let exitCode = 0;
-
-  for (const model of models) {
-    const result = score(await runCategorizationEval({ llm, model, cases }));
-
-    if (shouldFailAsInfra(result.errors)) {
-      console.error(
-        `${model}: ${result.errors} cases errored, failing as infra. Baseline not compared.`,
-      );
-      output[model] = { score: result, gate: { status: 'infra' } };
-      exitCode = 1;
-      continue;
-    }
-
-    const gated = model === CATEGORIZATION_MODEL;
-    const gate = gated
-      ? compareToBaseline(result, baselines[model])
-      : undefined;
-    if (gate?.status === 'fail') exitCode = 1;
-
-    console.log(renderReport(model, result, gate) + '\n');
-    output[model] = { score: result, gate };
-
-    if (updateBaseline) {
-      if (!canUpdateBaseline(result.errors)) {
-        console.error(
-          `${model}: not updating the baseline, ${result.errors} cases errored.`,
-        );
-        exitCode = 1;
-      } else {
-        baselines[model] = {
-          correct: result.correct,
-          total: result.total,
-          recordedAt: new Date().toISOString(),
-        };
-      }
-    }
-  }
-
-  if (updateBaseline) {
-    fs.writeFileSync(BASELINE_FILE, `${JSON.stringify(baselines, null, 2)}\n`);
-  }
-  const out = arg('out');
-  if (out)
-    fs.writeFileSync(out, `${JSON.stringify({ models: output }, null, 2)}\n`);
-
-  return exitCode;
+  return runEvalSuite({
+    llm: new LlmService(createAnthropicClient(key), new LlmMetrics(), logger),
+    models,
+    cases: loadGoldenSet(),
+    updateBaseline: process.argv.includes('--update-baseline'),
+    out: arg('out'),
+    io: {
+      readBaselines: () =>
+        fs.existsSync(BASELINE_FILE)
+          ? (JSON.parse(
+              fs.readFileSync(BASELINE_FILE, 'utf8'),
+            ) as StoredBaselines)
+          : {},
+      writeBaselines: (b) => fs.writeFileSync(BASELINE_FILE, toJson(b)),
+      writeOut: (file, data) => fs.writeFileSync(file, toJson(data)),
+      log: (line) => console.log(line),
+      error: (line) => console.error(line),
+    },
+  });
 }
 
 main().then(

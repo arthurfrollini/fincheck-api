@@ -19,7 +19,9 @@ permissions:
 jobs:
   categorization:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Worst case (API hanging): 50 cases x 3 attempts x 30s / 5 in flight
+    # is ~15 min per model; a two-model comparison needs the headroom.
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
