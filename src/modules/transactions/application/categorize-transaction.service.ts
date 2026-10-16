@@ -1,10 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { metrics, type Counter } from '@opentelemetry/api';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { z } from 'zod';
-import { LlmService } from '@shared/llm/llm.service';
+import { LlmService, type LlmParams } from '@shared/llm/llm.service';
 import { type LlmModel } from '@shared/llm/llm-pricing';
 import { CategoriesRepository } from '@modules/categories/domain/repositories/categories.repository';
 import { ValidateCategoryOwnershipService } from '@modules/categories/application/validate-category-ownership.service';
@@ -31,16 +30,23 @@ function escapeField(value: string): string {
   return value.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
+export function categorizationSchema(candidateIds: string[]) {
+  return z.object({
+    categoryId: z.enum([NO_CATEGORY, ...candidateIds] as [string, ...string[]]),
+    confidence: z.number().min(0).max(1),
+  });
+}
+
+export type CategorizationAnswer = z.infer<
+  ReturnType<typeof categorizationSchema>
+>;
+
 export function buildCategorizationRequest(
   transaction: Pick<TransactionEntity, 'name' | 'type' | 'value'>,
   candidates: Pick<CategoryEntity, 'id' | 'name'>[],
   model: LlmModel,
-) {
+): { params: LlmParams; schema: ReturnType<typeof categorizationSchema> } {
   const ids = candidates.map((c) => c.id);
-  const schema = z.object({
-    categoryId: z.enum([NO_CATEGORY, ...ids] as [string, ...string[]]),
-    confidence: z.number().min(0).max(1),
-  });
 
   const content = [
     'Categories:',
@@ -52,11 +58,36 @@ export function buildCategorizationRequest(
   ].join('\n');
 
   return {
-    model,
-    max_tokens: CATEGORIZATION_MAX_TOKENS,
-    system: CATEGORIZATION_SYSTEM_PROMPT,
-    output_config: { effort: 'low' as const, format: zodOutputFormat(schema) },
-    messages: [{ role: 'user' as const, content }],
+    params: {
+      model,
+      max_tokens: CATEGORIZATION_MAX_TOKENS,
+      system: CATEGORIZATION_SYSTEM_PROMPT,
+      output_config: {
+        effort: 'low',
+        // Hand-built rather than zodOutputFormat: the SDK's transform strips
+        // `enum` into a description hint, but the API enforces `enum`, which
+        // is what keeps answers inside this user's ids. The API does not
+        // support minimum/maximum, so the 0-1 range is checked client-side
+        // by categorizationSchema.
+        format: {
+          type: 'json_schema',
+          schema: {
+            type: 'object',
+            properties: {
+              categoryId: { type: 'string', enum: [NO_CATEGORY, ...ids] },
+              confidence: {
+                type: 'number',
+                description: 'From 0 (a guess) to 1 (certain).',
+              },
+            },
+            required: ['categoryId', 'confidence'],
+            additionalProperties: false,
+          },
+        },
+      },
+      messages: [{ role: 'user', content }],
+    },
+    schema: categorizationSchema(ids),
   };
 }
 
@@ -108,9 +139,15 @@ export class CategorizeTransactionService {
     );
     if (candidates.length === 0) return 'skipped';
 
+    const { params, schema } = buildCategorizationRequest(
+      transaction,
+      candidates,
+      model,
+    );
     const response = await this.llmService.parse(
       'categorization',
-      buildCategorizationRequest(transaction, candidates, model),
+      params,
+      schema,
       { transactionId },
     );
     if (

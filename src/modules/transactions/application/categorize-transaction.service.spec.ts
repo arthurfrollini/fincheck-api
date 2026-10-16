@@ -233,6 +233,7 @@ describe('CategorizeTransactionService', () => {
       expect(llm.parse).toHaveBeenCalledWith(
         'categorization',
         expect.anything(),
+        expect.anything(),
         { transactionId: TX_ID },
       );
       const params = request();
@@ -241,6 +242,43 @@ describe('CategorizeTransactionService', () => {
       expect(params.output_config.effort).toBe('low');
       expect(params).not.toHaveProperty('temperature');
       expect(params).not.toHaveProperty('thinking');
+    });
+
+    it('sends a JSON schema that keeps the id enum the API enforces', async () => {
+      await service.categorize(USER_ID, TX_ID);
+
+      const format = (
+        request() as unknown as {
+          output_config: {
+            format: { type: string; schema: Record<string, any> };
+          };
+        }
+      ).output_config.format;
+      expect(format.type).toBe('json_schema');
+      expect(format.schema.properties.categoryId.enum).toEqual([
+        'none',
+        FOOD,
+        GROCERY,
+      ]);
+      expect(format.schema.properties.confidence).not.toHaveProperty('minimum');
+      expect(format.schema.additionalProperties).toBe(false);
+    });
+
+    it('validates the answer client-side, including the 0-1 confidence range', async () => {
+      await service.categorize(USER_ID, TX_ID);
+
+      const schema = llm.parse.mock.calls[0][2] as {
+        safeParse: (v: unknown) => { success: boolean };
+      };
+      expect(
+        schema.safeParse({ categoryId: GROCERY, confidence: 0.9 }).success,
+      ).toBe(true);
+      expect(
+        schema.safeParse({ categoryId: GROCERY, confidence: 1.5 }).success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({ categoryId: FOREIGN, confidence: 0.9 }).success,
+      ).toBe(false);
     });
 
     it('uses the model override when passed', async () => {

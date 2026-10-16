@@ -14,7 +14,15 @@ const TRANSIENT_CLIENT_STATUSES = new Set([408, 409, 429]);
 
 function isPermanent(
   err: unknown,
-): err is InstanceType<typeof Anthropic.APIError> {
+): err is InstanceType<typeof Anthropic.AnthropicError> {
+  // An SDK error with no HTTP status (e.g. a client-side output parsing
+  // failure) will not change on retry.
+  if (
+    err instanceof Anthropic.AnthropicError &&
+    !(err instanceof Anthropic.APIError)
+  ) {
+    return true;
+  }
   return (
     err instanceof Anthropic.APIError &&
     !(err instanceof Anthropic.APIConnectionError) &&

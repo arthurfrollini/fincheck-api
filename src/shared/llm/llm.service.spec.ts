@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { PinoLogger } from 'nestjs-pino';
+import { z } from 'zod';
 import { LlmService } from './llm.service';
 import { LlmMetrics } from './llm.metrics';
 
@@ -19,28 +20,32 @@ function usage(fields: Partial<Anthropic.Usage> = {}): Anthropic.Usage {
   };
 }
 
-function response(
+function message(
+  text: string | null,
   overrides: Partial<{
     stop_reason: Anthropic.StopReason;
-    parsed_output: unknown;
     usage: Anthropic.Usage;
   }> = {},
 ) {
+  const content: unknown[] = [
+    { type: 'thinking', thinking: '', signature: 'sig' },
+  ];
+  if (text !== null) content.push({ type: 'text', text, citations: null });
   return {
     id: 'msg_1',
     type: 'message',
     role: 'assistant',
     model: 'claude-haiku-5-5',
-    content: [],
+    content,
     stop_reason: 'end_turn',
     stop_sequence: null,
     stop_details: null,
-    parsed_output: { ok: true },
     usage: usage(),
     ...overrides,
   };
 }
 
+const SCHEMA = z.object({ answer: z.enum(['a', 'b']) });
 const USER_TEXT = 'SECRET TRANSACTION NAME';
 const PARAMS = {
   model: 'claude-haiku-5-5' as const,
@@ -49,25 +54,29 @@ const PARAMS = {
 };
 
 describe('LlmService', () => {
-  let parse: jest.Mock;
+  let create: jest.Mock;
   let metrics: jest.Mocked<Pick<LlmMetrics, 'record'>>;
   let logger: jest.Mocked<Pick<PinoLogger, 'info' | 'warn'>>;
   let service: LlmService;
 
   beforeEach(() => {
-    parse = jest.fn().mockResolvedValue(response());
+    create = jest.fn().mockResolvedValue(message('{"answer":"a"}'));
     metrics = { record: jest.fn() };
     logger = { info: jest.fn(), warn: jest.fn() };
     service = new LlmService(
-      { messages: { parse } } as unknown as Anthropic,
+      { messages: { create } } as unknown as Anthropic,
       metrics as unknown as LlmMetrics,
       logger as unknown as PinoLogger,
     );
   });
 
-  it('records usage and outcome ok on end_turn', async () => {
-    await service.parse('categorization', PARAMS, { transactionId: 'tx-1' });
+  it('parses the text block after a leading thinking block and records outcome ok', async () => {
+    const result = await service.parse('categorization', PARAMS, SCHEMA, {
+      transactionId: 'tx-1',
+    });
 
+    expect(result.parsed_output).toEqual({ answer: 'a' });
+    expect(create).toHaveBeenCalledWith(PARAMS);
     expect(metrics.record).toHaveBeenCalledWith(
       'claude-haiku-5-5',
       'categorization',
@@ -90,18 +99,40 @@ describe('LlmService', () => {
   });
 
   it.each([
+    ['prose instead of JSON', 'I cannot categorize this.'],
+    ['a value outside the schema', '{"answer":"zzz"}'],
+    ['no text block', null],
+  ])(
+    'returns parsed_output null with outcome unparsed for %s, keeping usage',
+    async (_label, text) => {
+      create.mockResolvedValueOnce(message(text));
+
+      const result = await service.parse('categorization', PARAMS, SCHEMA);
+
+      expect(result.parsed_output).toBeNull();
+      expect(metrics.record).toHaveBeenCalledWith(
+        'claude-haiku-5-5',
+        'categorization',
+        usage(),
+        'unparsed',
+      );
+    },
+  );
+
+  it.each([
     ['refusal', 'refusal'],
     ['max_tokens', 'max_tokens'],
   ] as const)(
-    'records outcome %s and still returns the response',
+    'records outcome %s even when partial text is present, without parsing it',
     async (stopReason, outcome) => {
-      parse.mockResolvedValueOnce(
-        response({ stop_reason: stopReason, parsed_output: null }),
+      create.mockResolvedValueOnce(
+        message('{"answer":"a"', { stop_reason: stopReason }),
       );
 
-      const result = await service.parse('categorization', PARAMS);
+      const result = await service.parse('categorization', PARAMS, SCHEMA);
 
       expect(result.stop_reason).toBe(stopReason);
+      expect(result.parsed_output).toBeNull();
       expect(metrics.record).toHaveBeenCalledWith(
         'claude-haiku-5-5',
         'categorization',
@@ -111,19 +142,6 @@ describe('LlmService', () => {
     },
   );
 
-  it('records outcome unparsed when parsed_output is null on end_turn', async () => {
-    parse.mockResolvedValueOnce(response({ parsed_output: null }));
-
-    await service.parse('categorization', PARAMS);
-
-    expect(metrics.record).toHaveBeenCalledWith(
-      'claude-haiku-5-5',
-      'categorization',
-      usage(),
-      'unparsed',
-    );
-  });
-
   it('rethrows SDK errors and records outcome error with null usage', async () => {
     const error = new Anthropic.RateLimitError(
       429,
@@ -131,9 +149,11 @@ describe('LlmService', () => {
       'rate limited',
       new Headers(),
     );
-    parse.mockRejectedValueOnce(error);
+    create.mockRejectedValueOnce(error);
 
-    await expect(service.parse('categorization', PARAMS)).rejects.toBe(error);
+    await expect(service.parse('categorization', PARAMS, SCHEMA)).rejects.toBe(
+      error,
+    );
     expect(metrics.record).toHaveBeenCalledWith(
       'claude-haiku-5-5',
       'categorization',
@@ -143,17 +163,17 @@ describe('LlmService', () => {
   });
 
   it('warns when input_tokens exceeds 100_000 on claude-haiku-5-5', async () => {
-    parse.mockResolvedValueOnce(
-      response({ usage: usage({ input_tokens: 100_001 }) }),
+    create.mockResolvedValueOnce(
+      message('{"answer":"a"}', { usage: usage({ input_tokens: 100_001 }) }),
     );
 
-    await service.parse('categorization', PARAMS);
+    await service.parse('categorization', PARAMS, SCHEMA);
 
     expect(logger.warn).toHaveBeenCalledTimes(1);
   });
 
   it('never logs message content', async () => {
-    await service.parse('categorization', PARAMS);
+    await service.parse('categorization', PARAMS, SCHEMA);
 
     const logged = JSON.stringify([
       ...logger.info.mock.calls,

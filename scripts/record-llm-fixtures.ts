@@ -45,13 +45,18 @@ async function main(): Promise<void> {
     input: { name: string; type: 'EXPENSE'; value: number };
   };
   const client = new Anthropic({ apiKey: key, maxRetries: 0 });
-  const response = await client.messages.parse(
-    buildCategorizationRequest(
-      existing.input,
-      EXPENSE_CATEGORIES,
-      'claude-haiku-5-5',
-    ),
+  const { params, schema } = buildCategorizationRequest(
+    existing.input,
+    EXPENSE_CATEGORIES,
+    'claude-haiku-5-5',
   );
+  const message = await client.messages.create(params);
+  const text = message.content.find((b) => b.type === 'text');
+  const parsed = schema.safeParse(text ? JSON.parse(text.text) : null);
+  const response = {
+    ...message,
+    parsed_output: parsed.success ? parsed.data : null,
+  };
 
   // The unit tests assert ok.json lands in Mercado above the floor; refuse
   // to overwrite it with an answer that would break them.

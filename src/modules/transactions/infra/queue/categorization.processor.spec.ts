@@ -51,6 +51,16 @@ describe('CategorizationProcessor', () => {
     await expect(processor.process(job)).rejects.toBe(error);
   });
 
+  it('fails a non-HTTP SDK error (e.g. output parsing) without retrying', async () => {
+    categorize.mockRejectedValueOnce(
+      new Anthropic.AnthropicError('bad output'),
+    );
+
+    await expect(processor.process(job)).rejects.toBeInstanceOf(
+      UnrecoverableError,
+    );
+  });
+
   it.each([
     [
       'AuthenticationError',

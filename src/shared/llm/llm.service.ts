@@ -1,10 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type Anthropic from '@anthropic-ai/sdk';
-import type {
-  ExtractParsedContentFromParams,
-  ParsedMessage,
-} from '@anthropic-ai/sdk/lib/parser';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { type ZodType } from 'zod';
 import { computeCostUsd, type LlmModel } from './llm-pricing';
 import { LlmMetrics } from './llm.metrics';
 import {
@@ -17,9 +14,11 @@ import {
 // computeCostUsd only knows the cheaper one.
 const HAIKU_SMALL_PROMPT_LIMIT = 100_000;
 
-type LlmParams = Anthropic.MessageCreateParamsNonStreaming & {
+export type LlmParams = Anthropic.MessageCreateParamsNonStreaming & {
   model: LlmModel;
 };
+
+export type LlmResult<T> = Anthropic.Message & { parsed_output: T | null };
 
 @Injectable()
 export class LlmService {
@@ -30,24 +29,36 @@ export class LlmService {
     private readonly logger: PinoLogger,
   ) {}
 
-  // Typed SDK errors propagate unchanged: callers decide what is retryable.
-  async parse<Params extends LlmParams>(
+  // Uses messages.create and validates the JSON here rather than through
+  // messages.parse: parse throws on output that fails the schema (a refusal
+  // mid-answer, an id outside the enum), which would lose the usage record
+  // and turn a bad answer into a retried, re-billed job. A bad answer is
+  // parsed_output: null instead. Typed SDK errors still propagate unchanged
+  // so callers can decide what is retryable.
+  async parse<T>(
     feature: LlmFeature,
-    params: Params,
+    params: LlmParams,
+    schema: ZodType<T>,
     context: Record<string, string> = {},
-  ): Promise<ParsedMessage<ExtractParsedContentFromParams<Params>>> {
+  ): Promise<LlmResult<T>> {
     const startedAt = performance.now();
 
-    let response: ParsedMessage<ExtractParsedContentFromParams<Params>>;
+    let message: Anthropic.Message;
     try {
-      response = await this.client.messages.parse(params);
+      message = await this.client.messages.create(params);
     } catch (err) {
       this.llmMetrics.record(params.model, feature, null, 'error');
       throw err;
     }
 
-    const { usage } = response;
-    this.llmMetrics.record(params.model, feature, usage, outcomeOf(response));
+    const parsed = parseOutput(message, schema);
+    const { usage } = message;
+    this.llmMetrics.record(
+      params.model,
+      feature,
+      usage,
+      outcomeOf(message, parsed),
+    );
 
     if (
       params.model === 'claude-haiku-5-5' &&
@@ -70,22 +81,43 @@ export class LlmService {
         cache_creation_input_tokens: usage.cache_creation_input_tokens,
         cost_usd: computeCostUsd(params.model, usage),
         latency_ms: Math.round(performance.now() - startedAt),
-        stop_reason: response.stop_reason,
+        stop_reason: message.stop_reason,
         ...context,
       },
       'LLM call',
     );
 
-    return response;
+    return { ...message, parsed_output: parsed };
   }
 }
 
-function outcomeOf(response: {
-  stop_reason: Anthropic.StopReason | null;
-  parsed_output: unknown;
-}): LlmOutcome {
-  if (response.stop_reason === 'refusal') return 'refusal';
-  if (response.stop_reason === 'max_tokens') return 'max_tokens';
-  if (response.parsed_output === null) return 'unparsed';
+// A refused or truncated answer is never parsed, even if its partial text
+// happens to be valid JSON.
+function parseOutput<T>(
+  message: Anthropic.Message,
+  schema: ZodType<T>,
+): T | null {
+  if (
+    message.stop_reason === 'refusal' ||
+    message.stop_reason === 'max_tokens'
+  ) {
+    return null;
+  }
+  const text = message.content.find(
+    (block): block is Anthropic.TextBlock => block.type === 'text',
+  );
+  if (!text) return null;
+  try {
+    const result = schema.safeParse(JSON.parse(text.text));
+    return result.success ? result.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function outcomeOf(message: Anthropic.Message, parsed: unknown): LlmOutcome {
+  if (message.stop_reason === 'refusal') return 'refusal';
+  if (message.stop_reason === 'max_tokens') return 'max_tokens';
+  if (parsed === null) return 'unparsed';
   return 'ok';
 }

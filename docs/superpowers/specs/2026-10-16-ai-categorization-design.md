@@ -15,20 +15,20 @@ Goal: a transaction created **without** a `categoryId` gets one inferred by Clau
 3. **`categoryId` becomes optional on create.** Sent → respected as today, nothing is enqueued. Omitted → saved as `null` and enqueued. `UpdateTransactionDto` inherits the optional field; an update that omits it keeps the existing category (Prisma ignores `undefined`), and **updates never trigger categorization**.
 4. **Candidate set is filtered by type.** The model only sees the user's categories whose `type` matches the transaction's `type` (an `EXPENSE` competes among expense categories only).
 5. **Usage accounting: pino log + Prometheus counters** (RFC option F3c), reusing the existing OpenTelemetry `PrometheusExporter`.
-6. **Retries are owned by BullMQ, not the SDK.** The Anthropic client is constructed with `maxRetries: 0` so a failing call is retried once per job attempt, not `3 × attempts` times.
+6. **Retries are owned by BullMQ, not the SDK.** The Anthropic client is constructed with `maxRetries: 0` so a failing call is retried once per job attempt, not `3 × attempts` times, and `timeout: 30_000` so a hung call cannot hold the worker for the SDK's 10-minute default.
 
 ## Architecture
 
 ### `src/shared/llm/` (new, flat shared module like `shared/mail/`)
 
 - **`llm.module.ts`** — `@Global()` module exporting `LlmService`.
-- **`llm.service.ts`** — owns the single `Anthropic` client (`new Anthropic({ maxRetries: 0 })`, key from `ANTHROPIC_API_KEY`). Exposes one method used by every feature:
+- **`llm.service.ts`** — owns the single `Anthropic` client (`createAnthropicClient`: `maxRetries: 0`, `timeout: 30_000`, key from `ANTHROPIC_API_KEY`). Exposes one method used by every feature:
 
   ```ts
-  parse<T>(feature: LlmFeature, params: /* SDK messages.parse params */): Promise<ParsedResult<T>>
+  parse<T>(feature: LlmFeature, params: LlmParams, schema: ZodType<T>, context?): Promise<Message & { parsed_output: T | null }>
   ```
 
-  It calls `client.messages.parse(...)`, then **always** records usage (log + metrics) from `response.usage`, including on non-`end_turn` stop reasons. It does not swallow errors: typed SDK errors propagate to the caller, which decides retryable vs not (see failure matrix). `LlmFeature` is a string union (`'categorization'` now; `'agent' | 'rag' | 'judge'` later).
+  It calls `client.messages.create(...)`, validates the first text block with the zod schema itself (refusal/max_tokens are never parsed; invalid JSON or schema mismatch → `parsed_output: null`), then **always** records usage. It does not use `messages.parse`: that throws on schema mismatch, which would lose the usage record and turn a bad answer into a retried, re-billed job. It (log + metrics) from `response.usage`, including on non-`end_turn` stop reasons. It does not swallow errors: typed SDK errors propagate to the caller, which decides retryable vs not (see failure matrix). `LlmFeature` is a string union (`'categorization'` now; `'agent' | 'rag' | 'judge'` later).
 - **`llm-pricing.ts`** — per-model price table (input, output, cache write, cache read, per MTok) for the models in use (`claude-haiku-5-5`, `claude-opus-5-5`) and `computeCostUsd(model, usage)`. Haiku 5.5 has a second rate card above 100K prompt tokens; categorization prompts are far below it, so the function uses the ≤100K card and logs a warning if `input_tokens` exceeds 100K. Thinking tokens are billed as output and are already included in `usage.output_tokens`.
 - **`llm.metrics.ts`** — OpenTelemetry counters on the existing `fincheck-api` meter, same mechanism as `billing.metrics.ts`:
   - `fincheck_llm_tokens` (`{model, feature, direction}`; direction ∈ `input | output | cache_read | cache_write`)
@@ -57,10 +57,10 @@ Categorization is a transactions concern, so it lives in `src/modules/transactio
 - **Request shape**:
   - `model: CATEGORIZATION_MODEL` (`'claude-haiku-5-5'`; overridable by parameter so the eval can run Opus 5.5 through the same code path).
   - `max_tokens: 1024`: thinking counts toward `max_tokens` on Haiku 5.5, so a tight cap like 50 would truncate before the answer.
-  - `output_config: { effort: 'low', format: zodOutputFormat(schema) }`. Thinking is left at its default (adaptive). Effort is the lever, not `disabled`. No `temperature` (non-default sampling params return 400 on Haiku 5.5), no prefill.
-  - Schema built per request: `z.object({ categoryId: z.enum([...candidateIds, 'none']), confidence: z.number().min(0).max(1) })`. `'none'` is a string sentinel rather than `null`, keeping the enum flat.
+  - `output_config: { effort: 'low', format: { type: 'json_schema', schema } }` with a **hand-built** JSON schema. Not `zodOutputFormat`: the SDK's transform strips `enum` into a description hint, while the API enforces `enum`. The API does not support `minimum`/`maximum`, so the confidence range is validated client-side by the zod schema. Thinking is left at its default (adaptive). Effort is the lever, not `disabled`. No `temperature` (non-default sampling params return 400 on Haiku 5.5), no prefill.
+  - Schema built per request: JSON schema `categoryId: { enum: ['none', ...candidateIds] }`, `confidence: number`; zod mirror `z.object({ categoryId: z.enum(['none', ...candidateIds]), confidence: z.number().min(0).max(1) })` for client-side validation. `'none'` is a string sentinel rather than `null`, keeping the enum flat.
   - System prompt (English, fixed): the task, that inputs are Brazilian bank-statement descriptions (merchant prefixes like `IFD*`, `MP*`, `PAG*`, installment suffixes like `03/10`), that `'none'` is preferred over a guess, and that the user's catch-all category ("Outro") is a valid answer when it fits. User message: the candidate list (`id`, `name`), then `name`, `type`, `value`. Exact wording is the builder's; the golden set (D) is what judges it.
-  - Read content blocks by `type`; a Haiku 5.5 response can begin with `thinking` blocks. `messages.parse` handles this for `parsed_output`.
+  - Read content blocks by `type`; a Haiku 5.5 response can begin with `thinking` blocks.
 
 - **`CATEGORIZATION_MIN_CONFIDENCE`**: start at `0.5`. Self-reported confidence is poorly calibrated; D measures whether the floor improves precision at acceptable recall loss, and the constant is tuned from that. The confidence value is logged, not stored.
 
@@ -90,7 +90,7 @@ Mirrors `shared/mail/` file-for-file, under `src/modules/transactions/infra/queu
 |---|---|
 | Redis down at enqueue | Caught and logged in `CategorizationQueueService`; `POST /transactions` succeeds; transaction stays `null`. |
 | `RateLimitError` (429), `InternalServerError` / other `APIStatusError` ≥ 500, `APIConnectionError`, timeout | Rethrown → BullMQ retries with exponential backoff, 5 attempts. After the last, job lands in failed set (7-day retention); transaction stays `null`. Usage is recorded for every attempt that got a response. |
-| `AuthenticationError`, `PermissionDeniedError`, `BadRequestError`, `NotFoundError` | `UnrecoverableError` → no retry (retrying a bad key or bad request cannot succeed). Logged at `error`; `outcome=error`. |
+| `AuthenticationError`, `PermissionDeniedError`, `BadRequestError`, `NotFoundError` (any 4xx except 408/409/429), or an `AnthropicError` with no HTTP status | `UnrecoverableError` → no retry (retrying a bad key or bad request cannot succeed). Logged at `error`; `outcome=error`. |
 | `stop_reason: 'refusal'` | No retry, stays `null`, `outcome=refusal`. Haiku 5.5 has no server-side fallback; a bank-statement string tripping a classifier is rare enough to accept. |
 | `stop_reason: 'max_tokens'` or `parsed_output` null | No retry, stays `null`, `outcome=max_tokens` / `unparsed`, `result=failed`. Repeated occurrences are a prompt/cap bug to see in Grafana, not a transient to retry. |
 | Model returns `'none'` or confidence below floor | Stays `null`. Not an error. `outcome=ok`, `result=uncategorized`. |

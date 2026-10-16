@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
 import { env } from '@shared/config/env';
+import { createAnthropicClient } from './anthropic-client';
 import { LlmService } from './llm.service';
 import { LlmMetrics } from './llm.metrics';
 import { ANTHROPIC_CLIENT } from './llm.types';
@@ -10,10 +10,7 @@ import { ANTHROPIC_CLIENT } from './llm.types';
   providers: [
     {
       provide: ANTHROPIC_CLIENT,
-      // BullMQ owns retries for every LLM call path; SDK retries on top
-      // would multiply attempts (3 SDK tries x N job attempts).
-      useFactory: () =>
-        new Anthropic({ apiKey: env.anthropicApiKey, maxRetries: 0 }),
+      useFactory: () => createAnthropicClient(env.anthropicApiKey),
     },
     LlmMetrics,
     LlmService,
