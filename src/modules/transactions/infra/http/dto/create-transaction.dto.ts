@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsPositive,
   IsString,
   IsUUID,
@@ -17,11 +18,16 @@ export class CreateTransactionDto {
   @IsUUID()
   bankAccountId: string;
 
-  @ApiProperty({ description: 'Category id', format: 'uuid' })
+  @ApiProperty({
+    description: 'Category id. Omit to auto-categorize.',
+    format: 'uuid',
+    required: false,
+  })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
   @IsUUID()
-  categoryId: string;
+  categoryId?: string;
 
   @ApiProperty({ description: 'Transaction name', example: 'Groceries' })
   @IsString()

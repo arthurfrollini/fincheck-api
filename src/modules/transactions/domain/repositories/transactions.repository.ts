@@ -20,4 +20,9 @@ export abstract class TransactionsRepository {
     data: TransactionUpdate,
   ): Promise<TransactionEntity>;
   abstract delete(id: string): Promise<void>;
+  abstract setCategoryIfUnset(
+    id: string,
+    userId: string,
+    categoryId: string,
+  ): Promise<boolean>;
 }

@@ -1,0 +1,47 @@
+{
+  "recorded": false,
+  "id": "msg_fixture",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-haiku-5-5",
+  "content": [
+    {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+    },
+    {
+      "type": "text",
+      "text": "{\"categoryId\": \"c0000000-0000-4000-8000-000000000002\", \"confidence\": 0.92}",
+      "citations": null,
+      "parsed_output": {
+        "categoryId": "c0000000-0000-4000-8000-000000000002",
+        "confidence": 0.92
+      }
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "stop_details": null,
+  "parsed_output": {
+    "categoryId": "c0000000-0000-4000-8000-000000000002",
+    "confidence": 0.92
+  },
+  "usage": {
+    "cache_creation": null,
+    "cache_creation_input_tokens": null,
+    "cache_read_input_tokens": null,
+    "inference_geo": null,
+    "input_tokens": 412,
+    "output_tokens": 38,
+    "output_tokens_details": null,
+    "server_tool_use": null,
+    "service_tier": "standard",
+    "speed": "standard"
+  },
+  "input": {
+    "name": "Mercadinho Barcelona",
+    "type": "EXPENSE",
+    "value": 47.98
+  }
+}

@@ -15,6 +15,6 @@ import { ValidateCategoryOwnershipService } from './application/validate-categor
       useClass: CategoriesPrismaRepository,
     },
   ],
-  exports: [ValidateCategoryOwnershipService],
+  exports: [ValidateCategoryOwnershipService, CategoriesRepository],
 })
 export class CategoriesModule {}

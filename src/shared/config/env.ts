@@ -19,6 +19,7 @@ class Env {
   @IsString() @IsNotEmpty() stripePricePlatinum: string;
   @IsString() @IsNotEmpty() redisHost: string;
   @IsString() @IsNotEmpty() redisPort: string;
+  @IsString() @IsNotEmpty() anthropicApiKey: string;
 }
 
 export const env: Env = plainToInstance(Env, {
@@ -39,6 +40,7 @@ export const env: Env = plainToInstance(Env, {
   stripePricePlatinum: process.env.STRIPE_PRICE_PLATINUM,
   redisHost: process.env.REDIS_HOST,
   redisPort: process.env.REDIS_PORT,
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 const errors = validateSync(env);

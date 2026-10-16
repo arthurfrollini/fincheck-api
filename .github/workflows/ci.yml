@@ -72,6 +72,7 @@ jobs:
           STRIPE_PRICE_PLATINUM=price_platinum_fake
           REDIS_HOST=localhost
           REDIS_PORT=6379
+          ANTHROPIC_API_KEY=fake-anthropic-key
           EOF
 
       - name: Lint

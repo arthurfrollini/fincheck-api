@@ -18,12 +18,14 @@
     "test:unit": "jest",
     "test:unit:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "llm:record-fixtures": "ts-node -r tsconfig-paths/register scripts/record-llm-fixtures.ts",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:e2e:watch": "jest --config ./test/jest-e2e.json --watch",
     "prepare": "husky"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@aws-sdk/client-s3": "^3.1081.0",
     "@aws-sdk/s3-request-presigner": "^3.1081.0",
     "@nestjs/bullmq": "^11.0.4",
@@ -58,7 +60,8 @@
     "resend": "^6.16.0",
     "rxjs": "^7.8.1",
     "stripe": "^22.3.0",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

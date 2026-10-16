@@ -1,0 +1,47 @@
+{
+  "recorded": false,
+  "id": "msg_fixture",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-haiku-5-5",
+  "content": [
+    {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+    },
+    {
+      "type": "text",
+      "text": "{\"categoryId\": \"none\", \"confidence\": 0.2}",
+      "citations": null,
+      "parsed_output": {
+        "categoryId": "none",
+        "confidence": 0.2
+      }
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "stop_details": null,
+  "parsed_output": {
+    "categoryId": "none",
+    "confidence": 0.2
+  },
+  "usage": {
+    "cache_creation": null,
+    "cache_creation_input_tokens": null,
+    "cache_read_input_tokens": null,
+    "inference_geo": null,
+    "input_tokens": 412,
+    "output_tokens": 38,
+    "output_tokens_details": null,
+    "server_tool_use": null,
+    "service_tier": "standard",
+    "speed": "standard"
+  },
+  "input": {
+    "name": "Stb*Fdintermediacaoese",
+    "type": "EXPENSE",
+    "value": 47.98
+  }
+}
