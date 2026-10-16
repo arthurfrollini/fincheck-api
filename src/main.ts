@@ -45,7 +45,8 @@ async function bootstrap() {
     }),
   );
 
-  const port = 3000;
+  // Hosting platforms assign the port through PORT.
+  const port = Number(process.env.PORT) || 3000;
   await app.listen(port);
   console.log(
     `INFO: API Reference available at http://localhost:${port}/reference`,
