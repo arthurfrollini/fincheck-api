@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
+import { LOG_REDACT_PATHS } from '@shared/logger/log-redact';
 import { AuthGuard } from '@modules/auth/auth.guard';
 import { UsersModule } from '@modules/users/users.module';
 import { AuthModule } from '@modules/auth/auth.module';
@@ -19,6 +20,7 @@ import { BillingModule } from '@shared/billing/billing.module';
   imports: [
     LoggerModule.forRoot({
       pinoHttp: {
+        redact: LOG_REDACT_PATHS,
         transport: {
           targets: [
             { target: 'pino/file', options: { destination: 1 } },
