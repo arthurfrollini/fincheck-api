@@ -52,4 +52,18 @@ export class TransactionsPrismaRepository implements TransactionsRepository {
   async delete(id: string): Promise<void> {
     await this.prismaService.transaction.delete({ where: { id } });
   }
+
+  // Conditional on categoryId still being null, so a category the user set
+  // while a categorization job was in flight is never overwritten.
+  async setCategoryIfUnset(
+    id: string,
+    userId: string,
+    categoryId: string,
+  ): Promise<boolean> {
+    const { count } = await this.prismaService.transaction.updateMany({
+      where: { id, userId, categoryId: null },
+      data: { categoryId },
+    });
+    return count > 0;
+  }
 }
