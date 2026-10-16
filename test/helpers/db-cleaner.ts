@@ -7,6 +7,7 @@ export async function cleanDatabase(app: INestApplication): Promise<void> {
     prisma.processedStripeEvent.deleteMany(),
     prisma.knowledgeChunk.deleteMany(),
     prisma.agentRun.deleteMany(),
+    prisma.aiUsage.deleteMany(),
     prisma.transaction.deleteMany(),
     prisma.category.deleteMany(),
     prisma.bankAccount.deleteMany(),

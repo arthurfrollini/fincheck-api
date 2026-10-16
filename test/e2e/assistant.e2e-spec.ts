@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import { createApp, mockLlmService } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
+import { PrismaService } from '../../src/shared/database/prisma.service';
 
 const usage = {
   input_tokens: 500,
@@ -29,6 +30,8 @@ describe('Assistant (e2e)', () => {
   beforeEach(async () => {
     await cleanDatabase(app);
     ({ accessToken: token } = await signUpAndGetTokens(app));
+    // FREE has no AI access; these tests exercise the feature itself.
+    await app.get(PrismaService).user.updateMany({ data: { plan: 'GOLD' } });
     const server = app.getHttpServer();
     const bank = await request(server)
       .post('/bank-accounts')
@@ -162,6 +165,7 @@ describe('Assistant (e2e)', () => {
 
   it("only reads the asking user's transactions", async () => {
     const { accessToken: other } = await signUpAndGetTokens(app);
+    await app.get(PrismaService).user.updateMany({ data: { plan: 'GOLD' } });
     const res = await ask('quanto gastei em setembro?', undefined, other);
     token = other;
     await poll(res.body.runId);

@@ -73,6 +73,7 @@ describe('CategorizeTransactionService', () => {
   let ownership: { validate: jest.Mock };
   let logger: { warn: jest.Mock };
   let resultsCounter: { add: jest.Mock };
+  let planGuard: { isAiBudgetExhausted: jest.Mock };
   let service: CategorizeTransactionService;
 
   beforeEach(() => {
@@ -97,6 +98,7 @@ describe('CategorizeTransactionService', () => {
         ),
     };
     logger = { warn: jest.fn() };
+    planGuard = { isAiBudgetExhausted: jest.fn().mockResolvedValue(false) };
 
     service = new CategorizeTransactionService(
       llm as unknown as LlmService,
@@ -104,6 +106,7 @@ describe('CategorizeTransactionService', () => {
       categories as unknown as CategoriesRepository,
       ownership as unknown as ValidateCategoryOwnershipService,
       logger as unknown as PinoLogger,
+      planGuard as never,
     );
   });
 
@@ -212,6 +215,13 @@ describe('CategorizeTransactionService', () => {
       expect(llm.parse).not.toHaveBeenCalled();
     },
   );
+
+  it('skips without calling the model once the daily AI budget is spent', async () => {
+    planGuard.isAiBudgetExhausted.mockResolvedValueOnce(true);
+
+    await expect(service.categorize(USER_ID, TX_ID)).resolves.toBe('skipped');
+    expect(llm.parse).not.toHaveBeenCalled();
+  });
 
   it('skips without calling the model when the user has no same-type categories', async () => {
     categories.findAllByUserIdAndType.mockResolvedValueOnce([]);

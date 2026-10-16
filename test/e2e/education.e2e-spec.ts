@@ -9,6 +9,7 @@ import {
 } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
+import { PrismaService } from '../../src/shared/database/prisma.service';
 import { KnowledgeChunksRepository } from '../../src/modules/education/domain/repositories/knowledge-chunks.repository';
 
 const cited = JSON.parse(
@@ -38,6 +39,8 @@ describe('Education (e2e)', () => {
   beforeEach(async () => {
     await cleanDatabase(app);
     ({ accessToken } = await signUpAndGetTokens(app));
+    // FREE has no AI access; these tests exercise the feature itself.
+    await app.get(PrismaService).user.updateMany({ data: { plan: 'GOLD' } });
     mockLlmService.complete.mockReset().mockResolvedValue(cited);
     // Two chunks share the question's fake vector (similarity 1), so they
     // are the top two retrieved: document_index 0 and 1 in the fixture.

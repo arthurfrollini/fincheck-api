@@ -10,6 +10,10 @@ export abstract class AgentRunsRepository {
     idempotencyKey?: string,
   ): Promise<{ run: AgentRun; created: boolean }>;
   abstract findForUser(userId: string, id: string): Promise<AgentRun | null>;
+  abstract findByIdempotencyKey(
+    userId: string,
+    idempotencyKey: string,
+  ): Promise<AgentRun | null>;
   abstract findById(id: string): Promise<AgentRun | null>;
   abstract markRunning(id: string): Promise<void>;
   abstract finish(

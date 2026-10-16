@@ -17,6 +17,7 @@ import { AnswerQuestionService } from '../../src/modules/education/application/a
 import { KnowledgeChunksPrismaRepository } from '../../src/modules/education/infra/database/knowledge-chunks.prisma.repository';
 import { TransformersEmbeddingProvider } from '../../src/modules/education/infra/embeddings/transformers-embedding.provider';
 import { type PrismaService } from '../../src/shared/database/prisma.service';
+import { type PlanGuardService } from '../../src/shared/plan/plan-guard.service';
 import { assertRealKey } from '../categorization/runner';
 import { type Baseline } from '../lib/baseline';
 import {
@@ -54,6 +55,11 @@ async function main(): Promise<number> {
       new TransformersEmbeddingProvider(),
       new KnowledgeChunksPrismaRepository(prisma as unknown as PrismaService),
       llm,
+      // Evals measure answer quality, not quotas: nothing is limited here.
+      {
+        validateGlobalAiBudget: () => Promise.resolve(),
+        validateDailyAiQuota: () => Promise.resolve(),
+      } as unknown as PlanGuardService,
     );
 
     const results = await runAnswerEval({

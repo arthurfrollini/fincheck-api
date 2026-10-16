@@ -110,3 +110,18 @@ describe('AgentRunsPrismaRepository', () => {
     });
   });
 });
+
+describe('AgentRunsPrismaRepository.findByIdempotencyKey', () => {
+  it('looks the run up by (userId, key)', async () => {
+    const findUnique = jest.fn().mockResolvedValue(null);
+    const repository = new AgentRunsPrismaRepository({
+      agentRun: { findUnique },
+    } as unknown as PrismaService);
+
+    await repository.findByIdempotencyKey('u1', 'k');
+
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { userId_idempotencyKey: { userId: 'u1', idempotencyKey: 'k' } },
+    });
+  });
+});

@@ -40,6 +40,10 @@ describe('AnswerQuestionService', () => {
   let repo: { count: jest.Mock; searchSimilar: jest.Mock };
   let llm: { complete: jest.Mock };
   let results: { add: jest.Mock };
+  let planGuard: {
+    validateGlobalAiBudget: jest.Mock;
+    validateDailyAiQuota: jest.Mock;
+  };
   let service: AnswerQuestionService;
 
   // Retrieved in this order; the fixture cites document_index 1 then 0.
@@ -59,10 +63,15 @@ describe('AnswerQuestionService', () => {
       searchSimilar: jest.fn().mockResolvedValue(retrieved),
     };
     llm = { complete: jest.fn().mockResolvedValue(fixture('cited')) };
+    planGuard = {
+      validateGlobalAiBudget: jest.fn().mockResolvedValue(undefined),
+      validateDailyAiQuota: jest.fn().mockResolvedValue(undefined),
+    };
     service = new AnswerQuestionService(
       embeddings as unknown as EmbeddingProvider,
       repo as unknown as KnowledgeChunksRepository,
       llm as unknown as LlmService,
+      planGuard as never,
     );
   });
 
@@ -205,5 +214,26 @@ describe('AnswerQuestionService', () => {
     repo.searchSimilar.mockRejectedValueOnce(error);
 
     await expect(service.answer('u1', 'x')).rejects.toBe(error);
+  });
+
+  it("checks the global budget, then the user's RAG quota, before doing any work", async () => {
+    await service.answer('u1', 'x');
+    expect(planGuard.validateGlobalAiBudget).toHaveBeenCalled();
+    expect(planGuard.validateDailyAiQuota).toHaveBeenCalledWith('u1', 'rag');
+  });
+
+  it('refuses over quota without embedding, searching or calling the model', async () => {
+    const { ForbiddenException } =
+      jest.requireActual<typeof import('@nestjs/common')>('@nestjs/common');
+    planGuard.validateDailyAiQuota.mockRejectedValueOnce(
+      new ForbiddenException('quota'),
+    );
+
+    await expect(service.answer('u1', 'x')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(embeddings.embedQuery).not.toHaveBeenCalled();
+    expect(llm.complete).not.toHaveBeenCalled();
+    expect(results.add).not.toHaveBeenCalled();
   });
 });
