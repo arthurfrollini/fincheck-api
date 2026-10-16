@@ -1,0 +1,51 @@
+name: Evals
+
+# Real-model evals: they call the Claude API, cost money and vary run to run,
+# so they stay out of the main CI pipeline. Never triggered by pull_request:
+# the API key must not be exposed to workflows a fork PR can start.
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Comma-separated models (only claude-haiku-5-5 is gated)'
+        required: false
+        default: 'claude-haiku-5-5'
+
+permissions:
+  contents: read
+
+jobs:
+  categorization:
+    runs-on: ubuntu-latest
+    # Worst case (API hanging): 50 cases x 3 attempts x 30s / 5 in flight
+    # is ~15 min per model; a two-model comparison needs the headroom.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run categorization eval
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MODELS: ${{ inputs.models || 'claude-haiku-5-5' }}
+        run: |
+          set -o pipefail
+          npm run --silent eval:categorization -- --models "$MODELS" --out eval-result.json \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: categorization-eval
+          path: eval-result.json
+          if-no-files-found: ignore

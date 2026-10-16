@@ -11,7 +11,10 @@ import { ValidateCategoryOwnershipService } from '@modules/categories/applicatio
 import { type CategoryEntity } from '@modules/categories/entities/Category';
 import { TransactionsRepository } from '../domain/repositories/transactions.repository';
 import { type TransactionEntity } from '../entities/Transaction';
-import { CategorizeTransactionService } from './categorize-transaction.service';
+import {
+  CategorizeTransactionService,
+  interpretAnswer,
+} from './categorize-transaction.service';
 import { CATEGORIZATION_SYSTEM_PROMPT } from './categorization.constants';
 
 const FIXTURES = path.resolve(
@@ -335,5 +338,23 @@ describe('CategorizeTransactionService', () => {
 
     await expect(service.categorize(USER_ID, TX_ID)).rejects.toBe(error);
     expect(resultsCounter.add).not.toHaveBeenCalled();
+  });
+});
+
+describe('interpretAnswer', () => {
+  it('returns null for none', () => {
+    expect(
+      interpretAnswer({ categoryId: 'none', confidence: 0.99 }),
+    ).toBeNull();
+  });
+
+  it('returns null just below the floor', () => {
+    expect(
+      interpretAnswer({ categoryId: GROCERY, confidence: 0.49 }),
+    ).toBeNull();
+  });
+
+  it.each([0.5, 0.92])('returns the id at confidence %s', (confidence) => {
+    expect(interpretAnswer({ categoryId: GROCERY, confidence })).toBe(GROCERY);
   });
 });
