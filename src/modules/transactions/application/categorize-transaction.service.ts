@@ -38,7 +38,7 @@ export function buildCategorizationRequest(
 ) {
   const ids = candidates.map((c) => c.id);
   const schema = z.object({
-    categoryId: z.enum([...ids, NO_CATEGORY] as [string, ...string[]]),
+    categoryId: z.enum([NO_CATEGORY, ...ids] as [string, ...string[]]),
     confidence: z.number().min(0).max(1),
   });
 
