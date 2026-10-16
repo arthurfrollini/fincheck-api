@@ -4,8 +4,12 @@ name: Evals
 # so they stay out of the main CI pipeline. Never triggered by pull_request:
 # the API key must not be exposed to workflows a fork PR can start.
 on:
+  # Monthly (1st, 06:00 UTC): a full run of the three jobs costs about
+  # US$ 1.20 in API calls, so daily would be ~US$ 36/month for a personal
+  # project. Run it on demand from the Actions tab after any prompt or model
+  # change.
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0 6 1 * *'
   workflow_dispatch:
     inputs:
       models:

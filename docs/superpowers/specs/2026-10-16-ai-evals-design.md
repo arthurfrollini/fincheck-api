@@ -12,7 +12,7 @@ Goal: a repeatable number for "how often does categorization pick the category a
 
 1. **Two tiers** (RFC D3 + D1):
    - **Main CI (every push, keyless, deterministic):** the recorded-fixture unit tests that already exist for A, plus unit tests of the eval harness itself (scoring, baseline comparison). Retrieval metrics join this tier with C.
-   - **`evals.yml` (nightly schedule + `workflow_dispatch`, real key):** the golden set against the real API, gated on regression against a stored baseline.
+   - **`evals.yml` (monthly schedule + `workflow_dispatch`, real key):** the golden set against the real API, gated on regression against a stored baseline.
 2. **Golden set: 50 cases**, about 41 real and 9 synthetic, each tagged `source: real | synthetic`.
    - **Real cases:** merchant names from Arthur's September 2026 Nubank credit card statement plus one account-statement PIX, labeled by Arthur. Person names are excluded, since the repo is public. Values are kept because the model sees them.
    - **Synthetic cases:** they cover what the card statement lacks: INCOME transactions, raw bank-style strings (`PAG*`, `IFD*`, `TED RECEBIDA ...`) and deliberate ambiguity.
@@ -47,14 +47,14 @@ evals/
 
 - **Candidate categories:** the 12 defaults with fixed UUIDs, filtered by each case's `type` exactly as production does. Expected labels are names, mapped to those ids by the runner.
 - **Concurrency:** 5 requests in flight. Haiku 5.5 latency makes a 50-case run take well under a minute.
-- **Run cost:** about $0.003 per Haiku run and about $0.15 per Opus 5.5 run. Nightly Haiku comes to about $0.10/month.
+- **Run cost:** about $0.003 per Haiku run and about $0.15 per Opus 5.5 run. A full run of all three eval jobs costs about $1.20; the schedule is monthly (changed from nightly on 2026-10-16, when daily would have cost ~$36/month), with on-demand runs after prompt or model changes.
 - **`evals/` stays out of the build:** added to `tsconfig.build.json` `exclude`.
 - **Tests run in main CI:** `evals/**/*.spec.ts` must run in `npm run test:unit`. Add `evals` to jest `roots` (jest `rootDir` is `src`), or the builder's equivalent. Coverage of `evals/lib` counts.
 - **npm script:** `"eval:categorization": "ts-node -r tsconfig-paths/register evals/categorization/run.ts"`. It refuses to run with a missing or `fake-` key, like the fixture recorder.
 
 ### `evals.yml`
 
-- Triggers: `schedule` (daily, 06:00 UTC) and `workflow_dispatch` with input `models`. **Never `pull_request`**, so the secret is never exposed to fork PRs.
+- Triggers: `schedule` (monthly, 1st at 06:00 UTC) and `workflow_dispatch` with input `models`. **Never `pull_request`**, so the secret is never exposed to fork PRs.
 - The job needs no Postgres or Redis; the runner touches no database. It does not import `env.ts`, so no fake env block is needed. It gets `ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}`.
 - Steps: checkout → setup-node (same version as `ci.yml`) → `npm ci` → `npm run eval:categorization -- --models "$MODELS" --out eval-result.json` → append the markdown report to `$GITHUB_STEP_SUMMARY` → upload `eval-result.json` as an artifact.
 - The job fails (red) only on a Haiku regression beyond tolerance, or on a run error.
