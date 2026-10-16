@@ -82,13 +82,14 @@ export class UsersService {
   }
 
   async update(userId: string, updateUserDto: UpdateUserDto) {
-    const { name, email, role } = updateUserDto;
+    const { name, email, role, plan } = updateUserDto;
     const user = await this.usersRepository.findById(userId);
     if (!user) throw new NotFoundException('User not found.');
     const updated = await this.usersRepository.update(userId, {
       name,
       email,
       role,
+      plan,
     });
     return this.toAdminSafeUser(updated);
   }
@@ -112,11 +113,8 @@ export class UsersService {
       emailTokenExpiresAt: expiresAt,
     });
 
-    // TODO: trocar 'arthur.frollini@gmail.com' por user.email quando houver domínio verificado no Resend
-    await this.mailQueueService.queueEmailChangeConfirmation(
-      'arthur.frollini@gmail.com',
-      token,
-    );
+    // To the new address: confirming it proves the user controls it.
+    await this.mailQueueService.queueEmailChangeConfirmation(newEmail, token);
   }
 
   async confirmEmailChange(token: string) {

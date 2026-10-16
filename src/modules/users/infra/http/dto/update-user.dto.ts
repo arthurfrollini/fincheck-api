@@ -1,6 +1,6 @@
 import { IsEmail, IsEnum, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Role } from '@modules/users/entities/User';
+import { Plan, Role } from '@modules/users/entities/User';
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ description: 'Full name' })
@@ -18,4 +18,10 @@ export class UpdateUserDto {
   @IsEnum(Role)
   @IsOptional()
   role?: Role;
+
+  // How plans are assigned when self-service billing is off (production).
+  @ApiPropertyOptional({ description: 'Plan', enum: Plan })
+  @IsEnum(Plan)
+  @IsOptional()
+  plan?: Plan;
 }

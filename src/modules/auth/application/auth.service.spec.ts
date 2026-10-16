@@ -192,7 +192,10 @@ describe('AuthService', () => {
       });
 
       expect(mockUsersRepository.create).toHaveBeenCalled();
-      expect(mockMailQueueService.queueWelcome).toHaveBeenCalled();
+      expect(mockMailQueueService.queueWelcome).toHaveBeenCalledWith(
+        'test@example.com',
+        'Test User',
+      );
       expect(
         mockBillingService.createCustomerAndSubscribe,
       ).not.toHaveBeenCalled();
@@ -321,7 +324,10 @@ describe('AuthService', () => {
       const result = await service.googleAuth(profile);
 
       expect(mockUsersRepository.create).toHaveBeenCalled();
-      expect(mockMailQueueService.queueWelcome).toHaveBeenCalled();
+      expect(mockMailQueueService.queueWelcome).toHaveBeenCalledWith(
+        'google@example.com',
+        'Google User',
+      );
       expect(result).toEqual({
         accessToken: 'access-token',
         refreshToken: 'test-uuid',

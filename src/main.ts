@@ -45,7 +45,20 @@ async function bootstrap() {
     }),
   );
 
-  const port = 3000;
+  // Behind a hosting proxy every request comes from the proxy's address;
+  // trusting it makes req.ip (the rate-limit key) the real client IP.
+  // TRUST_PROXY is the number of proxy hops (usually 1), or a setting
+  // Express accepts like 'loopback'.
+  if (process.env.TRUST_PROXY) {
+    const hops = Number(process.env.TRUST_PROXY);
+    app
+      .getHttpAdapter()
+      .getInstance()
+      .set('trust proxy', Number.isNaN(hops) ? process.env.TRUST_PROXY : hops);
+  }
+
+  // Hosting platforms assign the port through PORT.
+  const port = Number(process.env.PORT) || 3000;
   await app.listen(port);
   console.log(
     `INFO: API Reference available at http://localhost:${port}/reference`,

@@ -251,3 +251,62 @@ describe('LlmService.complete', () => {
     );
   });
 });
+
+describe('LlmService usage recording', () => {
+  let create: jest.Mock;
+  let usageRepo: { record: jest.Mock };
+  let logger: { info: jest.Mock; warn: jest.Mock };
+  const params = {
+    model: 'claude-sonnet-5-5' as const,
+    max_tokens: 4096,
+    messages: [{ role: 'user' as const, content: 'q' }],
+  };
+  const build = (repo?: unknown) =>
+    new LlmService(
+      { messages: { create } } as unknown as Anthropic,
+      { record: jest.fn() } as unknown as LlmMetrics,
+      logger as unknown as PinoLogger,
+      repo as never,
+    );
+
+  beforeEach(() => {
+    create = jest.fn().mockResolvedValue(message('An answer.'));
+    usageRepo = { record: jest.fn().mockResolvedValue(undefined) };
+    logger = { info: jest.fn(), warn: jest.fn() };
+  });
+
+  it('records tokens and cost for the user when the caller passes userId', async () => {
+    await build(usageRepo).complete('rag', params, { userId: 'u1' });
+
+    expect(usageRepo.record).toHaveBeenCalledWith({
+      userId: 'u1',
+      feature: 'rag',
+      model: 'claude-sonnet-5-5',
+      inputTokens: 300,
+      outputTokens: 50,
+      costUsd: expect.closeTo(0.0011, 6) as number,
+    });
+  });
+
+  it('records nothing without a userId (evals, scripts)', async () => {
+    await build(usageRepo).complete('rag', params, {});
+    expect(usageRepo.record).not.toHaveBeenCalled();
+  });
+
+  it('works without a usage repository at all', async () => {
+    await expect(
+      build(undefined).complete('rag', params, { userId: 'u1' }),
+    ).resolves.toBeDefined();
+  });
+
+  it('still returns the answer when recording fails, and logs it', async () => {
+    usageRepo.record.mockRejectedValueOnce(new Error('db down'));
+
+    const result = await build(usageRepo).complete('rag', params, {
+      userId: 'u1',
+    });
+
+    expect(result.content).toBeDefined();
+    expect(logger.warn).toHaveBeenCalled();
+  });
+});

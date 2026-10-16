@@ -121,3 +121,69 @@ describe('MailService', () => {
     });
   });
 });
+
+describe('MailService delivery config', () => {
+  let service: MailService;
+  const saved = { ...process.env };
+
+  beforeEach(() => {
+    sendMock.mockClear();
+    service = new MailService();
+  });
+  afterEach(() => {
+    process.env.MAIL_REDIRECT_TO = saved.MAIL_REDIRECT_TO;
+    process.env.MAIL_ENABLED = saved.MAIL_ENABLED;
+    if (saved.MAIL_REDIRECT_TO === undefined)
+      delete process.env.MAIL_REDIRECT_TO;
+    if (saved.MAIL_ENABLED === undefined) delete process.env.MAIL_ENABLED;
+  });
+
+  it('sends to the real recipient by default', async () => {
+    delete process.env.MAIL_REDIRECT_TO;
+    await service.sendWelcome('user@example.com', 'Ana');
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'user@example.com' }),
+      expect.anything(),
+    );
+  });
+
+  it('redirects every email to MAIL_REDIRECT_TO when set (local dev)', async () => {
+    process.env.MAIL_REDIRECT_TO = 'owner@example.com';
+    await service.sendWelcome('user@example.com', 'Ana');
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'owner@example.com' }),
+      expect.anything(),
+    );
+  });
+
+  it('does not call Resend when MAIL_ENABLED=false', async () => {
+    process.env.MAIL_ENABLED = 'false';
+    await expect(
+      service.sendWelcome('user@example.com', 'Ana'),
+    ).resolves.toBeUndefined();
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('no hard-coded recipients', () => {
+  it('keeps personal email addresses out of the source', () => {
+    const fs = jest.requireActual<typeof import('fs')>('fs');
+    const path = jest.requireActual<typeof import('path')>('path');
+    const root = path.resolve(__dirname, '../..');
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (
+          full.endsWith('.ts') &&
+          !full.endsWith('.spec.ts') &&
+          /@gmail\.com/.test(fs.readFileSync(full, 'utf8'))
+        )
+          offenders.push(full);
+      }
+    };
+    walk(root);
+    expect(offenders).toEqual([]);
+  });
+});

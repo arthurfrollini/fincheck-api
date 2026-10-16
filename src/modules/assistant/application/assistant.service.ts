@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { PlanGuardService } from '@shared/plan/plan-guard.service';
 import { AgentRunsRepository } from '../domain/repositories/agent-runs.repository';
 import { type AgentRun } from '../entities/AgentRun';
 import { AgentQueueService } from '../infra/queue/agent-queue.service';
@@ -8,6 +9,7 @@ export class AssistantService {
   constructor(
     private readonly agentRunsRepository: AgentRunsRepository,
     private readonly agentQueueService: AgentQueueService,
+    private readonly planGuardService: PlanGuardService,
   ) {}
 
   async ask(
@@ -15,6 +17,19 @@ export class AssistantService {
     question: string,
     idempotencyKey?: string,
   ): Promise<{ run: AgentRun; created: boolean }> {
+    // A repeated key returns the original run before any check, so retrying
+    // a request never spends quota (and never gets refused for it).
+    if (idempotencyKey) {
+      const existing = await this.agentRunsRepository.findByIdempotencyKey(
+        userId,
+        idempotencyKey,
+      );
+      if (existing) return { run: existing, created: false };
+    }
+
+    await this.planGuardService.validateGlobalAiBudget();
+    await this.planGuardService.validateDailyAiQuota(userId, 'agent');
+
     const registered = await this.agentRunsRepository.register(
       userId,
       question,

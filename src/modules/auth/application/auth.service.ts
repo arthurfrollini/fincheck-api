@@ -75,11 +75,7 @@ export class AuthService {
       categories: DEFAULT_CATEGORIES,
     });
 
-    // TODO: trocar 'arthur.frollini@gmail.com' por user.email quando houver domínio verificado no Resend
-    await this.mailQueueService.queueWelcome(
-      'arthur.frollini@gmail.com',
-      user.name,
-    );
+    await this.mailQueueService.queueWelcome(user.email, user.name);
 
     if (plan !== Plan.FREE && paymentMethodId) {
       await this.billingService.createCustomerAndSubscribe(
@@ -139,11 +135,7 @@ export class AuthService {
           categories: DEFAULT_CATEGORIES,
         });
 
-        // TODO: trocar 'arthur.frollini@gmail.com' por email quando houver domínio verificado no Resend
-        await this.mailQueueService.queueWelcome(
-          'arthur.frollini@gmail.com',
-          name,
-        );
+        await this.mailQueueService.queueWelcome(email, name);
       }
     }
 

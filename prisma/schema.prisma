@@ -49,6 +49,7 @@ model User {
   transactions  Transaction[]
   refreshTokens RefreshToken[]
   agentRuns     AgentRun[]
+  aiUsage       AiUsage[]
 
   @@map("users")
 }
@@ -181,4 +182,24 @@ model AgentRun {
   // Postgres treats NULLs as distinct, so runs without a key never collide.
   @@unique([userId, idempotencyKey])
   @@map("agent_runs")
+}
+
+// One row per Claude API call made on behalf of a user. Source of truth for
+// per-plan daily AI quotas and the global daily spend ceiling (Prometheus
+// counters reset on restart, so they can't be).
+model AiUsage {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid
+  feature      String
+  model        String
+  inputTokens  Int      @map("input_tokens")
+  outputTokens Int      @map("output_tokens")
+  costUsd      Float    @map("cost_usd")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId, feature, createdAt])
+  @@map("ai_usage")
 }

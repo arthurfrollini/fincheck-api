@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { DEFAULT_THROTTLE } from '@shared/security/throttle';
 import { LOG_REDACT_PATHS } from '@shared/logger/log-redact';
 import { AuthGuard } from '@modules/auth/auth.guard';
 import { UsersModule } from '@modules/users/users.module';
@@ -21,6 +23,7 @@ import { BillingModule } from '@shared/billing/billing.module';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot({ throttlers: [DEFAULT_THROTTLE] }),
     LoggerModule.forRoot({
       pinoHttp: {
         redact: LOG_REDACT_PATHS,
@@ -54,6 +57,8 @@ import { BillingModule } from '@shared/billing/billing.module';
   ],
   controllers: [],
   providers: [
+    // First guard: rate limiting runs before authentication.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

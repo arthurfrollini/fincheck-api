@@ -364,6 +364,17 @@ describe('RunAgentService', () => {
     },
   );
 
+  it("attributes every model call to the run's user, for quotas and spend", async () => {
+    repo.findById.mockResolvedValue({ ...base, status: 'QUEUED' });
+
+    await service.run('run-1');
+
+    expect(llm.complete).toHaveBeenCalledWith('agent', expect.anything(), {
+      userId: 'u1',
+      runId: 'run-1',
+    });
+  });
+
   it('markFailed finishes an unfinished run with the fixed answer', async () => {
     repo.findById.mockResolvedValue({ ...base, status: 'RUNNING', steps: 2 });
 

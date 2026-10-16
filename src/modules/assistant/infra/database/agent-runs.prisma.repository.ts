@@ -44,6 +44,15 @@ export class AgentRunsPrismaRepository implements AgentRunsRepository {
     return this.prismaService.agentRun.findFirst({ where: { id, userId } });
   }
 
+  findByIdempotencyKey(
+    userId: string,
+    idempotencyKey: string,
+  ): Promise<AgentRun | null> {
+    return this.prismaService.agentRun.findUnique({
+      where: { userId_idempotencyKey: { userId, idempotencyKey } },
+    });
+  }
+
   findById(id: string): Promise<AgentRun | null> {
     return this.prismaService.agentRun.findUnique({ where: { id } });
   }

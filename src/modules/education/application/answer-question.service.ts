@@ -2,6 +2,7 @@ import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { metrics, type Counter } from '@opentelemetry/api';
 import { LlmService } from '@shared/llm/llm.service';
+import { PlanGuardService } from '@shared/plan/plan-guard.service';
 import { EmbeddingProvider } from '../domain/embedding-provider';
 import { KnowledgeChunksRepository } from '../domain/repositories/knowledge-chunks.repository';
 import { type ScoredKnowledgeChunk } from '../entities/KnowledgeChunk';
@@ -60,6 +61,7 @@ export class AnswerQuestionService {
     private readonly embeddingProvider: EmbeddingProvider,
     private readonly knowledgeChunksRepository: KnowledgeChunksRepository,
     private readonly llmService: LlmService,
+    private readonly planGuardService: PlanGuardService,
   ) {
     this.results = metrics
       .getMeter('fincheck-api')
@@ -68,13 +70,17 @@ export class AnswerQuestionService {
       });
   }
 
-  async answer(question: string): Promise<RagAnswer> {
-    const answer = await this.run(question);
+  async answer(userId: string, question: string): Promise<RagAnswer> {
+    const answer = await this.run(userId, question);
     this.results.add(1, { result: answer.result });
     return answer;
   }
 
-  private async run(question: string): Promise<RagAnswer> {
+  private async run(userId: string, question: string): Promise<RagAnswer> {
+    // Before any work: a refused question costs nothing.
+    await this.planGuardService.validateGlobalAiBudget();
+    await this.planGuardService.validateDailyAiQuota(userId, 'rag');
+
     if ((await this.knowledgeChunksRepository.count()) === 0) {
       throw new ServiceUnavailableException('Knowledge base not ingested.');
     }
@@ -96,6 +102,7 @@ export class AnswerQuestionService {
       message = await this.llmService.complete(
         'rag',
         buildRagRequest(question, chunks),
+        { userId },
       );
     } catch (err) {
       if (err instanceof Anthropic.AnthropicError) {

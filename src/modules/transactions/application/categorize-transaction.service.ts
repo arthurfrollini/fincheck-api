@@ -4,6 +4,7 @@ import { metrics, type Counter } from '@opentelemetry/api';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { z } from 'zod';
 import { LlmService, type LlmParams } from '@shared/llm/llm.service';
+import { PlanGuardService } from '@shared/plan/plan-guard.service';
 import { type LlmModel } from '@shared/llm/llm-pricing';
 import { CategoriesRepository } from '@modules/categories/domain/repositories/categories.repository';
 import { ValidateCategoryOwnershipService } from '@modules/categories/application/validate-category-ownership.service';
@@ -110,6 +111,7 @@ export class CategorizeTransactionService {
     private readonly validateCategoryOwnershipService: ValidateCategoryOwnershipService,
     @InjectPinoLogger(CategorizeTransactionService.name)
     private readonly logger: PinoLogger,
+    private readonly planGuardService: PlanGuardService,
   ) {
     this.results = metrics
       .getMeter('fincheck-api')
@@ -147,6 +149,16 @@ export class CategorizeTransactionService {
     );
     if (candidates.length === 0) return 'skipped';
 
+    // Daily AI spend ceiling reached: leave the transaction uncategorized
+    // rather than fail the job (the write already succeeded).
+    if (await this.planGuardService.isAiBudgetExhausted()) {
+      this.logger.warn(
+        { transactionId },
+        'Daily AI budget spent; transaction left uncategorized',
+      );
+      return 'skipped';
+    }
+
     const { params, schema } = buildCategorizationRequest(
       transaction,
       candidates,
@@ -156,7 +168,7 @@ export class CategorizeTransactionService {
       'categorization',
       params,
       schema,
-      { transactionId },
+      { transactionId, userId },
     );
     if (
       response.stop_reason === 'refusal' ||

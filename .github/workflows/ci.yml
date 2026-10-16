@@ -87,6 +87,9 @@ jobs:
           REDIS_PORT=6379
           ANTHROPIC_API_KEY=fake-anthropic-key
           BULLMQ_PREFIX=bull-test
+          THROTTLE_DEFAULT_LIMIT=10000
+          THROTTLE_AUTH_LIMIT=10000
+          THROTTLE_AI_LIMIT=10000
           EOF
 
       - name: Lint
@@ -100,6 +103,10 @@ jobs:
 
       - name: Test (unit + e2e, merged coverage)
         run: npm test
+
+      # start:prod runs node dist/main: make sure the build still emits it.
+      - name: Build
+        run: npm run build && test -f dist/main.js
 
       # Keyless and deterministic: local embeddings + pgvector. Runs after the
       # e2e suite, which migrated fincheck_test and wipes its tables.

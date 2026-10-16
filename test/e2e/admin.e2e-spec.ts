@@ -154,6 +154,45 @@ describe('Admin routes (e2e)', () => {
       expect(res.body.name).toBe('Updated');
     });
 
+    it("admin can change a user's plan (how plans are set when billing is off)", async () => {
+      const { accessToken } = await signUpAdmin();
+      const targetEmail = uniqueEmail('target-plan');
+      await signUpAndGetTokens(app, targetEmail);
+      const prisma = app.get(PrismaService);
+      const target = await prisma.user.findUniqueOrThrow({
+        where: { email: targetEmail },
+      });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/users/${target.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ plan: 'GOLD' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.plan).toBe('GOLD');
+      expect(
+        (await prisma.user.findUniqueOrThrow({ where: { id: target.id } }))
+          .plan,
+      ).toBe('GOLD');
+    });
+
+    it('rejects an unknown plan with 400', async () => {
+      const { accessToken } = await signUpAdmin();
+      const targetEmail = uniqueEmail('target-plan2');
+      await signUpAndGetTokens(app, targetEmail);
+      const prisma = app.get(PrismaService);
+      const target = await prisma.user.findUniqueOrThrow({
+        where: { email: targetEmail },
+      });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/users/${target.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ plan: 'DIAMOND' });
+
+      expect(res.status).toBe(400);
+    });
+
     it('admin token with unknown id returns 404', async () => {
       const { accessToken } = await signUpAdmin();
 
