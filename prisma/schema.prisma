@@ -132,3 +132,18 @@ model ProcessedStripeEvent {
 
   @@map("processed_stripe_events")
 }
+
+model KnowledgeChunk {
+  id          String                     @id @default(uuid()) @db.Uuid
+  documentSha String                     @map("document_sha")
+  chunkIndex  Int                        @map("chunk_index")
+  page        Int
+  text        String
+  // pgvector column; Prisma has no native type, so reads and similarity
+  // search go through $queryRaw in KnowledgeChunksPrismaRepository.
+  embedding   Unsupported("vector(384)")
+  createdAt   DateTime                   @default(now()) @map("created_at")
+
+  @@unique([documentSha, chunkIndex])
+  @@map("knowledge_chunks")
+}

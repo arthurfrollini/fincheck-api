@@ -15,7 +15,7 @@ jobs:
     # a green PR check means the same thing a passing local push already did.
     services:
       postgres:
-        image: postgres:17
+        image: pgvector/pgvector:pg17-trixie
         env:
           POSTGRES_USER: root
           POSTGRES_PASSWORD: root
