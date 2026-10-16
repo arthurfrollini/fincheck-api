@@ -23,6 +23,9 @@ export async function waitForLatestMailJob(
   }
 
   const queueEvents = new QueueEvents(MAIL_QUEUE_NAME, {
+    // Same prefix as the app's queues (BULLMQ_PREFIX in .env.test), or the
+    // listener would watch a queue nothing is added to.
+    prefix: queue.opts.prefix,
     connection: {
       host: process.env.REDIS_HOST,
       port: Number(process.env.REDIS_PORT),

@@ -86,6 +86,7 @@ jobs:
           REDIS_HOST=localhost
           REDIS_PORT=6379
           ANTHROPIC_API_KEY=fake-anthropic-key
+          BULLMQ_PREFIX=bull-test
           EOF
 
       - name: Lint
