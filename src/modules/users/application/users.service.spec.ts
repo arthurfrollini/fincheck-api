@@ -187,6 +187,18 @@ describe('UsersService', () => {
       expect(mockUsersRepository.update).not.toHaveBeenCalled();
     });
 
+    it('lets an admin set the plan', async () => {
+      mockUsersRepository.findById.mockResolvedValue(makeUser());
+      mockUsersRepository.update.mockResolvedValue(makeUser({ plan: 'GOLD' }));
+
+      await service.update('user-1', { plan: 'GOLD' });
+
+      expect(mockUsersRepository.update).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ plan: 'GOLD' }),
+      );
+    });
+
     it('returns updated user fields without password on success', async () => {
       const user = makeUser();
       const updated = makeUser({ name: 'Updated Name', role: Role.USER });

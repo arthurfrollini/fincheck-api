@@ -23,6 +23,7 @@
     "eval:retrieval": "ts-node -r tsconfig-paths/register evals/rag/run-retrieval.ts",
     "eval:rag-answers": "ts-node -r tsconfig-paths/register evals/rag/run-answers.ts",
     "eval:agent": "ts-node -r tsconfig-paths/register evals/agent/run.ts",
+    "admin:promote": "ts-node -r tsconfig-paths/register scripts/admin-promote.ts",
     "llm:record-fixtures": "ts-node -r tsconfig-paths/register scripts/record-llm-fixtures.ts",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
