@@ -51,7 +51,10 @@ describe('BillingEnabledGuard', () => {
   it('leaves the Stripe webhook unguarded so plan changes keep syncing', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
-      BillingController.prototype.handleWebhook,
+      Object.getOwnPropertyDescriptor(
+        BillingController.prototype,
+        'handleWebhook',
+      )?.value as object,
     ) as unknown[] | undefined;
     expect(guards ?? []).not.toContain(BillingEnabledGuard);
   });
