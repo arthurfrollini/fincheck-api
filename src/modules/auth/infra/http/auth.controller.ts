@@ -1,3 +1,4 @@
+import { AuthThrottle } from '@shared/security/throttle';
 import {
   Body,
   Controller,
@@ -30,6 +31,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('/signin')
+  @AuthThrottle()
   @ApiOperation({
     summary: '/signin',
     description: 'Sign in with email and password',
@@ -44,6 +46,7 @@ export class AuthController {
   }
 
   @Post('/signup')
+  @AuthThrottle()
   @ApiOperation({ summary: '/signup', description: 'Create a new account' })
   @ApiResponse({
     status: 201,
@@ -55,6 +58,7 @@ export class AuthController {
   }
 
   @Post('/refresh')
+  @AuthThrottle()
   @ApiOperation({
     summary: '/refresh',
     description: 'Exchange a refresh token for a new token pair',

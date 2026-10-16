@@ -1,3 +1,4 @@
+import { AiThrottle } from '@shared/security/throttle';
 import {
   BadRequestException,
   Body,
@@ -31,6 +32,7 @@ export class AssistantController {
   constructor(private readonly assistantService: AssistantService) {}
 
   @Post('questions')
+  @AiThrottle()
   @ApiOperation({
     summary: '/assistant/questions',
     description:

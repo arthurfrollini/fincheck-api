@@ -1,3 +1,4 @@
+import { AiThrottle } from '@shared/security/throttle';
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -16,6 +17,7 @@ export class EducationController {
   constructor(private readonly answerQuestionService: AnswerQuestionService) {}
 
   @Post('questions')
+  @AiThrottle()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: '/education/questions',

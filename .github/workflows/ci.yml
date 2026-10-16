@@ -87,6 +87,9 @@ jobs:
           REDIS_PORT=6379
           ANTHROPIC_API_KEY=fake-anthropic-key
           BULLMQ_PREFIX=bull-test
+          THROTTLE_DEFAULT_LIMIT=10000
+          THROTTLE_AUTH_LIMIT=10000
+          THROTTLE_AI_LIMIT=10000
           EOF
 
       - name: Lint
