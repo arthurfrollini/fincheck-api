@@ -172,7 +172,7 @@ export interface AnswerRunSummary {
 // Same gate as categorization: the judge varies run to run, so a drop of
 // more than 2 of 20 cases fails, a smaller wobble doesn't.
 export function summarizeAnswerRun(
-  results: AnswerCaseResult[],
+  results: { id?: string; passed: boolean; outcome: string }[],
   baseline: Baseline | undefined,
   updateBaseline: boolean,
 ): AnswerRunSummary {

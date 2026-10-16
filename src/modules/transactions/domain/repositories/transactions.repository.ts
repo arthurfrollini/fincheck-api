@@ -2,7 +2,12 @@ import {
   type TransactionCreate,
   type TransactionEntity,
   type TransactionFilters,
+  type TransactionSearch,
+  type TransactionTotalsFilter,
   type TransactionUpdate,
+  type TransactionWithCategory,
+  type TotalsGroup,
+  type TotalsGroupBy,
 } from '../../entities/Transaction';
 
 export abstract class TransactionsRepository {
@@ -20,6 +25,15 @@ export abstract class TransactionsRepository {
     data: TransactionUpdate,
   ): Promise<TransactionEntity>;
   abstract delete(id: string): Promise<void>;
+  abstract search(
+    userId: string,
+    filters: TransactionSearch,
+  ): Promise<{ data: TransactionWithCategory[]; total: number }>;
+  abstract totals(
+    userId: string,
+    filters: TransactionTotalsFilter,
+    groupBy: TotalsGroupBy,
+  ): Promise<TotalsGroup[]>;
   abstract setCategoryIfUnset(
     id: string,
     userId: string,

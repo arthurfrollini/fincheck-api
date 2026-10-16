@@ -30,5 +30,6 @@ import { CATEGORIZATION_QUEUE_NAME } from './infra/queue/categorization-job.type
       useClass: TransactionsPrismaRepository,
     },
   ],
+  exports: [TransactionsRepository],
 })
 export class TransactionsModule {}
