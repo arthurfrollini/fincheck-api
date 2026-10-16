@@ -45,13 +45,11 @@ describe('judgeAnswer', () => {
 
   it('asks Opus 5.5 at low effort with the question, answer, cited passages and key points', async () => {
     const llm = {
-      parse: jest
-        .fn()
-        .mockResolvedValue({
-          stop_reason: 'end_turn',
-          parsed_output: verdict({}),
-          usage,
-        }),
+      parse: jest.fn().mockResolvedValue({
+        stop_reason: 'end_turn',
+        parsed_output: verdict({}),
+        usage,
+      }),
     };
 
     await judgeAnswer(llm as never, {
@@ -77,13 +75,11 @@ describe('judgeAnswer', () => {
 
   it('returns null when the judge output does not parse', async () => {
     const llm = {
-      parse: jest
-        .fn()
-        .mockResolvedValue({
-          stop_reason: 'end_turn',
-          parsed_output: null,
-          usage,
-        }),
+      parse: jest.fn().mockResolvedValue({
+        stop_reason: 'end_turn',
+        parsed_output: null,
+        usage,
+      }),
     };
 
     await expect(
