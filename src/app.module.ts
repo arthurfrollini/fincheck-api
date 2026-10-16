@@ -13,6 +13,7 @@ import { RolesGuard } from '@shared/guards/roles.guard';
 import { AllExceptionsFilter } from '@shared/filters/all-exceptions.filter';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
+import { EducationModule } from './modules/education/education.module';
 import { PlanModule } from '@shared/plan/plan.module';
 import { BillingModule } from '@shared/billing/billing.module';
 
@@ -43,6 +44,7 @@ import { BillingModule } from '@shared/billing/billing.module';
     CategoriesModule,
     BankAccountsModule,
     TransactionsModule,
+    EducationModule,
     PlanModule,
     BillingModule,
   ],

@@ -41,6 +41,30 @@ export class LlmService {
     schema: ZodType<T>,
     context: Record<string, string> = {},
   ): Promise<LlmResult<T>> {
+    let parsed: T | null = null;
+    const message = await this.call(feature, params, context, (m) => {
+      parsed = parseOutput(m, schema);
+      return parsed === null && !isCutShort(m) ? 'unparsed' : undefined;
+    });
+    return { ...message, parsed_output: parsed };
+  }
+
+  // Free-text calls (e.g. answers with citations). Same accounting as parse.
+  complete(
+    feature: LlmFeature,
+    params: LlmParams,
+    context: Record<string, string> = {},
+  ): Promise<Anthropic.Message> {
+    return this.call(feature, params, context, () => undefined);
+  }
+
+  private async call(
+    feature: LlmFeature,
+    params: LlmParams,
+    context: Record<string, string>,
+    // Lets a caller downgrade an otherwise-ok response (e.g. to 'unparsed').
+    refineOutcome: (message: Anthropic.Message) => LlmOutcome | undefined,
+  ): Promise<Anthropic.Message> {
     const startedAt = performance.now();
 
     let message: Anthropic.Message;
@@ -51,14 +75,9 @@ export class LlmService {
       throw err;
     }
 
-    const parsed = parseOutput(message, schema);
     const { usage } = message;
-    this.llmMetrics.record(
-      params.model,
-      feature,
-      usage,
-      outcomeOf(message, parsed),
-    );
+    const outcome = stopOutcome(message) ?? refineOutcome(message) ?? 'ok';
+    this.llmMetrics.record(params.model, feature, usage, outcome);
 
     if (
       params.model === 'claude-haiku-5-5' &&
@@ -87,8 +106,20 @@ export class LlmService {
       'LLM call',
     );
 
-    return { ...message, parsed_output: parsed };
+    return message;
   }
+}
+
+function isCutShort(message: Anthropic.Message): boolean {
+  return (
+    message.stop_reason === 'refusal' || message.stop_reason === 'max_tokens'
+  );
+}
+
+function stopOutcome(message: Anthropic.Message): LlmOutcome | undefined {
+  if (message.stop_reason === 'refusal') return 'refusal';
+  if (message.stop_reason === 'max_tokens') return 'max_tokens';
+  return undefined;
 }
 
 // A refused or truncated answer is never parsed, even if its partial text
@@ -97,12 +128,7 @@ function parseOutput<T>(
   message: Anthropic.Message,
   schema: ZodType<T>,
 ): T | null {
-  if (
-    message.stop_reason === 'refusal' ||
-    message.stop_reason === 'max_tokens'
-  ) {
-    return null;
-  }
+  if (isCutShort(message)) return null;
   const text = message.content.find(
     (block): block is Anthropic.TextBlock => block.type === 'text',
   );
@@ -113,11 +139,4 @@ function parseOutput<T>(
   } catch {
     return null;
   }
-}
-
-function outcomeOf(message: Anthropic.Message, parsed: unknown): LlmOutcome {
-  if (message.stop_reason === 'refusal') return 'refusal';
-  if (message.stop_reason === 'max_tokens') return 'max_tokens';
-  if (parsed === null) return 'unparsed';
-  return 'ok';
 }

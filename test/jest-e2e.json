@@ -8,9 +8,7 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
-  "transformIgnorePatterns": [
-    "node_modules/(?!(uuid|@scalar)/)"
-  ],
+  "transformIgnorePatterns": ["node_modules/(?!(uuid|@scalar)/)"],
   "moduleNameMapper": {
     "^@shared/(.*)$": "<rootDir>/src/shared/$1",
     "^@modules/(.*)$": "<rootDir>/src/modules/$1"

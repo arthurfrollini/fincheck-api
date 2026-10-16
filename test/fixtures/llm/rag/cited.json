@@ -1,0 +1,64 @@
+{
+  "recorded": false,
+  "id": "msg_fixture",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "fixture"
+    },
+    {
+      "type": "text",
+      "text": "Segundo o material do Banco Central, ",
+      "citations": null
+    },
+    {
+      "type": "text",
+      "text": "a reserva financeira deve cobrir de 3 a 6 meses de despesas",
+      "citations": [
+        {
+          "type": "char_location",
+          "cited_text": "reserva financeira deve cobrir de 3 a 6 meses de despesas",
+          "document_index": 1,
+          "document_title": "Caderno de Educação Financeira (BCB), p. 1",
+          "start_char_index": 0,
+          "end_char_index": 57,
+          "file_id": null
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "text": ", e o ideal é poupar todo mês antes de gastar.",
+      "citations": [
+        {
+          "type": "char_location",
+          "cited_text": "poupar todo mês antes de gastar",
+          "document_index": 0,
+          "document_title": "Caderno de Educação Financeira (BCB), p. 0",
+          "start_char_index": 0,
+          "end_char_index": 31,
+          "file_id": null
+        }
+      ]
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "cache_creation": null,
+    "cache_creation_input_tokens": null,
+    "cache_read_input_tokens": null,
+    "inference_geo": null,
+    "input_tokens": 2100,
+    "output_tokens": 180,
+    "output_tokens_details": null,
+    "server_tool_use": null,
+    "service_tier": "standard",
+    "speed": "standard"
+  }
+}

@@ -15,7 +15,7 @@ jobs:
     # a green PR check means the same thing a passing local push already did.
     services:
       postgres:
-        image: postgres:17
+        image: pgvector/pgvector:pg17-trixie
         env:
           POSTGRES_USER: root
           POSTGRES_PASSWORD: root
@@ -47,6 +47,19 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # pdftotext extracts the corpus for the retrieval eval.
+      - name: Install poppler
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+
+      # The BCB corpus PDF (never committed: copyrighted) and the ~120 MB
+      # embedding model, keyed on what they are, so CI only downloads them
+      # when the corpus edition or the model changes.
+      - name: Cache corpus and embedding model
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: rag-${{ hashFiles('corpus/manifest.json', 'src/modules/education/infra/embeddings/transformers-embedding.provider.ts') }}
 
       # env.ts validates every one of these at import time, and
       # global-setup.ts/create-app.ts load them from an actual .env.test
@@ -86,3 +99,13 @@ jobs:
 
       - name: Test (unit + e2e, merged coverage)
         run: npm test
+
+      # Keyless and deterministic: local embeddings + pgvector. Runs after the
+      # e2e suite, which migrated fincheck_test and wipes its tables.
+      - name: Retrieval eval (gated on no drop vs baseline)
+        env:
+          DOTENV_PATH: .env.test
+        run: |
+          npm run --silent rag:ingest
+          npm run --silent eval:retrieval | tee -a "$GITHUB_STEP_SUMMARY"
+          exit ${PIPESTATUS[0]}

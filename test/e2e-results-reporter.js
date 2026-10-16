@@ -9,7 +9,8 @@ const fs = require('fs');
 
 class E2eResultsReporter {
   constructor(globalConfig, options) {
-    this._outputFile = (options && options.outputFile) || process.env.E2E_RESULTS_FILE;
+    this._outputFile =
+      (options && options.outputFile) || process.env.E2E_RESULTS_FILE;
   }
 
   onRunComplete(_contexts, results) {
