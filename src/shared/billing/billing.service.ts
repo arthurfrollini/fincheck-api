@@ -72,16 +72,18 @@ export class BillingService {
       throw new BadRequestException('Complete payment setup first.');
     }
 
-    const customer = (await this.stripe.customers.retrieve(
+    const customer = await this.stripe.customers.retrieve(
       user.stripeCustomerId,
-    )) as Stripe.Customer | Stripe.DeletedCustomer;
+    );
 
     if (customer.deleted) {
       throw new BadRequestException('Stripe customer no longer exists.');
     }
 
-    const paymentMethodId = customer.invoice_settings.default_payment_method as
-      string | null;
+    // An id, or the PaymentMethod object when Stripe expands it.
+    const paymentMethod = customer.invoice_settings.default_payment_method;
+    const paymentMethodId =
+      typeof paymentMethod === 'string' ? paymentMethod : paymentMethod?.id;
 
     if (!paymentMethodId) {
       throw new BadRequestException(
