@@ -23,3 +23,19 @@ export function stripeEvent(
   });
   return stripe.webhooks.constructEvent(payload, header, SECRET);
 }
+
+type DeepPartial<T> = T extends object
+  ? { [K in keyof T]?: DeepPartial<T[K]> }
+  : T;
+type StripeMethod = (...args: never[]) => Promise<unknown>;
+
+// A typed stand-in for one Stripe SDK method. Stripe objects carry dozens of
+// required fields, so a test returns only the ones the code reads; the
+// field names and types are still checked against the SDK.
+export type StripeMethodMock<F extends StripeMethod> = jest.Mock<
+  Promise<DeepPartial<Awaited<ReturnType<F>>>>,
+  Parameters<F>
+>;
+
+export const stripeMethod = <F extends StripeMethod>(): StripeMethodMock<F> =>
+  jest.fn<Promise<DeepPartial<Awaited<ReturnType<F>>>>, Parameters<F>>();

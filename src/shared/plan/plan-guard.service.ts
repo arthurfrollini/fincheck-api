@@ -1,7 +1,6 @@
 import {
   ForbiddenException,
   Injectable,
-  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { AiUsageRepository } from '@shared/llm/ai-usage.repository';
@@ -13,7 +12,7 @@ import { Plan } from '@modules/users/entities/User';
 export class PlanGuardService {
   constructor(
     private readonly prismaService: PrismaService,
-    @Optional() private readonly aiUsageRepository?: AiUsageRepository,
+    private readonly aiUsageRepository: AiUsageRepository,
   ) {}
 
   async getUserPlan(userId: string): Promise<Plan> {
@@ -137,7 +136,7 @@ export class PlanGuardService {
 
     const used =
       feature === 'rag'
-        ? await this.aiUsageRepository!.countForUserToday(userId, 'rag')
+        ? await this.aiUsageRepository.countForUserToday(userId, 'rag')
         : await this.prismaService.agentRun.count({
             where: { userId, createdAt: { gte: startOfUtcDay() } },
           });
@@ -159,7 +158,7 @@ export class PlanGuardService {
     const raw = process.env.AI_DAILY_SPEND_LIMIT_USD;
     const parsed = raw?.trim() ? Number(raw) : NaN;
     const limit = Number.isNaN(parsed) ? 1 : parsed;
-    return (await this.aiUsageRepository!.spendToday()) >= limit;
+    return (await this.aiUsageRepository.spendToday()) >= limit;
   }
 
   async validateGlobalAiBudget(): Promise<void> {
