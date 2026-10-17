@@ -23,6 +23,7 @@ import {
   TOOL_FAILURE_ANSWER,
 } from './agent.constants';
 import { type ToolHandlers } from './agent-tools';
+import { nthCall, must } from '../../../../test/helpers/must';
 
 const tokens = usage({ input_tokens: 500, output_tokens: 80 });
 const thinking: Anthropic.ThinkingBlock = {
@@ -104,7 +105,7 @@ describe('runAgentLoop', () => {
         steps: 2,
       }),
     );
-    const secondCall = llm.complete.mock.calls[1][1];
+    const secondCall = nthCall(llm.complete.mock, 1)[1];
     expect(secondCall.messages[1]).toEqual({
       role: 'assistant',
       content: first.content,
@@ -132,11 +133,12 @@ describe('runAgentLoop', () => {
       now: NOW,
     });
 
-    const { messages } = llm.complete.mock.calls[1][1];
+    const { messages } = nthCall(llm.complete.mock, 1)[1];
     // The mock holds the live array, so later turns are appended to it;
     // the round under test is the third message.
-    const results = toolResults(messages[2].content);
-    expect(messages[2].role).toBe('user');
+    const round = must(messages[2], 'the third message');
+    const results = toolResults(round.content);
+    expect(round.role).toBe('user');
     expect(results.map((r) => r.tool_use_id)).toEqual([
       'tu-fetch_categories-0',
       'tu-compute_totals-1',
@@ -243,7 +245,7 @@ describe('runAgentLoop', () => {
       handlers: handlers(),
       now: NOW,
     });
-    expect(llm.complete.mock.calls[0][1].max_tokens).toBeGreaterThanOrEqual(
+    expect(nthCall(llm.complete.mock)[1].max_tokens).toBeGreaterThanOrEqual(
       16000,
     );
   });
@@ -301,7 +303,7 @@ describe('runAgentLoop', () => {
       now: NOW,
     });
 
-    const [feature, params] = llm.complete.mock.calls[0];
+    const [feature, params] = nthCall(llm.complete.mock);
     expect(feature).toBe('agent');
     expect(params.model).toBe(AGENT_MODEL);
     expect(params.output_config).toEqual({ effort: 'medium' });

@@ -13,6 +13,7 @@ import {
   COMPLETED_JOB_RETENTION_SECONDS,
   FAILED_JOB_RETENTION_SECONDS,
 } from './mail-job.types';
+import { nthCall } from '../../../test/helpers/must';
 
 const EXPECTED_JOB_OPTIONS = {
   attempts: EMAIL_RETRY_MAX_ATTEMPTS,
@@ -85,7 +86,7 @@ describe('MailQueueService', () => {
     ).resolves.toBeUndefined();
 
     expect(mockLogger.error).toHaveBeenCalledTimes(1);
-    const [rawPayload, rawMessage] = mockLogger.error.mock.calls[0];
+    const [rawPayload, rawMessage] = nthCall(mockLogger.error.mock);
     const logPayload = z
       .object({ err: z.unknown(), jobName: z.string() })
       .parse(rawPayload);

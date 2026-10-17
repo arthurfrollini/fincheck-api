@@ -93,7 +93,8 @@ export class AnswerQuestionService {
 
     // Nothing close enough: answering anyway would mean answering from the
     // model's general knowledge, which is what this feature exists to avoid.
-    if (chunks.length === 0 || chunks[0].similarity < RAG_MIN_SIMILARITY) {
+    const best = chunks[0];
+    if (!best || best.similarity < RAG_MIN_SIMILARITY) {
       return fixed(NOT_COVERED_ANSWER, 'not_covered');
     }
 
@@ -122,15 +123,13 @@ export class AnswerQuestionService {
     );
     const citations = textBlocks
       .flatMap((b) => b.citations ?? [])
-      .filter(
-        (c): c is Anthropic.CitationCharLocation =>
-          c.type === 'char_location' && chunks[c.document_index] !== undefined,
-      )
-      .map((c) => ({
-        citedText: c.cited_text,
-        page: chunks[c.document_index].page,
-        chunkId: chunks[c.document_index].id,
-      }));
+      .flatMap((c) => {
+        const chunk =
+          c.type === 'char_location' ? chunks[c.document_index] : undefined;
+        return chunk
+          ? [{ citedText: c.cited_text, page: chunk.page, chunkId: chunk.id }]
+          : [];
+      });
 
     return {
       answer: textBlocks.map((b) => b.text).join(''),

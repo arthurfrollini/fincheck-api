@@ -131,18 +131,22 @@ export async function runAgentLoop(opts: {
 
     // All results of a round go back in one user message; splitting them
     // teaches the model to stop calling tools in parallel.
-    const results = await Promise.all(
-      toolUses.map((use) => runTool(opts.handlers, use, opts.onToolError)),
+    const calls = await Promise.all(
+      toolUses.map(async (use) => ({
+        use,
+        result: await runTool(opts.handlers, use, opts.onToolError),
+      })),
     );
+    const results = calls.map((c) => c.result);
     messages.push({ role: 'user', content: results });
-    toolUses.forEach((use, i) =>
+    for (const { use, result } of calls) {
       trace.push({
         tool: use.name,
         input: use.input,
-        result: parseResult(results[i]),
-        isError: results[i].is_error === true,
-      }),
-    );
+        result: parseResult(result),
+        isError: result.is_error === true,
+      });
+    }
 
     failedRounds = results.every((r) => r.is_error) ? failedRounds + 1 : 0;
     if (failedRounds >= MAX_CONSECUTIVE_FAILED_ROUNDS) {

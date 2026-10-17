@@ -1,4 +1,4 @@
-import { must } from '../../test/helpers/must';
+import { must, nthCall, only } from '../../test/helpers/must';
 import Anthropic from '@anthropic-ai/sdk';
 import { mock } from 'jest-mock-extended';
 import { type LlmService } from '../../src/shared/llm/llm.service';
@@ -43,12 +43,17 @@ const income: GoldenCase = {
 
 const noSleep = () => Promise.resolve();
 
+// One case in, its result out.
+async function runOne(options: Parameters<typeof runCategorizationEval>[0]) {
+  return only(await runCategorizationEval(options), 'case result');
+}
+
 describe('runCategorizationEval', () => {
   it('maps a correct answer back to the expected category name', async () => {
     const llm = mock<LlmService>();
     llm.parse.mockResolvedValue(answer(idOf('Mercado', 'EXPENSE')));
 
-    const [r] = await runCategorizationEval({
+    const r = await runOne({
       llm,
       model: 'claude-haiku-5-5',
       cases: [expense],
@@ -65,7 +70,7 @@ describe('runCategorizationEval', () => {
     const llm = mock<LlmService>();
     llm.parse.mockResolvedValue(answer(idOf('Outro', 'INCOME')));
 
-    const [r] = await runCategorizationEval({
+    const r = await runOne({
       llm,
       model: 'claude-haiku-5-5',
       cases: [income],
@@ -73,16 +78,17 @@ describe('runCategorizationEval', () => {
     });
 
     expect(r.got).toBe('Outro');
-    const params = llm.parse.mock.calls[0][1];
-    expect(params.messages[0].content).toContain(idOf('Outro', 'INCOME'));
-    expect(params.messages[0].content).not.toContain(idOf('Outro', 'EXPENSE'));
+    const params = nthCall(llm.parse.mock)[1];
+    const { content } = must(params.messages[0], 'the user message');
+    expect(content).toContain(idOf('Outro', 'INCOME'));
+    expect(content).not.toContain(idOf('Outro', 'EXPENSE'));
   });
 
   it('applies the production confidence floor', async () => {
     const llm = mock<LlmService>();
     llm.parse.mockResolvedValue(answer(idOf('Mercado', 'EXPENSE'), 0.4));
 
-    const [r] = await runCategorizationEval({
+    const r = await runOne({
       llm,
       model: 'claude-haiku-5-5',
       cases: [expense],
@@ -98,7 +104,7 @@ describe('runCategorizationEval', () => {
       parsedResult(null, { stop_reason: 'refusal', usage: tokens }),
     );
 
-    const [r] = await runCategorizationEval({
+    const r = await runOne({
       llm,
       model: 'claude-haiku-5-5',
       cases: [expense],
@@ -118,7 +124,7 @@ describe('runCategorizationEval', () => {
       )
       .mockResolvedValueOnce(answer(idOf('Mercado', 'EXPENSE')));
 
-    const [r] = await runCategorizationEval({
+    const r = await runOne({
       llm,
       model: 'claude-haiku-5-5',
       cases: [expense],
@@ -135,7 +141,7 @@ describe('runCategorizationEval', () => {
       new Anthropic.InternalServerError(500, undefined, 'x', new Headers()),
     );
 
-    const [r] = await runCategorizationEval({
+    const r = await runOne({
       llm,
       model: 'claude-haiku-5-5',
       cases: [expense],
@@ -152,7 +158,7 @@ describe('runCategorizationEval', () => {
       new Anthropic.AuthenticationError(401, undefined, 'x', new Headers()),
     );
 
-    const [r] = await runCategorizationEval({
+    const r = await runOne({
       llm,
       model: 'claude-haiku-5-5',
       cases: [expense],

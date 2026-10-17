@@ -1,4 +1,5 @@
 import { chunkPages, MAX_CHUNK_WORDS, MIN_CHUNK_WORDS } from './chunking';
+import { must } from '../../../../test/helpers/must';
 
 const words = (n: number, tag: string) =>
   Array.from({ length: n }, (_, i) => `${tag}${i}`).join(' ');
@@ -46,7 +47,7 @@ describe('chunkPages', () => {
   });
 
   it('rejoins hard-wrapped lines inside a paragraph', () => {
-    expect(chunks[0].text).toContain('a3 a4 a5 a6');
+    expect(must(chunks[0], 'a chunk').text).toContain('a3 a4 a5 a6');
   });
 
   it('never crosses a page boundary', () => {
@@ -74,11 +75,12 @@ describe('chunkPages', () => {
   it('starts each chunk on a page with the previous chunk last paragraph', () => {
     const page1 = chunks.filter((c) => c.page === 1);
     expect(page1.length).toBeGreaterThan(1);
-    for (let i = 1; i < page1.length; i++) {
-      const prevParas = page1[i - 1].text.split('\n\n');
-      expect(page1[i].text.startsWith(prevParas[prevParas.length - 1])).toBe(
-        true,
-      );
+    const [first, ...rest] = page1;
+    let previous = must(first, 'a page-1 chunk');
+    for (const chunk of rest) {
+      const overlap = must(previous.text.split('\n\n').at(-1), 'a paragraph');
+      expect(chunk.text.startsWith(overlap)).toBe(true);
+      previous = chunk;
     }
   });
 

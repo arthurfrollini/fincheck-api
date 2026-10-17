@@ -12,6 +12,7 @@ export function extractAmounts(text: string): number[] {
   const amounts: number[] = [];
   for (const m of text.matchAll(AMOUNT)) {
     const [, currency, raw] = m;
+    if (raw === undefined) continue;
     const looksLikeMoney = currency || /[.,]/.test(raw);
     if (!looksLikeMoney) continue;
     const normalized = /,\d{2}$/.test(raw)

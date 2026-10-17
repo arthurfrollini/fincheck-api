@@ -9,6 +9,7 @@ import {
   type Verdict,
   summarizeAnswerRun,
 } from './judge';
+import { nthCall } from '../../test/helpers/must';
 
 const verdict = (v: Partial<Verdict>): Verdict => ({
   reasoning: 'r',
@@ -52,7 +53,7 @@ describe('judgeAnswer', () => {
       keyPoints: ['ponto 1'],
     });
 
-    const [feature, params] = llm.parse.mock.calls[0];
+    const [feature, params] = nthCall(llm.parse.mock);
     expect(feature).toBe('judge');
     expect(params.model).toBe('claude-opus-5-5');
     expect(params.output_config).toEqual(

@@ -150,7 +150,7 @@ describe('runEvalSuite', () => {
 
   it('does not write the baseline file when the gated model fails as infra', async () => {
     const many = Array.from({ length: 6 }, (_, i) => ({
-      ...cases[0],
+      ...must(cases[0], 'a golden case'),
       id: `e${i}`,
     }));
     const io = memoryIO();
@@ -164,7 +164,7 @@ describe('runEvalSuite', () => {
 
   it('still prints a report when a model fails as infra', async () => {
     const many = Array.from({ length: 6 }, (_, i) => ({
-      ...cases[0],
+      ...must(cases[0], 'a golden case'),
       id: `e${i}`,
     }));
     const io = memoryIO();

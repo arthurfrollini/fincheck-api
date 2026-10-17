@@ -93,11 +93,11 @@ export async function runCategorizationEval({
   sleep = realSleep,
 }: EvalOptions): Promise<CaseResult[]> {
   const results: CaseResult[] = new Array<CaseResult>(cases.length);
-  let next = 0;
+  // One iterator shared by every worker: each next() hands out a case once.
+  const queue = cases.entries();
   const worker = async () => {
-    while (next < cases.length) {
-      const index = next++;
-      results[index] = await runCase(cases[index], { llm, model, sleep });
+    for (const [index, testCase] of queue) {
+      results[index] = await runCase(testCase, { llm, model, sleep });
     }
   };
   await Promise.all(Array.from({ length: concurrency }, worker));
