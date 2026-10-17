@@ -33,7 +33,7 @@ function escapeField(value: string): string {
 
 export function categorizationSchema(candidateIds: string[]) {
   return z.object({
-    categoryId: z.enum([NO_CATEGORY, ...candidateIds] as [string, ...string[]]),
+    categoryId: z.enum([NO_CATEGORY, ...candidateIds]),
     confidence: z.number().min(0).max(1),
   });
 }

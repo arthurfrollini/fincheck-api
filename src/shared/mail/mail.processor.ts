@@ -10,11 +10,12 @@ import {
   SUBSCRIPTION_CANCELLED_JOB_NAME,
   EMAIL_RETRY_BACKOFF_TYPE,
   EMAIL_RETRY_MAX_DELAY_MS,
-  WelcomeJobData,
-  EmailChangeConfirmationJobData,
-  DowngradeNotificationJobData,
-  SubscriptionCancelledJobData,
+  welcomeJobData,
+  emailChangeConfirmationJobData,
+  downgradeNotificationJobData,
+  subscriptionCancelledJobData,
 } from './mail-job.types';
+import { parseJobData } from '../queue/job-data';
 
 @Processor(MAIL_QUEUE_NAME, {
   // Short idle poll interval (default 5s) so worker.close() during test
@@ -56,25 +57,31 @@ export class MailProcessor extends WorkerHost {
 
   async process(job: Job): Promise<void> {
     if (job.name === WELCOME_JOB_NAME) {
-      const { to, name } = job.data as WelcomeJobData;
+      const { to, name } = parseJobData(welcomeJobData, job.data);
       await this.mailService.sendWelcome(to, name);
       return;
     }
 
     if (job.name === EMAIL_CHANGE_CONFIRMATION_JOB_NAME) {
-      const { to, token } = job.data as EmailChangeConfirmationJobData;
+      const { to, token } = parseJobData(
+        emailChangeConfirmationJobData,
+        job.data,
+      );
       await this.mailService.sendEmailChangeConfirmation(to, token);
       return;
     }
 
     if (job.name === DOWNGRADE_NOTIFICATION_JOB_NAME) {
-      const { to, name, newPlan } = job.data as DowngradeNotificationJobData;
+      const { to, name, newPlan } = parseJobData(
+        downgradeNotificationJobData,
+        job.data,
+      );
       await this.mailService.sendDowngradeNotification(to, name, newPlan);
       return;
     }
 
     if (job.name === SUBSCRIPTION_CANCELLED_JOB_NAME) {
-      const { to, name } = job.data as SubscriptionCancelledJobData;
+      const { to, name } = parseJobData(subscriptionCancelledJobData, job.data);
       await this.mailService.sendSubscriptionCancelled(to, name);
       return;
     }

@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import {
   ApiBearerAuth,
@@ -104,14 +105,14 @@ export class BillingController {
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
   async handleWebhook(
-    @Req() req: Request,
+    @Req() req: RawBodyRequest<Request>,
     @Headers('stripe-signature') signature: string,
   ) {
     if (!signature)
       throw new UnauthorizedException('Missing stripe-signature header.');
 
     const event = this.billingWebhookHandler.constructEvent(
-      (req as any).rawBody,
+      req.rawBody,
       signature,
     );
 

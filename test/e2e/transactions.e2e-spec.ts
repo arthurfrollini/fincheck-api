@@ -1,13 +1,16 @@
 import request from 'supertest';
+import { categoryList, idList, parseBody, withId } from '../helpers/body';
+import { z } from 'zod';
+import { loadMessageFixture } from '../helpers/llm';
 import { INestApplication } from '@nestjs/common';
-import * as fs from 'fs';
+import type { App } from 'supertest/types';
 import * as path from 'path';
 import { createApp, mockLlmService } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
 
 describe('Transactions (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
   let accessToken: string;
   let bankAccountId: string;
   let categoryId: string;
@@ -33,12 +36,12 @@ describe('Transactions (e2e)', () => {
         color: '#000',
         type: 'CHECKING',
       });
-    bankAccountId = baRes.body.id;
+    bankAccountId = parseBody(baRes, withId).id;
 
     const catRes = await request(app.getHttpServer())
       .get('/categories')
       .set('Authorization', `Bearer ${accessToken}`);
-    categoryId = catRes.body[0].id;
+    categoryId = parseBody(catRes, idList)[0].id;
   });
 
   const txPayload = (overrides = {}) => ({
@@ -62,7 +65,7 @@ describe('Transactions (e2e)', () => {
       const res = await createTransaction();
       expect(res.status).toBe(201);
       expect(res.body).toHaveProperty('id');
-      expect(res.body.name).toBe('Groceries');
+      expect(res.body).toMatchObject({ name: 'Groceries' });
     });
 
     it('returns 401 without token', async () => {
@@ -83,11 +86,8 @@ describe('Transactions (e2e)', () => {
   });
 
   describe('POST /transactions without categoryId (auto-categorization)', () => {
-    const okFixture = JSON.parse(
-      fs.readFileSync(
-        path.resolve(__dirname, '../fixtures/llm/categorization/ok.json'),
-        'utf8',
-      ),
+    const okFixture = loadMessageFixture(
+      path.resolve(__dirname, '../fixtures/llm/categorization/ok.json'),
     );
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -98,9 +98,11 @@ describe('Transactions (e2e)', () => {
       const catRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${accessToken}`);
-      expenseCategoryId = catRes.body.find(
-        (c: { type: string }) => c.type === 'EXPENSE',
-      ).id;
+      const expense = parseBody(catRes, categoryList).find(
+        (c) => c.type === 'EXPENSE',
+      );
+      if (!expense) throw new Error('no EXPENSE category');
+      expenseCategoryId = expense.id;
       mockLlmService.parse.mockResolvedValue({
         ...okFixture,
         parsed_output: { categoryId: expenseCategoryId, confidence: 0.92 },
@@ -112,20 +114,27 @@ describe('Transactions (e2e)', () => {
         .get('/transactions')
         .query({ month: 6, year: 2026 })
         .set('Authorization', `Bearer ${accessToken}`);
-      return res.body.data.find((t: { id: string }) => t.id === id)
-        ?.categoryId as string | null;
+      const { data } = parseBody(
+        res,
+        z.object({
+          data: z.array(
+            z.object({ id: z.string(), categoryId: z.string().nullable() }),
+          ),
+        }),
+      );
+      return data.find((t) => t.id === id)?.categoryId ?? null;
     };
 
     it('returns 201 with categoryId null, then the worker fills it in', async () => {
       const res = await createTransaction({ categoryId: undefined });
 
       expect(res.status).toBe(201);
-      expect(res.body.categoryId).toBeNull();
+      expect(res.body).toMatchObject({ categoryId: null });
 
       let categoryIdAfter: string | null = null;
       for (let i = 0; i < 50 && !categoryIdAfter; i++) {
         await sleep(100);
-        categoryIdAfter = await findCategoryId(res.body.id);
+        categoryIdAfter = await findCategoryId(parseBody(res, withId).id);
       }
       expect(categoryIdAfter).toBe(expenseCategoryId);
       expect(mockLlmService.parse).toHaveBeenCalledTimes(1);
@@ -151,7 +160,7 @@ describe('Transactions (e2e)', () => {
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('data');
       expect(res.body).toHaveProperty('meta');
-      expect(res.body.meta.total).toBe(1);
+      expect(res.body).toMatchObject({ meta: { total: 1 } });
     });
 
     it('returns empty data for different month', async () => {
@@ -162,14 +171,14 @@ describe('Transactions (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.meta.total).toBe(0);
+      expect(res.body).toMatchObject({ meta: { total: 0 } });
     });
   });
 
   describe('PUT /transactions/:transactionId', () => {
     it('updates transaction and returns 200', async () => {
       const created = await createTransaction();
-      const id = created.body.id;
+      const { id } = parseBody(created, withId);
 
       const res = await request(app.getHttpServer())
         .put(`/transactions/${id}`)
@@ -177,12 +186,12 @@ describe('Transactions (e2e)', () => {
         .send(txPayload({ name: 'Updated', value: 200 }));
 
       expect(res.status).toBe(200);
-      expect(res.body.name).toBe('Updated');
+      expect(res.body).toMatchObject({ name: 'Updated' });
     });
 
     it('returns 404 when transaction belongs to another user', async () => {
       const created = await createTransaction();
-      const id = created.body.id;
+      const { id } = parseBody(created, withId);
       const { accessToken: otherToken } = await signUpAndGetTokens(app);
 
       const res = await request(app.getHttpServer())
@@ -197,7 +206,7 @@ describe('Transactions (e2e)', () => {
   describe('DELETE /transactions/:transactionId', () => {
     it('deletes transaction and returns 204', async () => {
       const created = await createTransaction();
-      const id = created.body.id;
+      const { id } = parseBody(created, withId);
 
       const res = await request(app.getHttpServer())
         .delete(`/transactions/${id}`)

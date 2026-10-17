@@ -40,12 +40,26 @@ export interface AgentLoopResult {
 }
 
 const parseResult = (r: Anthropic.ToolResultBlockParam): unknown => {
+  if (typeof r.content !== 'string') return r.content;
   try {
-    return JSON.parse(r.content as string);
+    const parsed: unknown = JSON.parse(r.content);
+    return parsed;
   } catch {
     return r.content;
   }
 };
+
+// A Prisma error code when there is one, else the error class name.
+function errorCode(err: unknown): string {
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    typeof err.code === 'string'
+  )
+    return err.code;
+  return err instanceof Error ? err.name : 'unknown';
+}
 
 // The tool loop, free of Nest and the database so it can be tested with a
 // scripted model and reused by the eval. Model API errors propagate: the
@@ -193,7 +207,7 @@ export class RunAgentService {
           {
             runId,
             tool,
-            code: (err as { code?: string }).code ?? (err as Error).name,
+            code: errorCode(err),
           },
           'Agent tool failed',
         ),

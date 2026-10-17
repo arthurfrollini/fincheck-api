@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
+import type { App } from 'supertest/types';
 import { createApp, mockMailService } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens, uniqueEmail } from '../helpers/auth.helper';
@@ -9,7 +10,7 @@ import { cleanMailQueue, waitForLatestMailJob } from '../helpers/queue-helper';
 import { WELCOME_JOB_NAME } from '../../src/shared/mail/mail-job.types';
 
 describe('Auth (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
 
   beforeAll(async () => {
     app = await createApp();

@@ -1,25 +1,24 @@
 import request from 'supertest';
+import { parseBody, withRunId } from '../helpers/body';
 import { INestApplication } from '@nestjs/common';
+import type { App } from 'supertest/types';
+import type { Plan } from '@prisma/client';
 import {
   createApp,
   fakeEmbedding,
   mockLlmService,
 } from '../helpers/create-app';
+import { message, textBlock, usage } from '../helpers/llm';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
 import { PrismaService } from '../../src/shared/database/prisma.service';
 import { KnowledgeChunksRepository } from '../../src/modules/education/domain/repositories/knowledge-chunks.repository';
 
 const QUESTION = 'quanto devo guardar por mês?';
-const usage = {
-  input_tokens: 100,
-  output_tokens: 10,
-  cache_read_input_tokens: null,
-  cache_creation_input_tokens: null,
-};
+const tokens = usage({ input_tokens: 500, output_tokens: 80 });
 
 describe('AI quotas and daily budget (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
   let prisma: PrismaService;
   let token: string;
   let userId: string;
@@ -48,18 +47,17 @@ describe('AI quotas and daily budget (e2e)', () => {
         embedding: fakeEmbedding(QUESTION),
       },
     ]);
-    mockLlmService.complete.mockReset().mockResolvedValue({
-      role: 'assistant',
-      stop_reason: 'end_turn',
-      usage,
-      content: [{ type: 'text', text: 'Guarde todo mês.', citations: null }],
-    });
+    mockLlmService.complete
+      .mockReset()
+      .mockResolvedValue(
+        message({ usage: tokens, content: [textBlock('Guarde todo mês.')] }),
+      );
   });
 
-  const setPlan = (plan: string) =>
+  const setPlan = (plan: Plan) =>
     prisma.user.update({
       where: { id: userId },
-      data: { plan: plan as never },
+      data: { plan },
     });
   const seedUsage = (n: number, feature: string, costUsd = 0.001) =>
     prisma.aiUsage.createMany({
@@ -91,9 +89,9 @@ describe('AI quotas and daily budget (e2e)', () => {
 
     expect(rag.status).toBe(403);
     expect(agent.status).toBe(403);
-    expect(rag.body.message).toBe(
-      'AI features require a GOLD or PLATINUM plan.',
-    );
+    expect(rag.body).toMatchObject({
+      message: 'AI features require a GOLD or PLATINUM plan.',
+    });
     expect(mockLlmService.complete).not.toHaveBeenCalled();
     expect(await prisma.agentRun.count()).toBe(0);
   });
@@ -108,9 +106,9 @@ describe('AI quotas and daily budget (e2e)', () => {
     await seedUsage(1, 'rag');
     const refused = await askRag();
     expect(refused.status).toBe(403);
-    expect(refused.body.message).toBe(
-      'Your plan includes 20 education questions per day.',
-    );
+    expect(refused.body).toMatchObject({
+      message: 'Your plan includes 20 education questions per day.',
+    });
   });
 
   it('a repeated Idempotency-Key at the agent limit returns the existing run, not a 403', async () => {
@@ -127,7 +125,9 @@ describe('AI quotas and daily budget (e2e)', () => {
 
     const repeat = await askAgent('same-key');
     expect(repeat.status).toBe(200);
-    expect(repeat.body.runId).toBe(first.body.runId);
+    expect(parseBody(repeat, withRunId).runId).toBe(
+      parseBody(first, withRunId).runId,
+    );
     expect((await askAgent('new-key')).status).toBe(403);
   });
 

@@ -1,10 +1,19 @@
-import { ArgumentsHost, HttpStatus, NotFoundException } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  HttpStatus,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import type { HttpArgumentsHost } from '@nestjs/common/interfaces';
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { z } from 'zod';
 import { PinoLogger } from 'nestjs-pino';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 import { Prisma } from '@prisma/client';
+import { objectContaining, stringMatching } from '../../../test/helpers/match';
 
 function makeMockHost(overrides: { url?: string; method?: string } = {}) {
-  const json = jest.fn();
+  const json = jest.fn<void, [body: unknown]>();
   const status = jest.fn().mockReturnValue({ json });
   const response = { status };
   const request = {
@@ -12,23 +21,22 @@ function makeMockHost(overrides: { url?: string; method?: string } = {}) {
     method: overrides.method ?? 'GET',
   };
 
-  const host = {
-    switchToHttp: () => ({
-      getResponse: () => response,
-      getRequest: () => request,
-    }),
-  } as unknown as ArgumentsHost;
+  const http = mock<HttpArgumentsHost>();
+  http.getResponse.mockReturnValue(response);
+  http.getRequest.mockReturnValue(request);
+  const host = mock<ArgumentsHost>();
+  host.switchToHttp.mockReturnValue(http);
 
   return { host, status, json };
 }
 
 describe('AllExceptionsFilter', () => {
-  let mockLogger: jest.Mocked<Pick<PinoLogger, 'error' | 'warn' | 'info'>>;
+  let mockLogger: MockProxy<PinoLogger>;
   let filter: AllExceptionsFilter;
 
   beforeEach(() => {
-    mockLogger = { error: jest.fn(), warn: jest.fn(), info: jest.fn() };
-    filter = new AllExceptionsFilter(mockLogger as unknown as PinoLogger);
+    mockLogger = mock<PinoLogger>();
+    filter = new AllExceptionsFilter(mockLogger);
   });
 
   it('logs an unrecognized error at error level with stack trace and errorId, returns 500', () => {
@@ -39,18 +47,18 @@ describe('AllExceptionsFilter', () => {
 
     expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
     expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({
+      objectContaining({
         statusCode: 500,
         message: 'Internal server error',
-        errorId: expect.stringMatching(/^[0-9a-f-]{8}$/),
+        errorId: stringMatching(/^[0-9a-f-]{8}$/),
       }),
     );
     expect(mockLogger.error).toHaveBeenCalledTimes(1);
-    const [logPayload] = mockLogger.error.mock.calls[0] as [
-      { err: unknown; errorId: string },
-    ];
+    const logPayload = z
+      .object({ err: z.unknown(), errorId: z.string() })
+      .parse(mockLogger.error.mock.calls[0][0]);
     expect(logPayload.err).toBe(unexpected);
-    expect(logPayload.errorId).toEqual(expect.stringMatching(/^[0-9a-f-]{8}$/));
+    expect(logPayload.errorId).toEqual(stringMatching(/^[0-9a-f-]{8}$/));
   });
 
   it('passes through an existing HttpException unchanged, no errorId, logs at info level', () => {
@@ -61,7 +69,7 @@ describe('AllExceptionsFilter', () => {
 
     expect(status).toHaveBeenCalledWith(404);
     expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Bank account not found.' }),
+      objectContaining({ message: 'Bank account not found.' }),
     );
     const [body] = json.mock.calls[0];
     expect(body).not.toHaveProperty?.('errorId');
@@ -85,8 +93,6 @@ describe('AllExceptionsFilter', () => {
 
   it('logs 401/403 at warn level, not info', () => {
     const { host } = makeMockHost();
-    const { UnauthorizedException } = jest.requireActual('@nestjs/common');
-
     filter.catch(new UnauthorizedException(), host);
 
     expect(mockLogger.warn).toHaveBeenCalledTimes(1);

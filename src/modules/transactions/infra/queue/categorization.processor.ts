@@ -5,8 +5,9 @@ import { isPermanentLlmError } from '@shared/llm/llm-errors';
 import { CategorizeTransactionService } from '../../application/categorize-transaction.service';
 import {
   CATEGORIZATION_QUEUE_NAME,
-  CategorizeTransactionJobData,
+  categorizeTransactionJobData,
 } from './categorization-job.types';
+import { parseJobData } from '@shared/queue/job-data';
 
 // drainDelay: same e2e teardown-race mitigation as MailProcessor.
 @Processor(CATEGORIZATION_QUEUE_NAME, { drainDelay: 1 })
@@ -25,7 +26,10 @@ export class CategorizationProcessor extends WorkerHost {
   }
 
   async process(job: Job): Promise<void> {
-    const { userId, transactionId } = job.data as CategorizeTransactionJobData;
+    const { userId, transactionId } = parseJobData(
+      categorizeTransactionJobData,
+      job.data,
+    );
     try {
       await this.categorizeTransactionService.categorize(userId, transactionId);
     } catch (err) {

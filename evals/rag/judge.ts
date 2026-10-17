@@ -56,6 +56,8 @@ export interface AnswerCase {
   keyPoints: string[];
 }
 
+const answerLine = z.object({ id: z.string(), keyPoints: z.array(z.string()) });
+
 export function loadAnswerSet(
   file = path.join(__dirname, 'answers.jsonl'),
 ): AnswerCase[] {
@@ -65,10 +67,8 @@ export function loadAnswerSet(
     .split('\n')
     .filter((line) => line.trim() !== '')
     .map((line) => {
-      const { id, keyPoints } = JSON.parse(line) as {
-        id: string;
-        keyPoints: string[];
-      };
+      const value: unknown = JSON.parse(line);
+      const { id, keyPoints } = answerLine.parse(value);
       const query = questions.get(id);
       if (!query?.inScope) {
         throw new Error(

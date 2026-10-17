@@ -65,7 +65,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const logPayload = { path: request.url, method: request.method, status };
     const logMessage =
       typeof body === 'object' && body !== null && 'message' in body
-        ? String((body as Record<string, unknown>).message)
+        ? String(body.message)
         : 'Request rejected';
 
     if (status === 401 || status === 403) {

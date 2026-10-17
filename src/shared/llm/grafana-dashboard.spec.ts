@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -27,11 +28,19 @@ function exportedCounters(): Set<string> {
 }
 
 describe('Grafana LLM dashboard', () => {
-  const dashboard = JSON.parse(fs.readFileSync(DASHBOARD, 'utf8')) as {
-    uid: string;
-    title: string;
-    panels: { title: string; targets?: { expr: string }[] }[];
-  };
+  const raw: unknown = JSON.parse(fs.readFileSync(DASHBOARD, 'utf8'));
+  const dashboard = z
+    .object({
+      uid: z.string(),
+      title: z.string(),
+      panels: z.array(
+        z.object({
+          title: z.string(),
+          targets: z.array(z.object({ expr: z.string() })).optional(),
+        }),
+      ),
+    })
+    .parse(raw);
   const exprs = dashboard.panels.flatMap((p) =>
     (p.targets ?? []).map((t) => t.expr),
   );

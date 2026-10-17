@@ -1,15 +1,23 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { type LlmModel } from '../../src/shared/llm/llm-pricing';
+import {
+  type LlmResult,
+  type LlmService,
+} from '../../src/shared/llm/llm.service';
+import { parsedResult, usage } from '../../test/helpers/llm';
 import { type Baseline } from '../lib/baseline';
 import { type GoldenCase } from './golden-set';
 import { EVAL_CATEGORIES } from './runner';
-import { parseModels, runEvalSuite, type SuiteIO } from './suite';
+import {
+  parseModels,
+  runEvalSuite,
+  type StoredBaselines,
+  type SuiteIO,
+} from './suite';
+import { objectContaining } from '../../test/helpers/match';
 
-const usage = {
-  input_tokens: 400,
-  output_tokens: 30,
-  cache_read_input_tokens: null,
-  cache_creation_input_tokens: null,
-};
+const tokens = usage({ input_tokens: 400, output_tokens: 30 });
 const mercado = EVAL_CATEGORIES.find((c) => c.name === 'Mercado')!.id;
 
 const cases: GoldenCase[] = Array.from({ length: 4 }, (_, i) => ({
@@ -22,11 +30,14 @@ const cases: GoldenCase[] = Array.from({ length: 4 }, (_, i) => ({
 }));
 
 const ok = () =>
-  Promise.resolve({
-    stop_reason: 'end_turn',
-    parsed_output: { categoryId: mercado, confidence: 0.9 },
-    usage,
-  });
+  Promise.resolve(
+    parsedResult({ categoryId: mercado, confidence: 0.9 }, { usage: tokens }),
+  );
+const llmWith = (impl: () => Promise<LlmResult<unknown>>) => {
+  const llm = mock<LlmService>();
+  llm.parse.mockImplementation(impl);
+  return llm;
+};
 const unauthorized = () =>
   Promise.reject(
     new Anthropic.AuthenticationError(401, undefined, 'x', new Headers()),
@@ -35,11 +46,16 @@ const unauthorized = () =>
 function memoryIO(
   initial: Record<string, Baseline & { recordedAt: string }> = {},
 ) {
-  const io = {
+  const io: SuiteIO & {
+    baselines: StoredBaselines;
+    written: StoredBaselines | undefined;
+    out: unknown;
+    logs: string[];
+  } = {
     baselines: initial,
-    written: undefined as unknown,
-    out: undefined as unknown,
-    logs: [] as string[],
+    written: undefined,
+    out: undefined,
+    logs: [],
     readBaselines: () => io.baselines,
     writeBaselines: jest.fn((b) => {
       io.written = b;
@@ -55,16 +71,16 @@ function memoryIO(
 
 const run = (
   io: SuiteIO,
-  parse: jest.Mock,
+  llm: MockProxy<LlmService>,
   opts: {
-    models?: string[];
+    models?: LlmModel[];
     updateBaseline?: boolean;
     cases?: GoldenCase[];
   } = {},
 ) =>
   runEvalSuite({
-    llm: { parse } as never,
-    models: (opts.models ?? ['claude-haiku-5-5']) as never,
+    llm,
+    models: opts.models ?? ['claude-haiku-5-5'],
     cases: opts.cases ?? cases,
     updateBaseline: opts.updateBaseline ?? false,
     out: 'eval-result.json',
@@ -78,13 +94,13 @@ describe('runEvalSuite', () => {
       'claude-haiku-5-5': { correct: 4, total: 4, recordedAt: 't' },
     });
 
-    await expect(run(io, jest.fn(ok))).resolves.toBe(0);
+    await expect(run(io, llmWith(ok))).resolves.toBe(0);
 
     expect(io.out).toEqual({
       models: {
-        'claude-haiku-5-5': expect.objectContaining({
-          score: expect.objectContaining({ correct: 4, total: 4 }),
-          gate: expect.objectContaining({ status: 'pass' }),
+        'claude-haiku-5-5': objectContaining({
+          score: objectContaining({ correct: 4, total: 4 }),
+          gate: objectContaining({ status: 'pass' }),
         }),
       },
     });
@@ -95,13 +111,13 @@ describe('runEvalSuite', () => {
     const io = memoryIO();
 
     await expect(
-      run(io, jest.fn(ok), {
+      run(io, llmWith(ok), {
         models: ['claude-haiku-5-5', 'claude-opus-5-5'],
         updateBaseline: true,
       }),
     ).resolves.toBe(0);
 
-    expect(Object.keys(io.written as object)).toEqual(['claude-haiku-5-5']);
+    expect(Object.keys(io.written ?? {})).toEqual(['claude-haiku-5-5']);
   });
 
   it('re-records a baseline after the golden set changed size instead of crashing', async () => {
@@ -109,20 +125,21 @@ describe('runEvalSuite', () => {
       'claude-haiku-5-5': { correct: 3, total: 3, recordedAt: 't' },
     });
 
-    await expect(run(io, jest.fn(ok), { updateBaseline: true })).resolves.toBe(
+    await expect(run(io, llmWith(ok), { updateBaseline: true })).resolves.toBe(
       0,
     );
 
-    expect(
-      (io.written as Record<string, Baseline>)['claude-haiku-5-5'],
-    ).toEqual(expect.objectContaining({ correct: 4, total: 4 }));
+    expect(io.written?.['claude-haiku-5-5']).toEqual(
+      objectContaining({ correct: 4, total: 4 }),
+    );
   });
 
   it('does not write the baseline file when any case errored', async () => {
     const io = memoryIO();
-    const parse = jest.fn(ok).mockImplementationOnce(unauthorized);
+    const llm = llmWith(ok);
+    llm.parse.mockImplementationOnce(unauthorized);
 
-    await expect(run(io, parse, { updateBaseline: true })).resolves.toBe(1);
+    await expect(run(io, llm, { updateBaseline: true })).resolves.toBe(1);
 
     expect(io.writeBaselines).not.toHaveBeenCalled();
   });
@@ -135,7 +152,7 @@ describe('runEvalSuite', () => {
     const io = memoryIO();
 
     await expect(
-      run(io, jest.fn(unauthorized), { updateBaseline: true, cases: many }),
+      run(io, llmWith(unauthorized), { updateBaseline: true, cases: many }),
     ).resolves.toBe(1);
 
     expect(io.writeBaselines).not.toHaveBeenCalled();
@@ -148,7 +165,7 @@ describe('runEvalSuite', () => {
     }));
     const io = memoryIO();
 
-    await run(io, jest.fn(unauthorized), { cases: many });
+    await run(io, llmWith(unauthorized), { cases: many });
 
     expect(io.logs.join('\n')).toMatch(/infra/i);
     expect(io.logs.join('\n')).toContain('claude-haiku-5-5');
@@ -167,5 +184,9 @@ describe('parseModels', () => {
     expect(() => parseModels('claude-haiku-5-5,claude-haiku')).toThrow(
       /claude-haiku/,
     );
+  });
+
+  it('rejects an inherited property name as a model', () => {
+    expect(() => parseModels('toString')).toThrow(/Unknown model/);
   });
 });

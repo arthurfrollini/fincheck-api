@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { mock } from 'jest-mock-extended';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import type { App } from 'supertest/types';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import { Logger } from 'nestjs-pino';
@@ -40,10 +42,7 @@ export const mockBillingService = {
 
 // The Claude API is an external boundary like Resend or Stripe: e2e never
 // calls it. Specs that exercise categorization set return values per test.
-export const mockLlmService = {
-  parse: jest.fn(),
-  complete: jest.fn(),
-};
+export const mockLlmService = mock<LlmService>();
 
 // Deterministic stand-in for the local embedding model: each text maps to a
 // one-hot 384-d vector chosen by a hash, so identical texts have similarity
@@ -62,7 +61,7 @@ export const fakeEmbeddingProvider = {
   embedPassages: (texts: string[]) => Promise.resolve(texts.map(fakeEmbedding)),
 };
 
-export async function createApp(): Promise<INestApplication> {
+export async function createApp(): Promise<INestApplication<App>> {
   const module: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
   })
@@ -78,7 +77,7 @@ export async function createApp(): Promise<INestApplication> {
     .useValue(fakeEmbeddingProvider)
     .compile();
 
-  const app = module.createNestApplication({
+  const app = module.createNestApplication<INestApplication<App>>({
     rawBody: true,
     bufferLogs: true,
   });

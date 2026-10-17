@@ -1,41 +1,42 @@
 import { BadGatewayException, BadRequestException } from '@nestjs/common';
 import Stripe from 'stripe';
 import { mapStripeError } from './stripe-error.mapper';
+import { objectContaining } from '../../../test/helpers/match';
 
 describe('mapStripeError', () => {
   it("maps StripeCardError to BadRequestException using Stripe's own message", () => {
     const cardError = new Stripe.errors.StripeCardError({
       message: 'Your card was declined.',
-      type: 'StripeCardError',
-    } as any);
+      type: 'card_error',
+    });
 
     const result = mapStripeError(cardError);
 
     expect(result).toBeInstanceOf(BadRequestException);
     expect(result?.getResponse()).toEqual(
-      expect.objectContaining({ message: 'Your card was declined.' }),
+      objectContaining({ message: 'Your card was declined.' }),
     );
   });
 
   it('maps StripeAPIError to BadGatewayException with a generic message', () => {
     const apiError = new Stripe.errors.StripeAPIError({
       message: 'Some internal Stripe detail that should not leak.',
-      type: 'StripeAPIError',
-    } as any);
+      type: 'api_error',
+    });
 
     const result = mapStripeError(apiError);
 
     expect(result).toBeInstanceOf(BadGatewayException);
     expect(result?.getResponse()).toEqual(
-      expect.objectContaining({ message: 'Payment provider error.' }),
+      objectContaining({ message: 'Payment provider error.' }),
     );
   });
 
   it('maps StripeConnectionError to BadGatewayException', () => {
     const connError = new Stripe.errors.StripeConnectionError({
       message: 'Network unreachable',
-      type: 'StripeConnectionError',
-    } as any);
+      type: 'api_error',
+    });
 
     const result = mapStripeError(connError);
 

@@ -1,8 +1,10 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { ServiceUnavailableException } from '@nestjs/common';
-import { metrics } from '@opentelemetry/api';
+import { type Counter, type Meter, metrics } from '@opentelemetry/api';
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { PlanGuardService } from '@shared/plan/plan-guard.service';
+import { loadMessageFixture } from '../../../../test/helpers/llm';
 import { LlmService } from '@shared/llm/llm.service';
 import { type ScoredKnowledgeChunk } from '../entities/KnowledgeChunk';
 import { EmbeddingProvider } from '../domain/embedding-provider';
@@ -18,9 +20,7 @@ import {
 
 const FIXTURES = path.resolve(__dirname, '../../../../test/fixtures/llm/rag');
 const fixture = (name: string) =>
-  JSON.parse(
-    fs.readFileSync(path.join(FIXTURES, `${name}.json`), 'utf8'),
-  ) as Anthropic.Message;
+  loadMessageFixture(path.join(FIXTURES, `${name}.json`));
 
 const chunk = (
   id: string,
@@ -36,14 +36,11 @@ const chunk = (
 });
 
 describe('AnswerQuestionService', () => {
-  let embeddings: { embedQuery: jest.Mock };
-  let repo: { count: jest.Mock; searchSimilar: jest.Mock };
-  let llm: { complete: jest.Mock };
-  let results: { add: jest.Mock };
-  let planGuard: {
-    validateGlobalAiBudget: jest.Mock;
-    validateDailyAiQuota: jest.Mock;
-  };
+  let embeddings: MockProxy<EmbeddingProvider>;
+  let repo: MockProxy<KnowledgeChunksRepository>;
+  let llm: MockProxy<LlmService>;
+  let results: MockProxy<Counter>;
+  let planGuard: MockProxy<PlanGuardService>;
   let service: AnswerQuestionService;
 
   // Retrieved in this order; the fixture cites document_index 1 then 0.
@@ -53,26 +50,21 @@ describe('AnswerQuestionService', () => {
   ];
 
   beforeEach(() => {
-    results = { add: jest.fn() };
-    jest.spyOn(metrics, 'getMeter').mockReturnValue({
-      createCounter: () => results,
-    } as unknown as ReturnType<typeof metrics.getMeter>);
-    embeddings = { embedQuery: jest.fn().mockResolvedValue([0.1, 0.2]) };
-    repo = {
-      count: jest.fn().mockResolvedValue(173),
-      searchSimilar: jest.fn().mockResolvedValue(retrieved),
-    };
-    llm = { complete: jest.fn().mockResolvedValue(fixture('cited')) };
-    planGuard = {
-      validateGlobalAiBudget: jest.fn().mockResolvedValue(undefined),
-      validateDailyAiQuota: jest.fn().mockResolvedValue(undefined),
-    };
-    service = new AnswerQuestionService(
-      embeddings as unknown as EmbeddingProvider,
-      repo as unknown as KnowledgeChunksRepository,
-      llm as unknown as LlmService,
-      planGuard as never,
-    );
+    results = mock<Counter>();
+    const meter = mock<Meter>();
+    meter.createCounter.mockReturnValue(results);
+    jest.spyOn(metrics, 'getMeter').mockReturnValue(meter);
+    embeddings = mock<EmbeddingProvider>();
+    embeddings.embedQuery.mockResolvedValue([0.1, 0.2]);
+    repo = mock<KnowledgeChunksRepository>();
+    repo.count.mockResolvedValue(173);
+    repo.searchSimilar.mockResolvedValue(retrieved);
+    llm = mock<LlmService>();
+    llm.complete.mockResolvedValue(fixture('cited'));
+    planGuard = mock<PlanGuardService>();
+    planGuard.validateGlobalAiBudget.mockResolvedValue(undefined);
+    planGuard.validateDailyAiQuota.mockResolvedValue(undefined);
+    service = new AnswerQuestionService(embeddings, repo, llm, planGuard);
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -106,17 +98,13 @@ describe('AnswerQuestionService', () => {
       'quanto guardar por mês?',
     );
     expect(repo.searchSimilar).toHaveBeenCalledWith([0.1, 0.2], RAG_TOP_K);
-    const [feature, params, context] = llm.complete.mock.calls[0] as [
-      string,
-      Anthropic.MessageCreateParamsNonStreaming,
-      Record<string, string>,
-    ];
+    const [feature, params, context] = llm.complete.mock.calls[0];
     expect(feature).toBe('rag');
     expect(context).toEqual({ userId: 'u1' });
     expect(params.model).toBe('claude-sonnet-5-5');
     expect(params.system).toBe(RAG_SYSTEM_PROMPT);
     expect(params).not.toHaveProperty('output_config.format');
-    const content = params.messages[0].content as Anthropic.ContentBlockParam[];
+    const { content } = params.messages[0];
     expect(content).toEqual([
       {
         type: 'document',
@@ -188,8 +176,11 @@ describe('AnswerQuestionService', () => {
     const message = fixture('cited');
     const block = message.content.find(
       (b): b is Anthropic.TextBlock => b.type === 'text' && !!b.citations,
-    )!;
-    (block.citations![0] as Anthropic.CitationCharLocation).document_index = 99;
+    );
+    const citation = block?.citations?.[0];
+    if (!citation || !('document_index' in citation))
+      throw new Error('fixture has no document citation');
+    citation.document_index = 99;
     llm.complete.mockResolvedValueOnce(message);
 
     const result = await service.answer('u1', 'x');

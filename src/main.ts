@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import './tracing';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -8,7 +9,7 @@ import { apiReference } from '@scalar/nestjs-api-reference';
 import { Logger } from 'nestjs-pino';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
     bufferLogs: true,
   });
@@ -51,10 +52,7 @@ async function bootstrap() {
   // Express accepts like 'loopback'.
   if (process.env.TRUST_PROXY) {
     const hops = Number(process.env.TRUST_PROXY);
-    app
-      .getHttpAdapter()
-      .getInstance()
-      .set('trust proxy', Number.isNaN(hops) ? process.env.TRUST_PROXY : hops);
+    app.set('trust proxy', Number.isNaN(hops) ? process.env.TRUST_PROXY : hops);
   }
 
   // Hosting platforms assign the port through PORT.

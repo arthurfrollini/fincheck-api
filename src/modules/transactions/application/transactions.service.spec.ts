@@ -8,6 +8,8 @@ jest.mock('@shared/config/env', () => ({
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { TransactionsService } from './transactions.service';
+import { CreateTransactionDto } from '../infra/http/dto/create-transaction.dto';
+import { UpdateTransactionDto } from '../infra/http/dto/update-transaction.dto';
 import { TransactionsRepository } from '../domain/repositories/transactions.repository';
 import { ValidateBankAccountOwnershipService } from '@modules/bank-accounts/application/validate-bank-account-ownership.service';
 import { ValidateCategoryOwnershipService } from '@modules/categories/application/validate-category-ownership.service';
@@ -189,19 +191,19 @@ describe('TransactionsService', () => {
   });
 
   describe('create', () => {
-    const createDto = {
+    const createDto: CreateTransactionDto = {
       bankAccountId: 'bank-account-1',
       categoryId: 'category-1',
       name: 'Groceries',
       value: 100,
       date: '2026-07-14T00:00:00.000Z',
-      type: 'OUTCOME',
-    } as const;
+      type: 'EXPENSE',
+    };
 
     it('runs all ownership and plan-guard checks with correct args', async () => {
       mockTransactionsRepository.create.mockResolvedValue({ id: 'tx-1' });
 
-      await service.create('user-1', createDto as any);
+      await service.create('user-1', createDto);
 
       expect(
         mockValidateBankAccountOwnershipService.validate,
@@ -222,7 +224,7 @@ describe('TransactionsService', () => {
         new Error('bank account not found'),
       );
 
-      await expect(service.create('user-1', createDto as any)).rejects.toThrow(
+      await expect(service.create('user-1', createDto)).rejects.toThrow(
         'bank account not found',
       );
 
@@ -234,7 +236,7 @@ describe('TransactionsService', () => {
         new Error('daily limit reached'),
       );
 
-      await expect(service.create('user-1', createDto as any)).rejects.toThrow(
+      await expect(service.create('user-1', createDto)).rejects.toThrow(
         'daily limit reached',
       );
 
@@ -246,7 +248,7 @@ describe('TransactionsService', () => {
         new Error('bank account is not active'),
       );
 
-      await expect(service.create('user-1', createDto as any)).rejects.toThrow(
+      await expect(service.create('user-1', createDto)).rejects.toThrow(
         'bank account is not active',
       );
 
@@ -256,7 +258,7 @@ describe('TransactionsService', () => {
     it('calls repository.create with correct shape, converting date to Date', async () => {
       mockTransactionsRepository.create.mockResolvedValue({ id: 'tx-1' });
 
-      await service.create('user-1', createDto as any);
+      await service.create('user-1', createDto);
 
       expect(mockTransactionsRepository.create).toHaveBeenCalledWith({
         userId: 'user-1',
@@ -271,19 +273,19 @@ describe('TransactionsService', () => {
   });
 
   describe('update', () => {
-    const updateDto = {
+    const updateDto: UpdateTransactionDto = {
       bankAccountId: 'bank-account-1',
       categoryId: 'category-1',
       name: 'Rent',
       value: 500,
       date: '2026-07-01T00:00:00.000Z',
-      type: 'OUTCOME',
-    } as const;
+      type: 'EXPENSE',
+    };
 
     it('validates ownership of transaction, bank account, and category', async () => {
       mockTransactionsRepository.update.mockResolvedValue({ id: 'tx-1' });
 
-      await service.update('user-1', 'tx-1', updateDto as any);
+      await service.update('user-1', 'tx-1', updateDto);
 
       expect(
         mockValidateTransactionOwnershipService.validate,
@@ -301,9 +303,9 @@ describe('TransactionsService', () => {
         new Error('transaction not found'),
       );
 
-      await expect(
-        service.update('user-1', 'tx-1', updateDto as any),
-      ).rejects.toThrow('transaction not found');
+      await expect(service.update('user-1', 'tx-1', updateDto)).rejects.toThrow(
+        'transaction not found',
+      );
 
       expect(mockTransactionsRepository.update).not.toHaveBeenCalled();
     });
@@ -311,7 +313,7 @@ describe('TransactionsService', () => {
     it('calls repository.update with correct shape, converting date to Date', async () => {
       mockTransactionsRepository.update.mockResolvedValue({ id: 'tx-1' });
 
-      await service.update('user-1', 'tx-1', updateDto as any);
+      await service.update('user-1', 'tx-1', updateDto);
 
       expect(mockTransactionsRepository.update).toHaveBeenCalledWith('tx-1', {
         bankAccountId: updateDto.bankAccountId,

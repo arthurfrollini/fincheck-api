@@ -1,3 +1,4 @@
+import { z } from 'zod';
 export const normalize = (s: string) =>
   s.replace(/\s+/g, ' ').trim().toLowerCase();
 
@@ -9,11 +10,12 @@ export function isRelevant(chunkText: string, evidence: string[]): boolean {
   return evidence.some((snippet) => text.includes(normalize(snippet)));
 }
 
-export interface RetrievalMetrics {
-  recallAt5: number;
-  hitAt1: number;
-  mrrAt10: number;
-}
+export const retrievalMetricsSchema = z.object({
+  recallAt5: z.number(),
+  hitAt1: z.number(),
+  mrrAt10: z.number(),
+});
+export type RetrievalMetrics = z.infer<typeof retrievalMetricsSchema>;
 
 export function retrievalMetrics(
   rankings: { relevant: boolean[] }[],
@@ -59,14 +61,15 @@ export function compareRetrieval(
       message: 'No stored baseline. Run with --update-baseline to record one.',
     };
   }
-  const drops = [
+  const pairs: [name: string, now: number, before: number][] = [
     ['recall@5', current.recallAt5, baseline.recallAt5],
     ['MRR@10', current.mrrAt10, baseline.mrrAt10],
-  ]
-    .filter(([, now, before]) => (now as number) < (before as number) - EPSILON)
+  ];
+  const drops = pairs
+    .filter(([, now, before]) => now < before - EPSILON)
     .map(
       ([name, now, before]) =>
-        `${name} ${(before as number).toFixed(3)} → ${(now as number).toFixed(3)}`,
+        `${name} ${before.toFixed(3)} → ${now.toFixed(3)}`,
     );
   return drops.length > 0
     ? { status: 'fail', message: `Retrieval regressed: ${drops.join(', ')}.` }

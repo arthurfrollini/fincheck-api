@@ -1,27 +1,23 @@
-import type Anthropic from '@anthropic-ai/sdk';
-import { metrics } from '@opentelemetry/api';
+import { type Counter, type Meter, metrics } from '@opentelemetry/api';
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { usage as usageOf } from '../../../test/helpers/llm';
 import { LlmMetrics } from './llm.metrics';
 
 describe('LlmMetrics', () => {
-  const counters: Record<string, { add: jest.Mock }> = {};
+  const counters: Record<string, MockProxy<Counter>> = {};
 
   beforeEach(() => {
-    jest.spyOn(metrics, 'getMeter').mockReturnValue({
-      createCounter: (name: string) => {
-        counters[name] = { add: jest.fn() };
-        return counters[name];
-      },
-    } as unknown as ReturnType<typeof metrics.getMeter>);
+    const meter = mock<Meter>();
+    meter.createCounter.mockImplementation((name) => {
+      counters[name] = mock<Counter>();
+      return counters[name];
+    });
+    jest.spyOn(metrics, 'getMeter').mockReturnValue(meter);
   });
 
   afterEach(() => jest.restoreAllMocks());
 
-  const usage = {
-    input_tokens: 300,
-    output_tokens: 50,
-    cache_read_input_tokens: 0,
-    cache_creation_input_tokens: null,
-  } as Anthropic.Usage;
+  const usage = usageOf({ cache_read_input_tokens: 0 });
 
   it('adds tokens per non-zero direction, cost and the request outcome', () => {
     new LlmMetrics().record('claude-haiku-5-5', 'categorization', usage, 'ok');

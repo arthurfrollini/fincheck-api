@@ -1,4 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { mock } from 'jest-mock-extended';
+import { type LlmService } from '../../src/shared/llm/llm.service';
+import { parsedResult, usage } from '../../test/helpers/llm';
 import {
   judgeAnswer,
   loadAnswerSet,
@@ -37,33 +39,20 @@ describe('loadAnswerSet', () => {
 });
 
 describe('judgeAnswer', () => {
-  const usage = {
-    input_tokens: 900,
-    output_tokens: 120,
-    cache_read_input_tokens: null,
-    cache_creation_input_tokens: null,
-  };
+  const tokens = usage({ input_tokens: 900, output_tokens: 120 });
 
   it('asks Opus 5.5 at low effort with the question, answer, cited passages and key points', async () => {
-    const llm = {
-      parse: jest.fn().mockResolvedValue({
-        stop_reason: 'end_turn',
-        parsed_output: verdict({}),
-        usage,
-      }),
-    };
+    const llm = mock<LlmService>();
+    llm.parse.mockResolvedValue(parsedResult(verdict({}), { usage: tokens }));
 
-    await judgeAnswer(llm as never, {
+    await judgeAnswer(llm, {
       question: 'Q?',
       answer: 'A.',
       citedTexts: ['trecho citado'],
       keyPoints: ['ponto 1'],
     });
 
-    const [feature, params] = llm.parse.mock.calls[0] as [
-      string,
-      Anthropic.MessageCreateParamsNonStreaming,
-    ];
+    const [feature, params] = llm.parse.mock.calls[0];
     expect(feature).toBe('judge');
     expect(params.model).toBe('claude-opus-5-5');
     expect(params.output_config).toEqual(
@@ -75,16 +64,11 @@ describe('judgeAnswer', () => {
   });
 
   it('returns null when the judge output does not parse', async () => {
-    const llm = {
-      parse: jest.fn().mockResolvedValue({
-        stop_reason: 'end_turn',
-        parsed_output: null,
-        usage,
-      }),
-    };
+    const llm = mock<LlmService>();
+    llm.parse.mockResolvedValue(parsedResult(null, { usage: tokens }));
 
     await expect(
-      judgeAnswer(llm as never, {
+      judgeAnswer(llm, {
         question: 'Q',
         answer: 'A',
         citedTexts: [],

@@ -4,6 +4,11 @@ import { env } from '../config/env';
 
 const RESEND_TIMEOUT_MS = 10000;
 
+// Resend spreads these options into fetch(), so `signal` works at runtime
+// even though the SDK's type doesn't declare it.
+type SendOptions = NonNullable<Parameters<Resend['emails']['send']>[1]> &
+  Pick<RequestInit, 'signal'>;
+
 @Injectable()
 export class MailService {
   private resend = new Resend(env.resendApiKey);
@@ -21,9 +26,13 @@ export class MailService {
     }
     // Local dev points every email at one inbox instead of real addresses.
     const to = process.env.MAIL_REDIRECT_TO || payload.to;
-    const { error } = await this.resend.emails.send({ ...payload, to }, {
+    const options: SendOptions = {
       signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
-    } as never);
+    };
+    const { error } = await this.resend.emails.send(
+      { ...payload, to },
+      options,
+    );
 
     if (error) {
       // Resend's SDK never throws — it returns { error } (including on our

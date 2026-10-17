@@ -1,10 +1,15 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { metrics } from '@opentelemetry/api';
+import { type Counter, type Meter } from '@opentelemetry/api';
+import { mock, type MockProxy } from 'jest-mock-extended';
 import { PinoLogger } from 'nestjs-pino';
+import { z } from 'zod';
+import { PlanGuardService } from '@shared/plan/plan-guard.service';
+import type { LlmParams, LlmResult } from '@shared/llm/llm.service';
+import { loadParsedFixture } from '../../../../test/helpers/llm';
 import { LlmService } from '@shared/llm/llm.service';
 import { CategoriesRepository } from '@modules/categories/domain/repositories/categories.repository';
 import { ValidateCategoryOwnershipService } from '@modules/categories/application/validate-category-ownership.service';
@@ -21,10 +26,8 @@ const FIXTURES = path.resolve(
   __dirname,
   '../../../../test/fixtures/llm/categorization',
 );
-function fixture(name: string): Record<string, unknown> {
-  return JSON.parse(
-    fs.readFileSync(path.join(FIXTURES, `${name}.json`), 'utf8'),
-  ) as Record<string, unknown>;
+function fixture(name: string): LlmResult<unknown> {
+  return loadParsedFixture(path.join(FIXTURES, `${name}.json`));
 }
 
 const USER_ID = 'user-1';
@@ -67,46 +70,45 @@ function transaction(
 }
 
 describe('CategorizeTransactionService', () => {
-  let llm: { parse: jest.Mock };
-  let transactions: { findFirst: jest.Mock; setCategoryIfUnset: jest.Mock };
-  let categories: { findAllByUserIdAndType: jest.Mock };
-  let ownership: { validate: jest.Mock };
-  let logger: { warn: jest.Mock };
-  let resultsCounter: { add: jest.Mock };
-  let planGuard: { isAiBudgetExhausted: jest.Mock };
+  let llm: MockProxy<LlmService>;
+  let transactions: MockProxy<TransactionsRepository>;
+  let categories: MockProxy<CategoriesRepository>;
+  let ownership: MockProxy<ValidateCategoryOwnershipService>;
+  let logger: MockProxy<PinoLogger>;
+  let resultsCounter: MockProxy<Counter>;
+  let planGuard: MockProxy<PlanGuardService>;
   let service: CategorizeTransactionService;
 
   beforeEach(() => {
-    resultsCounter = { add: jest.fn() };
-    jest.spyOn(metrics, 'getMeter').mockReturnValue({
-      createCounter: () => resultsCounter,
-    } as unknown as ReturnType<typeof metrics.getMeter>);
+    resultsCounter = mock<Counter>();
+    const meter = mock<Meter>();
+    meter.createCounter.mockReturnValue(resultsCounter);
+    jest.spyOn(metrics, 'getMeter').mockReturnValue(meter);
 
-    llm = { parse: jest.fn().mockResolvedValue(fixture('ok')) };
-    transactions = {
-      findFirst: jest.fn().mockResolvedValue(transaction()),
-      setCategoryIfUnset: jest.fn().mockResolvedValue(true),
-    };
-    categories = {
-      findAllByUserIdAndType: jest.fn().mockResolvedValue(expenseCategories),
-    };
-    ownership = {
-      validate: jest
-        .fn()
-        .mockImplementation((_userId: string, id: string) =>
-          Promise.resolve(expenseCategories.find((c) => c.id === id)),
-        ),
-    };
-    logger = { warn: jest.fn() };
-    planGuard = { isAiBudgetExhausted: jest.fn().mockResolvedValue(false) };
+    llm = mock<LlmService>();
+    llm.parse.mockResolvedValue(fixture('ok'));
+    transactions = mock<TransactionsRepository>();
+    transactions.findFirst.mockResolvedValue(transaction());
+    transactions.setCategoryIfUnset.mockResolvedValue(true);
+    categories = mock<CategoriesRepository>();
+    categories.findAllByUserIdAndType.mockResolvedValue(expenseCategories);
+    ownership = mock<ValidateCategoryOwnershipService>();
+    ownership.validate.mockImplementation((_userId, id) => {
+      const category = expenseCategories.find((c) => c.id === id);
+      if (!category) throw new NotFoundException('Category not found.');
+      return Promise.resolve(category);
+    });
+    logger = mock<PinoLogger>();
+    planGuard = mock<PlanGuardService>();
+    planGuard.isAiBudgetExhausted.mockResolvedValue(false);
 
     service = new CategorizeTransactionService(
-      llm as unknown as LlmService,
-      transactions as unknown as TransactionsRepository,
-      categories as unknown as CategoriesRepository,
-      ownership as unknown as ValidateCategoryOwnershipService,
-      logger as unknown as PinoLogger,
-      planGuard as never,
+      llm,
+      transactions,
+      categories,
+      ownership,
+      logger,
+      planGuard,
     );
   });
 
@@ -235,13 +237,13 @@ describe('CategorizeTransactionService', () => {
   });
 
   describe('request shape', () => {
-    function request(): Anthropic.MessageCreateParamsNonStreaming & {
-      output_config: { effort: string };
-    } {
-      return llm.parse.mock.calls[0][1] as never;
+    function request(): LlmParams {
+      return llm.parse.mock.calls[0][1];
     }
     function userText(): string {
-      return request().messages[0].content as string;
+      const { content } = request().messages[0];
+      if (typeof content !== 'string') throw new Error('expected text');
+      return content;
     }
 
     it('uses haiku 5.5, max_tokens 1024, low effort, and no sampling or thinking params', async () => {
@@ -256,7 +258,7 @@ describe('CategorizeTransactionService', () => {
       const params = request();
       expect(params.model).toBe('claude-haiku-5-5');
       expect(params.max_tokens).toBe(1024);
-      expect(params.output_config.effort).toBe('low');
+      expect(params.output_config?.effort).toBe('low');
       expect(params).not.toHaveProperty('temperature');
       expect(params).not.toHaveProperty('thinking');
     });
@@ -264,29 +266,30 @@ describe('CategorizeTransactionService', () => {
     it('sends a JSON schema that keeps the id enum the API enforces', async () => {
       await service.categorize(USER_ID, TX_ID);
 
-      const format = (
-        request() as unknown as {
-          output_config: {
-            format: { type: string; schema: Record<string, any> };
-          };
-        }
-      ).output_config.format;
-      expect(format.type).toBe('json_schema');
-      expect(format.schema.properties.categoryId.enum).toEqual([
+      const format = request().output_config?.format;
+      expect(format?.type).toBe('json_schema');
+      const schema = z
+        .object({
+          properties: z.object({
+            categoryId: z.object({ enum: z.array(z.string()) }),
+            confidence: z.record(z.string(), z.unknown()),
+          }),
+          additionalProperties: z.boolean(),
+        })
+        .parse(format?.schema);
+      expect(schema.properties.categoryId.enum).toEqual([
         'none',
         FOOD,
         GROCERY,
       ]);
-      expect(format.schema.properties.confidence).not.toHaveProperty('minimum');
-      expect(format.schema.additionalProperties).toBe(false);
+      expect(schema.properties.confidence).not.toHaveProperty('minimum');
+      expect(schema.additionalProperties).toBe(false);
     });
 
     it('validates the answer client-side, including the 0-1 confidence range', async () => {
       await service.categorize(USER_ID, TX_ID);
 
-      const schema = llm.parse.mock.calls[0][2] as {
-        safeParse: (v: unknown) => { success: boolean };
-      };
+      const schema = llm.parse.mock.calls[0][2];
       expect(
         schema.safeParse({ categoryId: GROCERY, confidence: 0.9 }).success,
       ).toBe(true);

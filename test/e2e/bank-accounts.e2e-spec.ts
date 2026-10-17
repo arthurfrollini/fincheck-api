@@ -1,11 +1,13 @@
 import request from 'supertest';
+import { parseBody, withId } from '../helpers/body';
 import { INestApplication } from '@nestjs/common';
+import type { App } from 'supertest/types';
 import { createApp } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
 
 describe('BankAccounts (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
   let accessToken: string;
 
   beforeAll(async () => {
@@ -37,7 +39,7 @@ describe('BankAccounts (e2e)', () => {
       const res = await createBankAccount();
       expect(res.status).toBe(201);
       expect(res.body).toHaveProperty('id');
-      expect(res.body.name).toBe('Nubank');
+      expect(res.body).toMatchObject({ name: 'Nubank' });
     });
 
     it('returns 401 without token', async () => {
@@ -81,7 +83,7 @@ describe('BankAccounts (e2e)', () => {
   describe('PUT /bank-accounts/:bankAccountId', () => {
     it('updates bank account and returns 200', async () => {
       const created = await createBankAccount();
-      const id = created.body.id;
+      const { id } = parseBody(created, withId);
 
       const res = await request(app.getHttpServer())
         .put(`/bank-accounts/${id}`)
@@ -94,12 +96,12 @@ describe('BankAccounts (e2e)', () => {
         });
 
       expect(res.status).toBe(200);
-      expect(res.body.name).toBe('Updated');
+      expect(res.body).toMatchObject({ name: 'Updated' });
     });
 
     it('returns 404 when bank account belongs to another user', async () => {
       const created = await createBankAccount();
-      const id = created.body.id;
+      const { id } = parseBody(created, withId);
       const { accessToken: otherToken } = await signUpAndGetTokens(app);
 
       const res = await request(app.getHttpServer())
@@ -119,7 +121,7 @@ describe('BankAccounts (e2e)', () => {
   describe('DELETE /bank-accounts/:bankAccountId', () => {
     it('deletes bank account and returns 204', async () => {
       const created = await createBankAccount();
-      const id = created.body.id;
+      const { id } = parseBody(created, withId);
 
       const res = await request(app.getHttpServer())
         .delete(`/bank-accounts/${id}`)
@@ -130,7 +132,7 @@ describe('BankAccounts (e2e)', () => {
 
     it('returns 404 when bank account belongs to another user', async () => {
       const created = await createBankAccount();
-      const id = created.body.id;
+      const { id } = parseBody(created, withId);
       const { accessToken: otherToken } = await signUpAndGetTokens(app);
 
       const res = await request(app.getHttpServer())

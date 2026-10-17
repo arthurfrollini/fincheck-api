@@ -1,3 +1,6 @@
+import { type DeepMockProxy, mockDeep } from 'jest-mock-extended';
+import { agentRunRow } from '../../../../../test/helpers/prisma-rows';
+import { anyInstance } from '../../../../../test/helpers/match';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@shared/database/prisma.service';
 import { AgentRunsPrismaRepository } from './agent-runs.prisma.repository';
@@ -7,30 +10,19 @@ const p2002 = new Prisma.PrismaClientKnownRequestError('dup', {
   clientVersion: '6.19.3',
 });
 
-const run = {
-  id: 'run-1',
-  userId: 'u1',
-  question: 'q',
-  status: 'QUEUED',
-  idempotencyKey: 'k',
-  answer: null,
-  steps: 0,
-};
+const run = agentRunRow({ userId: 'u1', question: 'q', idempotencyKey: 'k' });
 
 describe('AgentRunsPrismaRepository', () => {
-  let agentRun: Record<string, jest.Mock>;
+  let prisma: DeepMockProxy<PrismaService>;
   let repository: AgentRunsPrismaRepository;
 
   beforeEach(() => {
-    agentRun = {
-      create: jest.fn().mockResolvedValue(run),
-      findUnique: jest.fn().mockResolvedValue(run),
-      findFirst: jest.fn().mockResolvedValue(run),
-      update: jest.fn().mockResolvedValue(run),
-    };
-    repository = new AgentRunsPrismaRepository({
-      agentRun,
-    } as unknown as PrismaService);
+    prisma = mockDeep<PrismaService>();
+    prisma.agentRun.create.mockResolvedValue(run);
+    prisma.agentRun.findUnique.mockResolvedValue(run);
+    prisma.agentRun.findFirst.mockResolvedValue(run);
+    prisma.agentRun.update.mockResolvedValue(run);
+    repository = new AgentRunsPrismaRepository(prisma);
   });
 
   it('creates a queued run with the idempotency key', async () => {
@@ -38,7 +30,7 @@ describe('AgentRunsPrismaRepository', () => {
       run,
       created: true,
     });
-    expect(agentRun.create).toHaveBeenCalledWith({
+    expect(prisma.agentRun.create).toHaveBeenCalledWith({
       data: {
         userId: 'u1',
         question: 'q',
@@ -49,20 +41,20 @@ describe('AgentRunsPrismaRepository', () => {
   });
 
   it('returns the existing run when the same key was already used (unique violation)', async () => {
-    agentRun.create.mockRejectedValueOnce(p2002);
+    prisma.agentRun.create.mockRejectedValueOnce(p2002);
 
     await expect(repository.register('u1', 'q', 'k')).resolves.toEqual({
       run,
       created: false,
     });
-    expect(agentRun.findUnique).toHaveBeenCalledWith({
+    expect(prisma.agentRun.findUnique).toHaveBeenCalledWith({
       where: { userId_idempotencyKey: { userId: 'u1', idempotencyKey: 'k' } },
     });
   });
 
   it('always creates when no key is given', async () => {
     await repository.register('u1', 'q');
-    expect(agentRun.create).toHaveBeenCalledWith({
+    expect(prisma.agentRun.create).toHaveBeenCalledWith({
       data: {
         userId: 'u1',
         question: 'q',
@@ -74,20 +66,20 @@ describe('AgentRunsPrismaRepository', () => {
 
   it('rethrows other database errors', async () => {
     const error = new Error('db down');
-    agentRun.create.mockRejectedValueOnce(error);
+    prisma.agentRun.create.mockRejectedValueOnce(error);
     await expect(repository.register('u1', 'q', 'k')).rejects.toBe(error);
   });
 
   it('scopes reads by user', async () => {
     await repository.findForUser('u1', 'run-1');
-    expect(agentRun.findFirst).toHaveBeenCalledWith({
+    expect(prisma.agentRun.findFirst).toHaveBeenCalledWith({
       where: { id: 'run-1', userId: 'u1' },
     });
   });
 
   it('markRunning resets the step count, so a retried run starts clean', async () => {
     await repository.markRunning('run-1');
-    expect(agentRun.update).toHaveBeenCalledWith({
+    expect(prisma.agentRun.update).toHaveBeenCalledWith({
       where: { id: 'run-1' },
       data: { status: 'RUNNING', steps: 0 },
     });
@@ -99,13 +91,13 @@ describe('AgentRunsPrismaRepository', () => {
       answer: 'a',
       steps: 2,
     });
-    expect(agentRun.update).toHaveBeenCalledWith({
+    expect(prisma.agentRun.update).toHaveBeenCalledWith({
       where: { id: 'run-1' },
       data: {
         status: 'COMPLETED',
         answer: 'a',
         steps: 2,
-        completedAt: expect.any(Date),
+        completedAt: anyInstance(Date),
       },
     });
   });
@@ -113,14 +105,13 @@ describe('AgentRunsPrismaRepository', () => {
 
 describe('AgentRunsPrismaRepository.findByIdempotencyKey', () => {
   it('looks the run up by (userId, key)', async () => {
-    const findUnique = jest.fn().mockResolvedValue(null);
-    const repository = new AgentRunsPrismaRepository({
-      agentRun: { findUnique },
-    } as unknown as PrismaService);
+    const prisma = mockDeep<PrismaService>();
+    prisma.agentRun.findUnique.mockResolvedValue(null);
+    const repository = new AgentRunsPrismaRepository(prisma);
 
     await repository.findByIdempotencyKey('u1', 'k');
 
-    expect(findUnique).toHaveBeenCalledWith({
+    expect(prisma.agentRun.findUnique).toHaveBeenCalledWith({
       where: { userId_idempotencyKey: { userId: 'u1', idempotencyKey: 'k' } },
     });
   });
