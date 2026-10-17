@@ -67,6 +67,15 @@ describe('AgentProcessor', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('logs and returns when a failed job carries malformed data', async () => {
+    const bad = mock<Job>({ data: {}, attemptsMade: 3, opts: { attempts: 3 } });
+
+    await expect(
+      processor.onFailed(bad, new Error('boom')),
+    ).resolves.toBeUndefined();
+    expect(service.markFailed).not.toHaveBeenCalled();
+  });
+
   it('leaves the run alone while retries remain', async () => {
     await processor.onFailed(job(1, 3), new Error('blip'));
     expect(service.markFailed).not.toHaveBeenCalled();

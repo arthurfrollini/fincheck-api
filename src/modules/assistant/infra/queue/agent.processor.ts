@@ -3,7 +3,8 @@ import { Job, UnrecoverableError } from 'bullmq';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { isPermanentLlmError } from '@shared/llm/llm-errors';
 import { RunAgentService } from '../../application/run-agent.service';
-import { AGENT_QUEUE_NAME, RunAgentJobData } from './agent-job.types';
+import { AGENT_QUEUE_NAME, runAgentJobData } from './agent-job.types';
+import { parseJobData } from '@shared/queue/job-data';
 
 // drainDelay: same e2e teardown-race mitigation as the other processors.
 @Processor(AGENT_QUEUE_NAME, { drainDelay: 1 })
@@ -27,7 +28,15 @@ export class AgentProcessor extends WorkerHost {
   async onFailed(job: Job, err: Error): Promise<void> {
     const outOfAttempts = job.attemptsMade >= (job.opts.attempts ?? 1);
     if (!outOfAttempts && !(err instanceof UnrecoverableError)) return;
-    const { runId } = job.data as RunAgentJobData;
+    const data = runAgentJobData.safeParse(job.data);
+    if (!data.success) {
+      this.logger.error(
+        { err, jobId: job.id },
+        'Failed agent job has no run id',
+      );
+      return;
+    }
+    const { runId } = data.data;
     this.logger.error({ err, runId }, 'Agent run failed permanently');
     // BullMQ doesn't await event handlers: a rejection here would be an
     // unhandled rejection and could take the process down.
@@ -42,7 +51,7 @@ export class AgentProcessor extends WorkerHost {
   }
 
   async process(job: Job): Promise<void> {
-    const { runId } = job.data as RunAgentJobData;
+    const { runId } = parseJobData(runAgentJobData, job.data);
     try {
       await this.runAgentService.run(runId);
     } catch (err) {

@@ -1,6 +1,6 @@
 import { mock, type MockProxy } from 'jest-mock-extended';
 import { PinoLogger } from 'nestjs-pino';
-import { Job } from 'bullmq';
+import { Job, UnrecoverableError } from 'bullmq';
 
 // Mock env to avoid validation errors during tests
 jest.mock('@shared/config/env', () => ({
@@ -42,6 +42,15 @@ describe('MailProcessor', () => {
     mockMailService.sendSubscriptionCancelled.mockResolvedValue(undefined);
     mockLogger = mock<PinoLogger>();
     processor = new MailProcessor(mockMailService, mockLogger);
+  });
+
+  it('fails a job with malformed data without retrying or sending', async () => {
+    const job = makeJob(WELCOME_JOB_NAME, { to: 42 });
+
+    await expect(processor.process(job)).rejects.toBeInstanceOf(
+      UnrecoverableError,
+    );
+    expect(mockMailService.sendWelcome).not.toHaveBeenCalled();
   });
 
   it('calls sendWelcome for a welcome job', async () => {
