@@ -12,21 +12,21 @@ export class CreateBankAccountDto {
   @ApiProperty({ description: 'Account name', example: 'Nubank' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Starting balance', example: 1000 })
   @IsNumber()
   @IsNotEmpty()
-  initialBalance: number;
+  initialBalance!: number;
 
   @ApiProperty({ description: 'Account type', enum: BankAccountType })
   @IsEnum(BankAccountType)
   @IsNotEmpty()
-  type: BankAccountType;
+  type!: BankAccountType;
 
   @ApiProperty({ description: 'Hex color for UI display', example: '#8A05BE' })
   @IsString()
   @IsNotEmpty()
   @IsHexColor()
-  color: string;
+  color!: string;
 }

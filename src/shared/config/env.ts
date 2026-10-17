@@ -1,28 +1,29 @@
-import { plainToInstance } from 'class-transformer';
-import { IsNotEmpty, IsString, validateSync } from 'class-validator';
+import { z } from 'zod';
 
-class Env {
-  @IsString() @IsNotEmpty() jwtSecret: string;
-  @IsString() @IsNotEmpty() databaseURL: string;
-  @IsString() @IsNotEmpty() resendApiKey: string;
-  @IsString() @IsNotEmpty() resendFromEmail: string;
-  @IsString() @IsNotEmpty() googleClientId: string;
-  @IsString() @IsNotEmpty() googleClientSecret: string;
-  @IsString() @IsNotEmpty() googleCallbackUrl: string;
-  @IsString() @IsNotEmpty() awsRegion: string;
-  @IsString() @IsNotEmpty() awsAccessKeyId: string;
-  @IsString() @IsNotEmpty() awsSecretAccessKey: string;
-  @IsString() @IsNotEmpty() awsS3BucketName: string;
-  @IsString() @IsNotEmpty() stripeSecretKey: string;
-  @IsString() @IsNotEmpty() stripeWebhookSecret: string;
-  @IsString() @IsNotEmpty() stripePriceGold: string;
-  @IsString() @IsNotEmpty() stripePricePlatinum: string;
-  @IsString() @IsNotEmpty() redisHost: string;
-  @IsString() @IsNotEmpty() redisPort: string;
-  @IsString() @IsNotEmpty() anthropicApiKey: string;
-}
+const required = z.string().min(1);
 
-export const env: Env = plainToInstance(Env, {
+const envSchema = z.object({
+  jwtSecret: required,
+  databaseURL: required,
+  resendApiKey: required,
+  resendFromEmail: required,
+  googleClientId: required,
+  googleClientSecret: required,
+  googleCallbackUrl: required,
+  awsRegion: required,
+  awsAccessKeyId: required,
+  awsSecretAccessKey: required,
+  awsS3BucketName: required,
+  stripeSecretKey: required,
+  stripeWebhookSecret: required,
+  stripePriceGold: required,
+  stripePricePlatinum: required,
+  redisHost: required,
+  redisPort: required,
+  anthropicApiKey: required,
+});
+
+const parsed = envSchema.safeParse({
   jwtSecret: process.env.JWT_SECRET,
   databaseURL: process.env.DATABASE_URL,
   resendApiKey: process.env.RESEND_API_KEY,
@@ -43,7 +44,8 @@ export const env: Env = plainToInstance(Env, {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-const errors = validateSync(env);
-if (errors.length > 0) {
-  throw new Error(JSON.stringify(errors, null, 2));
+if (!parsed.success) {
+  throw new Error(`Invalid environment: ${parsed.error.message}`);
 }
+
+export const env = parsed.data;

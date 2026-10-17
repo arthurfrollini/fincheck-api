@@ -12,13 +12,13 @@ export class SignUpDto {
   @ApiProperty({ description: 'Full name', example: 'Arthur Frollini' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Email address', example: 'arthur@example.com' })
   @IsString()
   @IsNotEmpty()
   @IsEmail()
-  email: string;
+  email!: string;
 
   @ApiProperty({
     description: 'Password, minimum 8 characters',
@@ -28,7 +28,7 @@ export class SignUpDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
-  password: string;
+  password!: string;
 
   @ApiPropertyOptional({
     description: 'Initial plan — defaults to FREE if omitted',

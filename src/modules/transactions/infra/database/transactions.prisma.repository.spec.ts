@@ -129,10 +129,9 @@ describe('TransactionsPrismaRepository read queries for the agent', () => {
       _min: undefined,
       _max: undefined,
     });
-    prisma.transaction.groupBy.mockResolvedValueOnce([
-      group('c1', 100.111, 2),
-      group(null, 20, 1),
-    ]);
+    jest
+      .mocked(prisma.transaction.groupBy)
+      .mockResolvedValueOnce([group('c1', 100.111, 2), group(null, 20, 1)]);
     prisma.category.findMany.mockResolvedValueOnce([
       categoryRow({ id: 'c1', name: 'Mercado' }),
     ]);

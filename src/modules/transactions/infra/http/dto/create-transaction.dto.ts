@@ -16,7 +16,7 @@ export class CreateTransactionDto {
   @IsString()
   @IsNotEmpty()
   @IsUUID()
-  bankAccountId: string;
+  bankAccountId!: string;
 
   @ApiProperty({
     description: 'Category id. Omit to auto-categorize.',
@@ -32,7 +32,7 @@ export class CreateTransactionDto {
   @ApiProperty({ description: 'Transaction name', example: 'Groceries' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @ApiProperty({
     description: 'Transaction value, must be positive',
@@ -41,15 +41,15 @@ export class CreateTransactionDto {
   @IsNumber()
   @IsNotEmpty()
   @IsPositive()
-  value: number;
+  value!: number;
 
   @ApiProperty({ description: 'ISO date string', example: '2026-06-15' })
   @IsDateString()
   @IsNotEmpty()
-  date: string;
+  date!: string;
 
   @ApiProperty({ description: 'Transaction type', enum: TransactionType })
   @IsNotEmpty()
   @IsEnum(TransactionType)
-  type: TransactionType;
+  type!: TransactionType;
 }
