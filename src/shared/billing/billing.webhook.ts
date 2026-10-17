@@ -46,13 +46,13 @@ export class BillingWebhookHandler {
     try {
       switch (event.type) {
         case 'invoice.payment_succeeded':
-          await this.onInvoicePaymentSucceeded(event);
+          await this.onInvoicePaymentSucceeded(event.data.object);
           break;
         case 'customer.subscription.deleted':
-          await this.onSubscriptionDeleted(event);
+          await this.onSubscriptionDeleted(event.data.object);
           break;
         case 'customer.subscription.updated':
-          await this.onSubscriptionUpdated(event);
+          await this.onSubscriptionUpdated(event.data.object);
           break;
       }
     } catch (err) {
@@ -79,9 +79,11 @@ export class BillingWebhookHandler {
     return Plan.FREE;
   }
 
-  private async onInvoicePaymentSucceeded(event: Stripe.Event): Promise<void> {
-    const invoice = event.data.object as Stripe.Invoice;
-    const customerId = invoice.customer as string;
+  private async onInvoicePaymentSucceeded(
+    invoice: Stripe.Invoice,
+  ): Promise<void> {
+    const customerId = customerIdOf(invoice.customer);
+    if (!customerId) return;
 
     const user = await this.usersRepository.findByStripeCustomerId(customerId);
     if (!user) return;
@@ -107,9 +109,11 @@ export class BillingWebhookHandler {
     }
   }
 
-  private async onSubscriptionDeleted(event: Stripe.Event): Promise<void> {
-    const subscription = event.data.object as Stripe.Subscription;
-    const customerId = subscription.customer as string;
+  private async onSubscriptionDeleted(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
+    const customerId = customerIdOf(subscription.customer);
+    if (!customerId) return;
 
     const user = await this.usersRepository.findByStripeCustomerId(customerId);
     if (!user) return;
@@ -125,9 +129,11 @@ export class BillingWebhookHandler {
     );
   }
 
-  private async onSubscriptionUpdated(event: Stripe.Event): Promise<void> {
-    const subscription = event.data.object as Stripe.Subscription;
-    const customerId = subscription.customer as string;
+  private async onSubscriptionUpdated(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
+    const customerId = customerIdOf(subscription.customer);
+    if (!customerId) return;
 
     if (subscription.status !== 'active' || subscription.cancel_at_period_end)
       return;
@@ -156,4 +162,11 @@ export class BillingWebhookHandler {
       );
     }
   }
+}
+
+// Stripe sends the customer as an id, or as the object when expanded.
+function customerIdOf(
+  customer: string | Stripe.Customer | Stripe.DeletedCustomer | null,
+): string | null {
+  return typeof customer === 'string' ? customer : (customer?.id ?? null);
 }
