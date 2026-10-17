@@ -400,5 +400,12 @@ describe('BillingWebhookHandler', () => {
         handler.constructEvent(Buffer.from('raw'), 'sig_bad'),
       ).toThrow(UnauthorizedException);
     });
+
+    it('throws UnauthorizedException without calling Stripe when the raw body is missing', () => {
+      expect(() => handler.constructEvent(undefined, 'sig_valid')).toThrow(
+        UnauthorizedException,
+      );
+      expect(mockStripe.webhooks.constructEvent).not.toHaveBeenCalled();
+    });
   });
 });

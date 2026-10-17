@@ -8,12 +8,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
-import { type PinoLogger } from 'nestjs-pino';
 import { createAnthropicClient } from '../../src/shared/llm/anthropic-client';
 import { LlmMetrics } from '../../src/shared/llm/llm.metrics';
 import { LlmService } from '../../src/shared/llm/llm.service';
-import { type PrismaService } from '../../src/shared/database/prisma.service';
+import { createEvalLogger } from '../lib/eval-logger';
+import { PrismaService } from '../../src/shared/database/prisma.service';
 import { buildToolHandlers } from '../../src/modules/assistant/application/agent-tools';
 import { runAgentLoop } from '../../src/modules/assistant/application/run-agent.service';
 import { TransactionsPrismaRepository } from '../../src/modules/transactions/infra/database/transactions.prisma.repository';
@@ -39,18 +38,14 @@ async function main(): Promise<number> {
   const key = process.env.ANTHROPIC_API_KEY;
   assertRealKey(key);
 
-  const prisma = new PrismaClient();
+  const prisma = new PrismaService();
   try {
     const userId = await seedEvalUser(prisma);
-    const db = prisma as unknown as PrismaService;
     const handlers = buildToolHandlers(userId, {
-      transactions: new TransactionsPrismaRepository(db),
-      categories: new CategoriesPrismaRepository(db),
+      transactions: new TransactionsPrismaRepository(prisma),
+      categories: new CategoriesPrismaRepository(prisma),
     });
-    const logger = {
-      info: () => undefined,
-      warn: (obj: object, msg: string) => console.warn(msg, obj),
-    } as unknown as PinoLogger;
+    const logger = createEvalLogger();
     const llm = new LlmService(
       createAnthropicClient(key),
       new LlmMetrics(),

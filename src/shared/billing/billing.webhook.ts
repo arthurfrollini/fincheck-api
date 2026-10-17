@@ -19,7 +19,10 @@ export class BillingWebhookHandler {
     @Inject(STRIPE_CLIENT) private readonly stripe: Stripe,
   ) {}
 
-  constructEvent(rawBody: Buffer, signature: string): Stripe.Event {
+  // rawBody is undefined only if main.ts stops creating the app with
+  // rawBody: true; without the exact bytes no signature can verify.
+  constructEvent(rawBody: Buffer | undefined, signature: string): Stripe.Event {
+    if (!rawBody) throw new UnauthorizedException('Invalid webhook signature.');
     try {
       return this.stripe.webhooks.constructEvent(
         rawBody,

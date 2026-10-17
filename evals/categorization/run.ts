@@ -8,7 +8,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
-import { PinoLogger } from 'nestjs-pino';
 import { createAnthropicClient } from '@shared/llm/anthropic-client';
 import { LlmMetrics } from '@shared/llm/llm.metrics';
 import { LlmService } from '@shared/llm/llm.service';
@@ -16,6 +15,7 @@ import { CATEGORIZATION_MODEL } from '@modules/transactions/application/categori
 import { loadGoldenSet } from './golden-set';
 import { assertRealKey } from './runner';
 import { parseModels, runEvalSuite, type StoredBaselines } from './suite';
+import { createEvalLogger } from '../lib/eval-logger';
 
 dotenv.config();
 
@@ -39,10 +39,7 @@ async function main(): Promise<number> {
   // Not wrapped in Nest: no app, no database, no env.ts. The OTel meter is a
   // no-op without the SDK registered. Per-call info logs are dropped; the
   // report is the output.
-  const logger = {
-    info: () => undefined,
-    warn: (obj: object, msg: string) => console.warn(msg, obj),
-  } as unknown as PinoLogger;
+  const logger = createEvalLogger();
 
   return runEvalSuite({
     llm: new LlmService(createAnthropicClient(key), new LlmMetrics(), logger),

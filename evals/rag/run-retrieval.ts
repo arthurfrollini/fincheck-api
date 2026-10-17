@@ -7,11 +7,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
 import { KnowledgeChunksPrismaRepository } from '../../src/modules/education/infra/database/knowledge-chunks.prisma.repository';
 import { TransformersEmbeddingProvider } from '../../src/modules/education/infra/embeddings/transformers-embedding.provider';
 import { RAG_MIN_SIMILARITY } from '../../src/modules/education/application/rag.constants';
-import { type PrismaService } from '../../src/shared/database/prisma.service';
+import { PrismaService } from '../../src/shared/database/prisma.service';
 import { loadQuerySet, validateQuerySet } from './query-set';
 import {
   compareRetrieval,
@@ -32,11 +31,9 @@ const BASELINE_FILE = path.resolve(__dirname, '../baselines/retrieval.json');
 const K = 10;
 
 async function main(): Promise<number> {
-  const prisma = new PrismaClient();
+  const prisma = new PrismaService();
   try {
-    const repo = new KnowledgeChunksPrismaRepository(
-      prisma as unknown as PrismaService,
-    );
+    const repo = new KnowledgeChunksPrismaRepository(prisma);
     const embeddings = new TransformersEmbeddingProvider();
     const queries = loadQuerySet();
 
