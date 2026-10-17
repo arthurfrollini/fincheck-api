@@ -5,6 +5,7 @@
 //
 //   npm run rag:ingest
 import * as fs from 'fs';
+import { z } from 'zod';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { ingestCorpus } from '../src/modules/education/application/ingest-corpus';
@@ -21,9 +22,12 @@ dotenv.config({
 });
 
 const ROOT = path.resolve(__dirname, '..');
-const manifest = JSON.parse(
+const manifestValue: unknown = JSON.parse(
   fs.readFileSync(path.join(ROOT, 'corpus/manifest.json'), 'utf8'),
-) as { url: string; sha256: string; title: string };
+);
+const manifest = z
+  .object({ url: z.string(), sha256: z.string(), title: z.string() })
+  .parse(manifestValue);
 
 async function loadPdf(): Promise<Uint8Array> {
   const cached = path.join(ROOT, '.cache/corpus', `${manifest.sha256}.pdf`);

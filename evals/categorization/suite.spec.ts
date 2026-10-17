@@ -9,7 +9,12 @@ import { parsedResult, usage } from '../../test/helpers/llm';
 import { type Baseline } from '../lib/baseline';
 import { type GoldenCase } from './golden-set';
 import { EVAL_CATEGORIES } from './runner';
-import { parseModels, runEvalSuite, type SuiteIO } from './suite';
+import {
+  parseModels,
+  runEvalSuite,
+  type StoredBaselines,
+  type SuiteIO,
+} from './suite';
 import { objectContaining } from '../../test/helpers/match';
 
 const tokens = usage({ input_tokens: 400, output_tokens: 30 });
@@ -41,11 +46,16 @@ const unauthorized = () =>
 function memoryIO(
   initial: Record<string, Baseline & { recordedAt: string }> = {},
 ) {
-  const io = {
+  const io: SuiteIO & {
+    baselines: StoredBaselines;
+    written: StoredBaselines | undefined;
+    out: unknown;
+    logs: string[];
+  } = {
     baselines: initial,
-    written: undefined as unknown,
-    out: undefined as unknown,
-    logs: [] as string[],
+    written: undefined,
+    out: undefined,
+    logs: [],
     readBaselines: () => io.baselines,
     writeBaselines: jest.fn((b) => {
       io.written = b;
@@ -107,7 +117,7 @@ describe('runEvalSuite', () => {
       }),
     ).resolves.toBe(0);
 
-    expect(Object.keys(io.written as object)).toEqual(['claude-haiku-5-5']);
+    expect(Object.keys(io.written ?? {})).toEqual(['claude-haiku-5-5']);
   });
 
   it('re-records a baseline after the golden set changed size instead of crashing', async () => {
@@ -119,9 +129,9 @@ describe('runEvalSuite', () => {
       0,
     );
 
-    expect(
-      (io.written as Record<string, Baseline>)['claude-haiku-5-5'],
-    ).toEqual(objectContaining({ correct: 4, total: 4 }));
+    expect(io.written?.['claude-haiku-5-5']).toEqual(
+      objectContaining({ correct: 4, total: 4 }),
+    );
   });
 
   it('does not write the baseline file when any case errored', async () => {
@@ -174,5 +184,9 @@ describe('parseModels', () => {
     expect(() => parseModels('claude-haiku-5-5,claude-haiku')).toThrow(
       /claude-haiku/,
     );
+  });
+
+  it('rejects an inherited property name as a model', () => {
+    expect(() => parseModels('toString')).toThrow(/Unknown model/);
   });
 });

@@ -15,7 +15,7 @@ import {
   textBlock,
   usage,
 } from '../../../test/helpers/llm';
-import { closeTo } from '../../../test/helpers/match';
+import { anyNumber, closeTo } from '../../../test/helpers/match';
 
 // A reply with the leading thinking block adaptive thinking produces.
 function message(
@@ -64,15 +64,17 @@ describe('LlmService', () => {
       usage(),
       'ok',
     );
-    const [payload] = logger.info.mock.calls[0] as [Record<string, unknown>];
+    const payload = z
+      .record(z.string(), z.unknown())
+      .parse(logger.info.mock.calls[0][0]);
     expect(payload).toEqual(
       expect.objectContaining({
         feature: 'categorization',
         model: 'claude-haiku-5-5',
         input_tokens: 300,
         output_tokens: 50,
-        cost_usd: expect.any(Number) as number,
-        latency_ms: expect.any(Number) as number,
+        cost_usd: anyNumber(),
+        latency_ms: anyNumber(),
         stop_reason: 'end_turn',
         transactionId: 'tx-1',
       }),

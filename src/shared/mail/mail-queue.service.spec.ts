@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { mock, type MockProxy } from 'jest-mock-extended';
 import { PinoLogger } from 'nestjs-pino';
 import { Job, Queue } from 'bullmq';
@@ -84,10 +85,11 @@ describe('MailQueueService', () => {
     ).resolves.toBeUndefined();
 
     expect(mockLogger.error).toHaveBeenCalledTimes(1);
-    const [logPayload, message] = mockLogger.error.mock.calls[0] as [
-      { err: unknown; jobName: string },
-      string,
-    ];
+    const [rawPayload, rawMessage] = mockLogger.error.mock.calls[0];
+    const logPayload = z
+      .object({ err: z.unknown(), jobName: z.string() })
+      .parse(rawPayload);
+    const message = z.string().parse(rawMessage);
     expect(logPayload.jobName).toBe(WELCOME_JOB_NAME);
     expect(logPayload.err).toBeInstanceOf(Error);
     expect(message).toBe('Failed to enqueue mail job — email will not be sent');

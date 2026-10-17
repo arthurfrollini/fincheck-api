@@ -13,7 +13,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "observability:up": "bash scripts/observability-up.sh",
-    "lint": "eslint \"{src,apps,libs,test,evals}/**/*.ts\" --fix",
+    "lint": "eslint \"{src,apps,libs,test,evals,scripts}/**/*.ts\" --fix",
     "test": "bash scripts/test-combined.sh",
     "test:unit": "jest",
     "test:unit:watch": "jest --watch",

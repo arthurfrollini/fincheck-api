@@ -9,6 +9,7 @@
 // confidence 0.49 / 0.5, refusal, foreign id) that a real call cannot be
 // made to reproduce, so they stay handwritten.
 import * as fs from 'fs';
+import { z } from 'zod';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 import Anthropic from '@anthropic-ai/sdk';
@@ -41,9 +42,16 @@ async function main(): Promise<void> {
     throw new Error('Set a real ANTHROPIC_API_KEY in .env to record fixtures.');
   }
 
-  const existing = JSON.parse(fs.readFileSync(FIXTURE, 'utf8')) as {
-    input: { name: string; type: 'EXPENSE'; value: number };
-  };
+  const fixture: unknown = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
+  const existing = z
+    .object({
+      input: z.object({
+        name: z.string(),
+        type: z.literal('EXPENSE'),
+        value: z.number(),
+      }),
+    })
+    .parse(fixture);
   const client = new Anthropic({ apiKey: key, maxRetries: 0 });
   const { params, schema } = buildCategorizationRequest(
     existing.input,

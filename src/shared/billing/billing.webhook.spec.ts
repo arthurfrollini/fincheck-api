@@ -43,11 +43,17 @@ const mockStripe = {
 const makeEvent = (type: string, object: Record<string, unknown>) =>
   stripeEvent(type, object);
 
-const baseUser = {
+const baseUser: {
+  id: string;
+  name: string;
+  email: string;
+  plan: Plan;
+  stripeCustomerId: string;
+} = {
   id: 'user_1',
   name: 'Test User',
   email: 'test@example.com',
-  plan: Plan.FREE as Plan,
+  plan: Plan.FREE,
   stripeCustomerId: 'cus_test',
 };
 

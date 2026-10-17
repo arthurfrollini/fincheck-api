@@ -1,7 +1,10 @@
-export interface Baseline {
-  correct: number;
-  total: number;
-}
+import { z } from 'zod';
+
+export const baselineSchema = z.object({
+  correct: z.number(),
+  total: z.number(),
+});
+export type Baseline = z.infer<typeof baselineSchema>;
 
 export interface GateResult {
   // 'infra': the run itself failed (API down, bad key), so it was never

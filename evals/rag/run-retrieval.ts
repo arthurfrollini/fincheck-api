@@ -17,8 +17,9 @@ import {
   isRelevant,
   retrievalMetrics,
   separation,
-  type RetrievalMetrics,
+  retrievalMetricsSchema,
 } from './retrieval';
+import { readJsonFile } from '../lib/json-file';
 
 // Prisma's client loads .env on import, so an explicit DOTENV_PATH must
 // override it; without one, values exported in the shell keep precedence.
@@ -70,9 +71,7 @@ async function main(): Promise<number> {
       inScope.map((r) => r.best),
       rankings.filter((r) => !r.inScope).map((r) => r.best),
     );
-    const baseline = fs.existsSync(BASELINE_FILE)
-      ? (JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')) as RetrievalMetrics)
-      : undefined;
+    const baseline = readJsonFile(BASELINE_FILE, retrievalMetricsSchema);
     const updating = process.argv.includes('--update-baseline');
     const gate = updating ? undefined : compareRetrieval(metrics, baseline);
 

@@ -241,7 +241,9 @@ describe('CategorizeTransactionService', () => {
       return llm.parse.mock.calls[0][1];
     }
     function userText(): string {
-      return request().messages[0].content as string;
+      const { content } = request().messages[0];
+      if (typeof content !== 'string') throw new Error('expected text');
+      return content;
     }
 
     it('uses haiku 5.5, max_tokens 1024, low effort, and no sampling or thinking params', async () => {

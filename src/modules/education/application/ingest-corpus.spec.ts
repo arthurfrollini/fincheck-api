@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { type KnowledgeChunkWithEmbedding } from '../entities/KnowledgeChunk';
 import { ingestCorpus } from './ingest-corpus';
 
 const pdf = new TextEncoder().encode('fake pdf bytes');
@@ -10,7 +11,9 @@ const page = (n: number, words: number) => ({
 
 function deps(expectedSha = sha) {
   const repository = {
-    replaceAll: jest.fn((chunks: unknown[]) => Promise.resolve(chunks.length)),
+    replaceAll: jest.fn((chunks: KnowledgeChunkWithEmbedding[]) =>
+      Promise.resolve(chunks.length),
+    ),
     searchSimilar: jest.fn(),
     count: jest.fn(),
     findAll: jest.fn(),
@@ -44,12 +47,7 @@ describe('ingestCorpus', () => {
 
     const result = await ingestCorpus(d.input);
 
-    const stored = d.repository.replaceAll.mock.calls[0][0] as {
-      documentSha: string;
-      chunkIndex: number;
-      page: number;
-      embedding: number[];
-    }[];
+    const [stored] = d.repository.replaceAll.mock.calls[0];
     expect(stored.map((c) => [c.chunkIndex, c.page, c.embedding])).toEqual([
       [0, 1, [0]],
       [1, 2, [1]],

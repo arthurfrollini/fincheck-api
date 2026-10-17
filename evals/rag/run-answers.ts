@@ -18,7 +18,8 @@ import { createEvalLogger } from '../lib/eval-logger';
 import { PrismaService } from '../../src/shared/database/prisma.service';
 import { PlanGuardService } from '../../src/shared/plan/plan-guard.service';
 import { assertRealKey } from '../categorization/runner';
-import { type Baseline } from '../lib/baseline';
+import { baselineSchema } from '../lib/baseline';
+import { readJsonFile } from '../lib/json-file';
 import {
   judgeAnswer,
   loadAnswerSet,
@@ -73,9 +74,7 @@ async function main(): Promise<number> {
       judge: (input) => judgeAnswer(llm, input),
     });
 
-    const baseline = fs.existsSync(BASELINE_FILE)
-      ? (JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')) as Baseline)
-      : undefined;
+    const baseline = readJsonFile(BASELINE_FILE, baselineSchema);
     const updating = process.argv.includes('--update-baseline');
     const summary = summarizeAnswerRun(results, baseline, updating);
 

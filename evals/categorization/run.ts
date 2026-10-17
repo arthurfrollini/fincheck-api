@@ -14,7 +14,8 @@ import { LlmService } from '@shared/llm/llm.service';
 import { CATEGORIZATION_MODEL } from '@modules/transactions/application/categorization.constants';
 import { loadGoldenSet } from './golden-set';
 import { assertRealKey } from './runner';
-import { parseModels, runEvalSuite, type StoredBaselines } from './suite';
+import { parseModels, runEvalSuite, storedBaselinesSchema } from './suite';
+import { readJsonFile } from '../lib/json-file';
 import { createEvalLogger } from '../lib/eval-logger';
 
 dotenv.config();
@@ -49,11 +50,7 @@ async function main(): Promise<number> {
     out: arg('out'),
     io: {
       readBaselines: () =>
-        fs.existsSync(BASELINE_FILE)
-          ? (JSON.parse(
-              fs.readFileSync(BASELINE_FILE, 'utf8'),
-            ) as StoredBaselines)
-          : {},
+        readJsonFile(BASELINE_FILE, storedBaselinesSchema) ?? {},
       writeBaselines: (b) => fs.writeFileSync(BASELINE_FILE, toJson(b)),
       writeOut: (file, data) => fs.writeFileSync(file, toJson(data)),
       log: (line) => console.log(line),

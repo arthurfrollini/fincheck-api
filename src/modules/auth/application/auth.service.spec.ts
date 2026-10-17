@@ -1,7 +1,10 @@
 jest.mock('uuid', () => ({ v4: jest.fn().mockReturnValue('test-uuid') }));
+// Typed as the promise overload AuthService uses; bcrypt's callback overload
+// would otherwise make jest.mocked(compare) resolve to never.
+const mockCompare = jest.fn<Promise<boolean>, [string, string]>();
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed'),
-  compare: jest.fn(),
+  compare: (data: string, encrypted: string) => mockCompare(data, encrypted),
 }));
 jest.mock('@shared/config/env', () => ({
   env: {
@@ -30,15 +33,12 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { compare } from 'bcryptjs';
 import { BillingService } from '@shared/billing/billing.service';
 import { MailQueueService } from '@shared/mail/mail-queue.service';
 import { RefreshTokensRepository } from '@modules/auth/domain/repositories/refresh-tokens.repository';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
 import { Plan, Role } from '@modules/users/entities/User';
 import { AuthService } from './auth.service';
-
-const mockCompare = compare as jest.Mock;
 
 const mockUsersRepository = {
   findByEmail: jest.fn(),
