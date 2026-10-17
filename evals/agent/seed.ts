@@ -95,10 +95,14 @@ export async function seedEvalUser(prisma: PrismaClient): Promise<string> {
       color: '#000',
     },
   });
-  const categoryId = (name: string | null, type: Kind) =>
-    name === null
-      ? null
-      : user.categories.find((c) => c.name === name && c.type === type)!.id;
+  const categoryId = (name: string | null, type: Kind) => {
+    if (name === null) return null;
+    const category = user.categories.find(
+      (c) => c.name === name && c.type === type,
+    );
+    if (!category) throw new Error(`Seed category missing: ${name} (${type})`);
+    return category.id;
+  };
   await prisma.transaction.createMany({
     data: SEED.map((t) => ({
       userId: user.id,

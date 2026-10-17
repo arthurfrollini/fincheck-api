@@ -1,9 +1,9 @@
-jest.mock('uuid', () => ({ v4: jest.fn().mockReturnValue('test-uuid') }));
+jest.mock('uuid', () => ({ v4: () => 'test-uuid' }));
 // Typed as the promise overload AuthService uses; bcrypt's callback overload
 // would otherwise make jest.mocked(compare) resolve to never.
 const mockCompare = jest.fn<Promise<boolean>, [string, string]>();
 jest.mock('bcryptjs', () => ({
-  hash: jest.fn().mockResolvedValue('hashed'),
+  hash: () => Promise.resolve('hashed'),
   compare: (data: string, encrypted: string) => mockCompare(data, encrypted),
 }));
 jest.mock('@shared/config/env', () => ({
@@ -26,6 +26,7 @@ jest.mock('@shared/config/env', () => ({
   },
 }));
 
+import { mock } from 'jest-mock-extended';
 import {
   BadRequestException,
   ConflictException,
@@ -40,31 +41,15 @@ import { UsersRepository } from '@modules/users/domain/repositories/users.reposi
 import { Plan, Role } from '@modules/users/entities/User';
 import { AuthService } from './auth.service';
 
-const mockUsersRepository = {
-  findByEmail: jest.fn(),
-  findByGoogleId: jest.fn(),
-  findById: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-};
+const mockUsersRepository = mock<UsersRepository>();
 
-const mockRefreshTokensRepository = {
-  findByToken: jest.fn(),
-  create: jest.fn(),
-  deleteByToken: jest.fn(),
-};
+const mockRefreshTokensRepository = mock<RefreshTokensRepository>();
 
-const mockJwtService = {
-  signAsync: jest.fn(),
-};
+const mockJwtService = mock<JwtService>();
 
-const mockMailQueueService = {
-  queueWelcome: jest.fn(),
-};
+const mockMailQueueService = mock<MailQueueService>();
 
-const mockBillingService = {
-  createCustomerAndSubscribe: jest.fn(),
-};
+const mockBillingService = mock<BillingService>();
 
 const baseUser = {
   id: 'user-1',
@@ -88,7 +73,12 @@ describe('AuthService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     mockJwtService.signAsync.mockResolvedValue('access-token');
-    mockRefreshTokensRepository.create.mockResolvedValue(undefined);
+    mockRefreshTokensRepository.create.mockResolvedValue({
+      id: 'rt-1',
+      userId: 'user-1',
+      token: 'test-uuid',
+      expiresAt: new Date(),
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

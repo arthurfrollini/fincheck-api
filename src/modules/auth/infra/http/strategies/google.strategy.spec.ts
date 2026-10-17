@@ -1,3 +1,4 @@
+import { type VerifyCallback } from 'passport-google-oauth20';
 jest.mock('@shared/config/env', () => ({
   env: {
     googleClientId: 'client-id-fake',
@@ -11,7 +12,7 @@ import { GoogleStrategy } from './google.strategy';
 describe('GoogleStrategy', () => {
   it('maps the passport profile into a GoogleProfile and calls done with it', () => {
     const strategy = new GoogleStrategy();
-    const done = jest.fn();
+    const done = jest.fn<void, Parameters<VerifyCallback>>();
 
     strategy.validate(
       'access-token',

@@ -1,18 +1,3 @@
-const mockStripe = {
-  customers: {
-    create: jest.fn(),
-    retrieve: jest.fn(),
-    update: jest.fn(),
-  },
-  setupIntents: { create: jest.fn() },
-  subscriptions: {
-    create: jest.fn(),
-    list: jest.fn(),
-    update: jest.fn(),
-  },
-  paymentMethods: { attach: jest.fn() },
-};
-jest.mock('stripe', () => jest.fn().mockImplementation(() => mockStripe));
 jest.mock('@shared/config/env', () => ({
   env: {
     stripeSecretKey: 'sk_test_fake',
@@ -22,47 +7,61 @@ jest.mock('@shared/config/env', () => ({
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
 import { STRIPE_CLIENT } from './stripe.provider';
 import { objectContaining } from '../../../test/helpers/match';
+import { mock, mockReset } from 'jest-mock-extended';
+import Stripe from 'stripe';
+import { userRow } from '../../../test/helpers/prisma-rows';
+import { stripeMethod } from '../../../test/helpers/stripe';
 
-const mockUsersRepository = {
-  findById: jest.fn(),
-  update: jest.fn(),
+const stripe = {
+  customers: {
+    create: stripeMethod<Stripe['customers']['create']>(),
+    retrieve: stripeMethod<Stripe['customers']['retrieve']>(),
+    update: stripeMethod<Stripe['customers']['update']>(),
+  },
+  setupIntents: { create: stripeMethod<Stripe['setupIntents']['create']>() },
+  subscriptions: {
+    create: stripeMethod<Stripe['subscriptions']['create']>(),
+    list: stripeMethod<Stripe['subscriptions']['list']>(),
+    update: stripeMethod<Stripe['subscriptions']['update']>(),
+  },
+  paymentMethods: {
+    attach: stripeMethod<Stripe['paymentMethods']['attach']>(),
+  },
 };
+
+const mockUsersRepository = mock<UsersRepository>();
 
 const ACTIVE_SUB = {
   id: 'sub_1',
   items: { data: [{ id: 'si_1', price: { id: 'price_gold' } }] },
 };
 
-const baseUser: {
-  id: string;
-  email: string;
-  name: string;
-  stripeCustomerId: string | null;
-  stripePriceId: string | null;
-} = {
+const baseUser = userRow({
   id: 'user_1',
   email: 'test@example.com',
   name: 'Test User',
-  stripeCustomerId: null,
-  stripePriceId: null,
-};
+});
 
 describe('BillingService', () => {
   let service: BillingService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockReset(mockUsersRepository);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BillingService,
         { provide: UsersRepository, useValue: mockUsersRepository },
-        { provide: STRIPE_CLIENT, useValue: mockStripe },
+        { provide: STRIPE_CLIENT, useValue: stripe },
       ],
     }).compile();
 
@@ -79,14 +78,14 @@ describe('BillingService', () => {
         ...baseUser,
         stripeCustomerId: null,
       });
-      mockStripe.customers.create.mockResolvedValue({ id: 'cus_new' });
-      mockStripe.setupIntents.create.mockResolvedValue({
+      stripe.customers.create.mockResolvedValue({ id: 'cus_new' });
+      stripe.setupIntents.create.mockResolvedValue({
         client_secret: 'seti_secret',
       });
 
       const result = await service.createSetupIntent('user_1');
 
-      expect(mockStripe.customers.create).toHaveBeenCalledWith({
+      expect(stripe.customers.create).toHaveBeenCalledWith({
         email: baseUser.email,
         name: baseUser.name,
         metadata: { userId: 'user_1' },
@@ -102,14 +101,26 @@ describe('BillingService', () => {
         ...baseUser,
         stripeCustomerId: 'cus_existing',
       });
-      mockStripe.setupIntents.create.mockResolvedValue({
+      stripe.setupIntents.create.mockResolvedValue({
         client_secret: 'seti_secret2',
       });
 
       const result = await service.createSetupIntent('user_1');
 
-      expect(mockStripe.customers.create).not.toHaveBeenCalled();
+      expect(stripe.customers.create).not.toHaveBeenCalled();
       expect(result).toEqual({ clientSecret: 'seti_secret2' });
+    });
+
+    it('fails loudly when Stripe returns no client secret', async () => {
+      mockUsersRepository.findById.mockResolvedValue({
+        ...baseUser,
+        stripeCustomerId: 'cus_existing',
+      });
+      stripe.setupIntents.create.mockResolvedValue({ client_secret: null });
+
+      await expect(service.createSetupIntent('user_1')).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
   });
 
@@ -134,7 +145,7 @@ describe('BillingService', () => {
         ...baseUser,
         stripeCustomerId: 'cus_1',
       });
-      mockStripe.customers.retrieve.mockResolvedValue({ deleted: true });
+      stripe.customers.retrieve.mockResolvedValue({ deleted: true });
 
       await expect(
         service.createSubscription('user_1', 'GOLD'),
@@ -146,8 +157,7 @@ describe('BillingService', () => {
         ...baseUser,
         stripeCustomerId: 'cus_1',
       });
-      mockStripe.customers.retrieve.mockResolvedValue({
-        deleted: false,
+      stripe.customers.retrieve.mockResolvedValue({
         invoice_settings: { default_payment_method: null },
       });
 
@@ -161,16 +171,15 @@ describe('BillingService', () => {
         ...baseUser,
         stripeCustomerId: 'cus_1',
       });
-      mockStripe.customers.retrieve.mockResolvedValue({
-        deleted: false,
+      stripe.customers.retrieve.mockResolvedValue({
         invoice_settings: { default_payment_method: 'pm_1' },
       });
-      mockStripe.subscriptions.create.mockResolvedValue({});
+      stripe.subscriptions.create.mockResolvedValue({});
 
       await service.createSubscription('user_1', 'GOLD');
 
-      expect(mockStripe.subscriptions.create).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(stripe.subscriptions.create).toHaveBeenCalledWith(
+        objectContaining({
           customer: 'cus_1',
           items: [{ price: 'price_gold' }],
           default_payment_method: 'pm_1',
@@ -186,8 +195,7 @@ describe('BillingService', () => {
         ...baseUser,
         stripeCustomerId: 'cus_1',
       });
-      mockStripe.customers.retrieve.mockResolvedValue({
-        deleted: false,
+      stripe.customers.retrieve.mockResolvedValue({
         invoice_settings: {
           default_payment_method: {
             id: 'pm_expanded',
@@ -195,11 +203,11 @@ describe('BillingService', () => {
           },
         },
       });
-      mockStripe.subscriptions.create.mockResolvedValue({});
+      stripe.subscriptions.create.mockResolvedValue({});
 
       await service.createSubscription('user_1', 'GOLD');
 
-      expect(mockStripe.subscriptions.create).toHaveBeenCalledWith(
+      expect(stripe.subscriptions.create).toHaveBeenCalledWith(
         objectContaining({ default_payment_method: 'pm_expanded' }),
       );
     });
@@ -226,11 +234,11 @@ describe('BillingService', () => {
         ...baseUser,
         stripeCustomerId: 'cus_1',
       });
-      mockStripe.subscriptions.list.mockResolvedValue({ data: [ACTIVE_SUB] });
+      stripe.subscriptions.list.mockResolvedValue({ data: [ACTIVE_SUB] });
 
       await service.changePlan('user_1', 'FREE');
 
-      expect(mockStripe.subscriptions.update).toHaveBeenCalledWith('sub_1', {
+      expect(stripe.subscriptions.update).toHaveBeenCalledWith('sub_1', {
         cancel_at_period_end: true,
       });
       expect(mockUsersRepository.update).not.toHaveBeenCalled();
@@ -242,14 +250,14 @@ describe('BillingService', () => {
         stripeCustomerId: 'cus_1',
         stripePriceId: 'price_gold',
       });
-      mockStripe.subscriptions.list.mockResolvedValue({ data: [ACTIVE_SUB] });
-      mockStripe.subscriptions.update.mockResolvedValue({});
+      stripe.subscriptions.list.mockResolvedValue({ data: [ACTIVE_SUB] });
+      stripe.subscriptions.update.mockResolvedValue({});
 
       await service.changePlan('user_1', 'PLATINUM');
 
-      expect(mockStripe.subscriptions.update).toHaveBeenCalledWith(
+      expect(stripe.subscriptions.update).toHaveBeenCalledWith(
         'sub_1',
-        expect.objectContaining({
+        objectContaining({
           proration_behavior: 'always_invoice',
           items: [{ id: 'si_1', price: 'price_platinum' }],
         }),
@@ -265,14 +273,14 @@ describe('BillingService', () => {
         stripeCustomerId: 'cus_1',
         stripePriceId: 'price_platinum',
       });
-      mockStripe.subscriptions.list.mockResolvedValue({ data: [ACTIVE_SUB] });
-      mockStripe.subscriptions.update.mockResolvedValue({});
+      stripe.subscriptions.list.mockResolvedValue({ data: [ACTIVE_SUB] });
+      stripe.subscriptions.update.mockResolvedValue({});
 
       await service.changePlan('user_1', 'GOLD');
 
-      expect(mockStripe.subscriptions.update).toHaveBeenCalledWith(
+      expect(stripe.subscriptions.update).toHaveBeenCalledWith(
         'sub_1',
-        expect.objectContaining({
+        objectContaining({
           proration_behavior: 'none',
           items: [{ id: 'si_1', price: 'price_gold' }],
         }),
@@ -301,12 +309,12 @@ describe('BillingService', () => {
         ...baseUser,
         stripeCustomerId: 'cus_1',
       });
-      mockStripe.subscriptions.list.mockResolvedValue({ data: [ACTIVE_SUB] });
-      mockStripe.subscriptions.update.mockResolvedValue({});
+      stripe.subscriptions.list.mockResolvedValue({ data: [ACTIVE_SUB] });
+      stripe.subscriptions.update.mockResolvedValue({});
 
       await service.cancelSubscription('user_1');
 
-      expect(mockStripe.subscriptions.update).toHaveBeenCalledWith('sub_1', {
+      expect(stripe.subscriptions.update).toHaveBeenCalledWith('sub_1', {
         cancel_at_period_end: true,
       });
     });
@@ -322,21 +330,21 @@ describe('BillingService', () => {
         ...baseUser,
         stripeCustomerId: null,
       });
-      mockStripe.customers.create.mockResolvedValue({ id: 'cus_new' });
-      mockStripe.paymentMethods.attach.mockResolvedValue({});
-      mockStripe.customers.update.mockResolvedValue({});
-      mockStripe.subscriptions.create.mockResolvedValue({});
+      stripe.customers.create.mockResolvedValue({ id: 'cus_new' });
+      stripe.paymentMethods.attach.mockResolvedValue({});
+      stripe.customers.update.mockResolvedValue({});
+      stripe.subscriptions.create.mockResolvedValue({});
 
       await service.createCustomerAndSubscribe('user_1', 'pm_test', 'GOLD');
 
-      expect(mockStripe.paymentMethods.attach).toHaveBeenCalledWith('pm_test', {
+      expect(stripe.paymentMethods.attach).toHaveBeenCalledWith('pm_test', {
         customer: 'cus_new',
       });
-      expect(mockStripe.customers.update).toHaveBeenCalledWith('cus_new', {
+      expect(stripe.customers.update).toHaveBeenCalledWith('cus_new', {
         invoice_settings: { default_payment_method: 'pm_test' },
       });
-      expect(mockStripe.subscriptions.create).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(stripe.subscriptions.create).toHaveBeenCalledWith(
+        objectContaining({
           customer: 'cus_new',
           items: [{ price: 'price_gold' }],
           default_payment_method: 'pm_test',

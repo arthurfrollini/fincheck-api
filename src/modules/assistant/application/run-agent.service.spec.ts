@@ -56,17 +56,22 @@ function toolResults(
   );
 }
 
+const toolFn = () => jest.fn<Promise<unknown>, [unknown]>();
+
 function handlers(overrides: Partial<ToolHandlers> = {}): ToolHandlers {
   return {
-    fetch_categories: jest
-      .fn()
-      .mockResolvedValue([{ id: 'c1', name: 'Alimentação', type: 'EXPENSE' }]),
-    query_transactions: jest
-      .fn()
-      .mockResolvedValue({ transactions: [], total: 0, truncated: false }),
-    compute_totals: jest
-      .fn()
-      .mockResolvedValue({ groups: [], grandTotal: 412.37 }),
+    fetch_categories: toolFn().mockResolvedValue([
+      { id: 'c1', name: 'Alimentação', type: 'EXPENSE' },
+    ]),
+    query_transactions: toolFn().mockResolvedValue({
+      transactions: [],
+      total: 0,
+      truncated: false,
+    }),
+    compute_totals: toolFn().mockResolvedValue({
+      groups: [],
+      grandTotal: 412.37,
+    }),
     ...overrides,
   };
 }
@@ -163,7 +168,7 @@ describe('runAgentLoop', () => {
     const llm = mock<LlmService>();
     llm.complete.mockResolvedValue(toolCall(totals));
     const failing = handlers({
-      compute_totals: jest.fn().mockRejectedValue(new Error('db down')),
+      compute_totals: toolFn().mockRejectedValue(new Error('db down')),
     });
 
     const result = await runAgentLoop({
@@ -183,8 +188,7 @@ describe('runAgentLoop', () => {
   });
 
   it('recovers when a failed round is followed by a working one', async () => {
-    const flaky = jest
-      .fn()
+    const flaky = toolFn()
       .mockRejectedValueOnce(new Error('blip'))
       .mockResolvedValue({ groups: [], grandTotal: 1 });
     const llm = mock<LlmService>();

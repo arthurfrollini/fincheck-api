@@ -16,9 +16,13 @@ import {
   type SuiteIO,
 } from './suite';
 import { objectContaining } from '../../test/helpers/match';
+import { must } from '../../test/helpers/must';
 
 const tokens = usage({ input_tokens: 400, output_tokens: 30 });
-const mercado = EVAL_CATEGORIES.find((c) => c.name === 'Mercado')!.id;
+const mercado = must(
+  EVAL_CATEGORIES.find((c) => c.name === 'Mercado'),
+  'category Mercado',
+).id;
 
 const cases: GoldenCase[] = Array.from({ length: 4 }, (_, i) => ({
   id: `r${i}`,

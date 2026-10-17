@@ -16,6 +16,7 @@ import { KnowledgeChunksPrismaRepository } from '../../src/modules/education/inf
 import { TransformersEmbeddingProvider } from '../../src/modules/education/infra/embeddings/transformers-embedding.provider';
 import { createEvalLogger } from '../lib/eval-logger';
 import { PrismaService } from '../../src/shared/database/prisma.service';
+import { AiUsagePrismaRepository } from '../../src/shared/llm/ai-usage.prisma.repository';
 import { PlanGuardService } from '../../src/shared/plan/plan-guard.service';
 import { assertRealKey } from '../categorization/runner';
 import { baselineSchema } from '../lib/baseline';
@@ -63,7 +64,7 @@ async function main(): Promise<number> {
       new TransformersEmbeddingProvider(),
       new KnowledgeChunksPrismaRepository(prisma),
       llm,
-      new UnlimitedPlanGuard(prisma),
+      new UnlimitedPlanGuard(prisma, new AiUsagePrismaRepository(prisma)),
     );
 
     const results = await runAnswerEval({

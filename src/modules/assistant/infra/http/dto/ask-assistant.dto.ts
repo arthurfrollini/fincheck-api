@@ -10,5 +10,5 @@ export class AskAssistantDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(500)
-  question: string;
+  question!: string;
 }

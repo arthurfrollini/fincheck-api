@@ -10,13 +10,6 @@ jest.mock('@shared/config/env', () => ({
   },
 }));
 
-// Mock the Resend SDK before importing MailService
-jest.mock('resend', () => ({
-  Resend: jest.fn().mockImplementation(() => ({
-    emails: { send: jest.fn() },
-  })),
-}));
-
 import { MailProcessor } from './mail.processor';
 import { MailService } from './mail.service';
 import {

@@ -13,13 +13,13 @@ export class CreateUserDto {
   @ApiProperty({ description: 'Full name', example: 'New User' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Email address', example: 'new@example.com' })
   @IsString()
   @IsNotEmpty()
   @IsEmail()
-  email: string;
+  email!: string;
 
   @ApiProperty({
     description: 'Password, minimum 8 characters',
@@ -29,7 +29,7 @@ export class CreateUserDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
-  password: string;
+  password!: string;
 
   @ApiPropertyOptional({ description: 'Role — defaults to USER', enum: Role })
   @IsEnum(Role)

@@ -52,7 +52,15 @@ export default tseslint.config(
           selector: 'TSAsExpression[typeAnnotation.type="TSNeverKeyword"]',
           message: 'No `as never`: type the value instead.',
         },
+        {
+          // A bare jest.fn() is Mock<any, any>: whatever it returns or is
+          // called with goes unchecked.
+          selector: 'CallExpression[callee.object.name="jest"][callee.property.name="fn"][arguments.length=0]:not([typeArguments])',
+          message: 'No untyped jest.fn(): use mock<T>(), jest.fn<Return, Args>(), or pass a typed implementation.',
+        },
       ],
+      // Handle the missing case instead of asserting it away.
+      '@typescript-eslint/no-non-null-assertion': 'error',
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },

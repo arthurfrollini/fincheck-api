@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import Stripe from 'stripe';
@@ -60,7 +61,13 @@ export class BillingService {
       payment_method_types: ['card'],
     });
 
-    return { clientSecret: setupIntent.client_secret! };
+    if (!setupIntent.client_secret) {
+      throw new InternalServerErrorException(
+        'Stripe did not return a client secret.',
+      );
+    }
+
+    return { clientSecret: setupIntent.client_secret };
   }
 
   async createSubscription(

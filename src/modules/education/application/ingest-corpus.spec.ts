@@ -1,5 +1,8 @@
 import { createHash } from 'crypto';
-import { type KnowledgeChunkWithEmbedding } from '../entities/KnowledgeChunk';
+import { mock } from 'jest-mock-extended';
+import { type EmbeddingProvider } from '../domain/embedding-provider';
+import { type KnowledgeChunksRepository } from '../domain/repositories/knowledge-chunks.repository';
+import { type PageText } from './chunking';
 import { ingestCorpus } from './ingest-corpus';
 
 const pdf = new TextEncoder().encode('fake pdf bytes');
@@ -10,22 +13,17 @@ const page = (n: number, words: number) => ({
 });
 
 function deps(expectedSha = sha) {
-  const repository = {
-    replaceAll: jest.fn((chunks: KnowledgeChunkWithEmbedding[]) =>
-      Promise.resolve(chunks.length),
-    ),
-    searchSimilar: jest.fn(),
-    count: jest.fn(),
-    findAll: jest.fn(),
-  };
-  const extractPages = jest.fn().mockResolvedValue([page(1, 50), page(2, 60)]);
-  const embeddings = {
-    dimensions: 384,
-    embedQuery: jest.fn(),
-    embedPassages: jest.fn((texts: string[]) =>
-      Promise.resolve(texts.map((_, i) => [i])),
-    ),
-  };
+  const repository = mock<KnowledgeChunksRepository>();
+  repository.replaceAll.mockImplementation((chunks) =>
+    Promise.resolve(chunks.length),
+  );
+  const extractPages = jest
+    .fn<Promise<PageText[]>, [Uint8Array]>()
+    .mockResolvedValue([page(1, 50), page(2, 60)]);
+  const embeddings = mock<EmbeddingProvider>({ dimensions: 384 });
+  embeddings.embedPassages.mockImplementation((texts) =>
+    Promise.resolve(texts.map((_, i) => [i])),
+  );
   return {
     repository,
     extractPages,

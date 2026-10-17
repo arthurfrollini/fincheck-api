@@ -1,3 +1,5 @@
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { bankAccountRow } from '../../../../test/helpers/prisma-rows';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
 import { BankAccountsService } from './bank-accounts.service';
@@ -20,30 +22,14 @@ const ACCOUNT_ID = 'account-1';
 
 describe('BankAccountsService', () => {
   let service: BankAccountsService;
-  let mockBankAccountsRepository: {
-    create: jest.Mock;
-    findManyWithTransactions: jest.Mock;
-    update: jest.Mock;
-    delete: jest.Mock;
-  };
-  let mockValidateOwnership: { validate: jest.Mock };
-  let mockPlanGuard: {
-    validateBankAccountLimit: jest.Mock;
-    getActiveAccountIds: jest.Mock;
-  };
+  let mockBankAccountsRepository: MockProxy<BankAccountsRepository>;
+  let mockValidateOwnership: MockProxy<ValidateBankAccountOwnershipService>;
+  let mockPlanGuard: MockProxy<PlanGuardService>;
 
   beforeEach(async () => {
-    mockBankAccountsRepository = {
-      create: jest.fn(),
-      findManyWithTransactions: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    };
-    mockValidateOwnership = { validate: jest.fn() };
-    mockPlanGuard = {
-      validateBankAccountLimit: jest.fn(),
-      getActiveAccountIds: jest.fn(),
-    };
+    mockBankAccountsRepository = mock<BankAccountsRepository>();
+    mockValidateOwnership = mock<ValidateBankAccountOwnershipService>();
+    mockPlanGuard = mock<PlanGuardService>();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -193,8 +179,14 @@ describe('BankAccountsService', () => {
     };
 
     it('calls validateOwnership.validate then bankAccountsRepository.update', async () => {
-      const updated = { id: ACCOUNT_ID, userId: USER_ID, ...dto };
-      mockValidateOwnership.validate.mockResolvedValue(undefined);
+      const updated = bankAccountRow({
+        id: ACCOUNT_ID,
+        userId: USER_ID,
+        ...dto,
+      });
+      mockValidateOwnership.validate.mockResolvedValue(
+        bankAccountRow({ id: ACCOUNT_ID }),
+      );
       mockBankAccountsRepository.update.mockResolvedValue(updated);
 
       const result = await service.update(USER_ID, ACCOUNT_ID, dto);
@@ -218,7 +210,9 @@ describe('BankAccountsService', () => {
 
   describe('remove', () => {
     it('calls validateOwnership.validate then bankAccountsRepository.delete', async () => {
-      mockValidateOwnership.validate.mockResolvedValue(undefined);
+      mockValidateOwnership.validate.mockResolvedValue(
+        bankAccountRow({ id: ACCOUNT_ID }),
+      );
       mockBankAccountsRepository.delete.mockResolvedValue(undefined);
 
       await service.remove(USER_ID, ACCOUNT_ID);

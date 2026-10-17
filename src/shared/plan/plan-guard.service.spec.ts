@@ -19,7 +19,7 @@ describe('PlanGuardService', () => {
       prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
       prisma.bankAccount.count.mockResolvedValue(2);
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       await expect(svc.validateBankAccountLimit('u1')).resolves.toBeUndefined();
     });
 
@@ -28,7 +28,7 @@ describe('PlanGuardService', () => {
       prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
       prisma.bankAccount.count.mockResolvedValue(3);
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       await expect(svc.validateBankAccountLimit('u1')).rejects.toThrow(
         ForbiddenException,
       );
@@ -39,7 +39,7 @@ describe('PlanGuardService', () => {
       prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'PLATINUM' }));
       prisma.bankAccount.count.mockResolvedValue(999);
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       await expect(svc.validateBankAccountLimit('u1')).resolves.toBeUndefined();
     });
   });
@@ -49,7 +49,7 @@ describe('PlanGuardService', () => {
       const prisma = makePrisma();
       prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       await expect(svc.validateCategoryAccess('u1')).rejects.toThrow(
         ForbiddenException,
       );
@@ -59,7 +59,7 @@ describe('PlanGuardService', () => {
       const prisma = makePrisma();
       prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'GOLD' }));
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       await expect(svc.validateCategoryAccess('u1')).resolves.toBeUndefined();
     });
   });
@@ -69,7 +69,7 @@ describe('PlanGuardService', () => {
       const prisma = makePrisma();
       prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'PLATINUM' }));
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       const result = await svc.getActiveAccountIds('u1');
       expect(result.isUnlimited).toBe(true);
     });
@@ -83,7 +83,7 @@ describe('PlanGuardService', () => {
         bankAccountRow({ id: 'a3' }),
       ]);
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       const result = await svc.getActiveAccountIds('u1');
       expect(result.isUnlimited).toBe(false);
       expect(result.ids.has('a1')).toBe(true);
@@ -99,7 +99,7 @@ describe('PlanGuardService', () => {
         userRow({ plan: 'ADMINISTRATOR' }),
       );
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       const result = await svc.getActiveAccountIds('u1');
       expect(result.isUnlimited).toBe(true);
       expect(result.ids.size).toBe(0);
@@ -113,7 +113,7 @@ describe('PlanGuardService', () => {
       prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
       prisma.transaction.count.mockResolvedValue(30);
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       await expect(
         svc.validateDailyTransactionLimit('u1'),
       ).resolves.toBeUndefined();
@@ -124,7 +124,7 @@ describe('PlanGuardService', () => {
       prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
       prisma.transaction.count.mockResolvedValue(50);
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       await expect(svc.validateDailyTransactionLimit('u1')).rejects.toThrow(
         ForbiddenException,
       );
@@ -136,7 +136,7 @@ describe('PlanGuardService', () => {
         userRow({ plan: 'ADMINISTRATOR' }),
       );
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       await expect(
         svc.validateDailyTransactionLimit('u1'),
       ).resolves.toBeUndefined();
@@ -153,7 +153,7 @@ describe('PlanGuardService', () => {
         bankAccountRow({ id: 'a2' }),
       ]);
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       await expect(
         svc.validateBankAccountIsActive('u1', 'a1'),
       ).resolves.toBeUndefined();
@@ -167,7 +167,7 @@ describe('PlanGuardService', () => {
         bankAccountRow({ id: 'a2' }),
       ]);
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       await expect(svc.validateBankAccountIsActive('u1', 'a3')).rejects.toThrow(
         ForbiddenException,
       );
@@ -177,7 +177,7 @@ describe('PlanGuardService', () => {
       const prisma = makePrisma();
       prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'PLATINUM' }));
 
-      const svc = new PlanGuardService(prisma);
+      const svc = new PlanGuardService(prisma, mock<AiUsageRepository>());
       await expect(
         svc.validateBankAccountIsActive('u1', 'any-id'),
       ).resolves.toBeUndefined();

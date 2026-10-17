@@ -9,5 +9,5 @@ export class RequestEmailChangeDto {
   @IsString()
   @IsNotEmpty()
   @IsEmail()
-  newEmail: string;
+  newEmail!: string;
 }

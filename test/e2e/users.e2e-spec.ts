@@ -1,3 +1,4 @@
+import { must } from '../helpers/must';
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
 import type { App } from 'supertest/types';
@@ -130,11 +131,9 @@ describe('Users (e2e)', () => {
         where: { pendingEmail: newEmail },
       });
 
-      expect(user).not.toBeNull();
-
       const res = await request(app.getHttpServer())
         .get('/users/confirm-email')
-        .query({ token: user!.emailToken });
+        .query({ token: must(user, 'user with the pending email').emailToken });
 
       expect(res.status).toBe(204);
     });

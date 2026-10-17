@@ -1,3 +1,4 @@
+import type { Resend } from 'resend';
 import { MailService } from './mail.service';
 import {
   anyInstance,
@@ -14,12 +15,15 @@ jest.mock('@shared/config/env', () => ({
 }));
 
 // Mock the Resend SDK before importing MailService
-const sendMock = jest.fn().mockResolvedValue({ data: {}, error: null });
+const sendMock = jest
+  .fn<
+    ReturnType<Resend['emails']['send']>,
+    Parameters<Resend['emails']['send']>
+  >()
+  .mockResolvedValue({ data: { id: 'email_1' }, error: null, headers: null });
 
 jest.mock('resend', () => ({
-  Resend: jest.fn().mockImplementation(() => ({
-    emails: { send: sendMock },
-  })),
+  Resend: jest.fn(() => ({ emails: { send: sendMock } })),
 }));
 
 describe('MailService', () => {
@@ -117,7 +121,8 @@ describe('MailService', () => {
     it('throws when Resend returns an error (so the job fails and retries)', async () => {
       sendMock.mockResolvedValueOnce({
         data: null,
-        error: { name: 'application_error', message: 'boom' },
+        error: { name: 'application_error', message: 'boom', statusCode: 500 },
+        headers: null,
       });
 
       await expect(

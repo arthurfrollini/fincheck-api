@@ -1,13 +1,15 @@
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { transactionRow } from '../../../../test/helpers/prisma-rows';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ValidateTransactionOwnershipService } from './validate-transaction-ownership.service';
 import { TransactionsRepository } from '../domain/repositories/transactions.repository';
 
 describe('ValidateTransactionOwnershipService', () => {
   let service: ValidateTransactionOwnershipService;
-  let mockRepository: { findFirst: jest.Mock };
+  let mockRepository: MockProxy<TransactionsRepository>;
 
   beforeEach(async () => {
-    mockRepository = { findFirst: jest.fn() };
+    mockRepository = mock<TransactionsRepository>();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -20,7 +22,7 @@ describe('ValidateTransactionOwnershipService', () => {
   });
 
   it('returns the entity when found', async () => {
-    const entity = { id: 'transaction-1', userId: 'user-1' };
+    const entity = transactionRow({ id: 'transaction-1', userId: 'user-1' });
     mockRepository.findFirst.mockResolvedValue(entity);
 
     const result = await service.validate('user-1', 'transaction-1');

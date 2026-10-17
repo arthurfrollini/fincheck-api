@@ -1,44 +1,42 @@
+import { mock } from 'jest-mock-extended';
+import { CategoriesRepository } from '@modules/categories/domain/repositories/categories.repository';
+import { TransactionsRepository } from '@modules/transactions/domain/repositories/transactions.repository';
 import { toolUseBlock } from '../../../../test/helpers/llm';
 import type Anthropic from '@anthropic-ai/sdk';
 import { AGENT_TOOLS, buildToolHandlers, runTool } from './agent-tools';
 
 function deps() {
-  return {
-    transactions: {
-      search: jest.fn().mockResolvedValue({
-        data: [
-          {
-            id: 't1',
-            name: 'Assaí',
-            value: 50,
-            date: new Date('2026-09-05T12:00:00Z'),
-            type: 'EXPENSE',
-            categoryId: 'c1',
-            categoryName: 'Mercado',
-            userId: 'u1',
-            bankAccountId: 'b1',
-          },
-        ],
-        total: 1,
-      }),
-      totals: jest
-        .fn()
-        .mockResolvedValue([
-          { key: 'all', label: 'Total', total: 50, count: 1 },
-        ]),
+  const transactions = mock<TransactionsRepository>();
+  transactions.search.mockResolvedValue({
+    data: [
+      {
+        id: 't1',
+        name: 'Assaí',
+        value: 50,
+        date: new Date('2026-09-05T12:00:00Z'),
+        type: 'EXPENSE',
+        categoryId: 'c1',
+        categoryName: 'Mercado',
+        userId: 'u1',
+        bankAccountId: 'b1',
+      },
+    ],
+    total: 1,
+  });
+  transactions.totals.mockResolvedValue([
+    { key: 'all', label: 'Total', total: 50, count: 1 },
+  ]);
+  const categories = mock<CategoriesRepository>();
+  categories.findAllByUserId.mockResolvedValue([
+    {
+      id: 'c1',
+      userId: 'u1',
+      name: 'Mercado',
+      icon: 'grocery',
+      type: 'EXPENSE',
     },
-    categories: {
-      findAllByUserId: jest.fn().mockResolvedValue([
-        {
-          id: 'c1',
-          userId: 'u1',
-          name: 'Mercado',
-          icon: 'grocery',
-          type: 'EXPENSE',
-        },
-      ]),
-    },
-  };
+  ]);
+  return { transactions, categories };
 }
 
 const use = (name: string, input: unknown): Anthropic.ToolUseBlock =>
@@ -232,7 +230,7 @@ describe('agent tools', () => {
     d.transactions.search.mockRejectedValueOnce(
       Object.assign(new Error('boom'), { code: 'P1001' }),
     );
-    const onError = jest.fn();
+    const onError = jest.fn<void, [string, unknown]>();
 
     await runTool(
       buildToolHandlers('u1', d),

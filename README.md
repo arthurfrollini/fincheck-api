@@ -18,7 +18,8 @@ REST API for a personal finance app. Users track bank accounts and transactions 
 - **Billing:** Stripe (subscriptions, webhooks, dunning)
 - **Security:** IP rate limiting (`@nestjs/throttler`), per-plan AI quotas, a global daily AI spend ceiling
 - **Observability:** OpenTelemetry traces and metrics to Jaeger and Prometheus, structured logs (`nestjs-pino`) to Loki, all in Grafana, including an LLM spend dashboard
-- **Tests:** Jest 30 + Supertest. 440 unit tests (including the eval harness) and 95 e2e tests, 95.5% combined statement coverage.
+- **Tests:** Jest 30 + Supertest. 466 unit tests (including the eval harness) and 95 e2e tests, 95.6% combined statement coverage. Mocks are typed (`jest-mock-extended`), so a fixture that drifts from the real type fails to compile.
+- **Type safety:** TypeScript `strict`, with no `any`, no type assertions (`as const` aside) and no non-null `!` anywhere, tests included. ESLint enforces all three. Untrusted input (env vars, job payloads, JSON files, HTTP response bodies in e2e) is parsed with zod.
 
 ## Architecture
 

@@ -7,5 +7,5 @@ export class ChangePlanDto {
     enum: ['GOLD', 'PLATINUM', 'FREE'],
   })
   @IsIn(['GOLD', 'PLATINUM', 'FREE'])
-  planId: 'GOLD' | 'PLATINUM' | 'FREE';
+  planId!: 'GOLD' | 'PLATINUM' | 'FREE';
 }

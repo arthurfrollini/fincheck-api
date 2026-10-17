@@ -7,5 +7,5 @@ export class SubscribeDto {
     enum: ['GOLD', 'PLATINUM'],
   })
   @IsIn(['GOLD', 'PLATINUM'])
-  planId: 'GOLD' | 'PLATINUM';
+  planId!: 'GOLD' | 'PLATINUM';
 }
