@@ -197,14 +197,19 @@ export function buildToolHandlers(
 
 // Never throws: a failed or invalid call becomes an is_error tool_result, so
 // the conversation stays well-formed and the model can correct its input.
+function isToolName(handlers: ToolHandlers, name: string): name is ToolName {
+  return Object.hasOwn(handlers, name);
+}
+
 export async function runTool(
   handlers: ToolHandlers,
   block: Anthropic.ToolUseBlock,
   // Reports internal failures (never the input, which is user data).
   onError?: (tool: string, err: unknown) => void,
 ): Promise<Anthropic.ToolResultBlockParam> {
-  const handler = handlers[block.name as ToolName];
-  if (!handler) {
+  const { name } = block;
+  // Own keys only: names like 'toString' exist on every object's prototype.
+  if (!isToolName(handlers, name)) {
     return {
       type: 'tool_result',
       tool_use_id: block.id,
@@ -213,7 +218,7 @@ export async function runTool(
     };
   }
   try {
-    const result = await handler(block.input);
+    const result = await handlers[name](block.input);
     return {
       type: 'tool_result',
       tool_use_id: block.id,
