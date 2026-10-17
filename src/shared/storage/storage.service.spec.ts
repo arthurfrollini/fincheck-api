@@ -14,16 +14,14 @@ jest.mock('@shared/config/env', () => ({
 
 // Mock the AWS SDK modules before importing StorageService
 jest.mock('@aws-sdk/client-s3', () => ({
-  S3Client: jest.fn().mockImplementation(() => ({})),
-  PutObjectCommand: jest
-    .fn()
-    .mockImplementation((input: unknown) => ({ input })),
+  S3Client: jest.fn(() => ({})),
+  PutObjectCommand: jest.fn((input: unknown) => ({ input })),
 }));
 
 jest.mock('@aws-sdk/s3-request-presigner', () => ({
-  getSignedUrl: jest
-    .fn()
-    .mockResolvedValue('https://s3.example.com/presigned-url'),
+  getSignedUrl: jest.fn(() =>
+    Promise.resolve('https://s3.example.com/presigned-url'),
+  ),
 }));
 
 describe('StorageService', () => {

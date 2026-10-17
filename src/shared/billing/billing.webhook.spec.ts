@@ -6,9 +6,12 @@ jest.mock('@shared/config/env', () => ({
   },
 }));
 
+import { mock } from 'jest-mock-extended';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
-import { getLoggerToken } from 'nestjs-pino';
+import { getLoggerToken, PinoLogger } from 'nestjs-pino';
+import Stripe from 'stripe';
+import { userRow } from '../../../test/helpers/prisma-rows';
 import { BillingWebhookHandler } from './billing.webhook';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
 import { MailQueueService } from '@shared/mail/mail-queue.service';
@@ -17,45 +20,33 @@ import { Plan } from '@modules/users/entities/User';
 import { STRIPE_CLIENT } from './stripe.provider';
 import { stripeEvent } from '../../../test/helpers/stripe';
 
-const mockUsersRepository = {
-  findByStripeCustomerId: jest.fn(),
-  update: jest.fn(),
-};
+const mockUsersRepository = mock<UsersRepository>();
 
-const mockMailQueueService = {
-  queueDowngradeNotification: jest.fn(),
-  queueSubscriptionCancelled: jest.fn(),
-};
+const mockMailQueueService = mock<MailQueueService>();
 
-const mockStripeEventsRepository = {
-  register: jest.fn(),
-  unregister: jest.fn(),
-};
+const mockStripeEventsRepository = mock<StripeEventsRepository>();
 
-const mockLogger = {
-  error: jest.fn(),
-};
+const mockLogger = mock<PinoLogger>();
 
 const mockStripe = {
-  webhooks: { constructEvent: jest.fn() },
+  webhooks: {
+    constructEvent: jest.fn<
+      Stripe.Event,
+      Parameters<Stripe['webhooks']['constructEvent']>
+    >(),
+  },
 };
 
 const makeEvent = (type: string, object: Record<string, unknown>) =>
   stripeEvent(type, object);
 
-const baseUser: {
-  id: string;
-  name: string;
-  email: string;
-  plan: Plan;
-  stripeCustomerId: string;
-} = {
+const baseUser = userRow({
   id: 'user_1',
   name: 'Test User',
   email: 'test@example.com',
   plan: Plan.FREE,
   stripeCustomerId: 'cus_test',
-};
+});
 
 describe('BillingWebhookHandler', () => {
   let handler: BillingWebhookHandler;
@@ -129,7 +120,7 @@ describe('BillingWebhookHandler', () => {
         ...baseUser,
         plan: Plan.FREE,
       });
-      mockUsersRepository.update.mockResolvedValue({});
+      mockUsersRepository.update.mockResolvedValue(baseUser);
       const event = makeEvent(
         'invoice.payment_succeeded',
         makeInvoice('cus_test', 'price_gold'),
@@ -145,7 +136,7 @@ describe('BillingWebhookHandler', () => {
         ...baseUser,
         plan: Plan.FREE,
       });
-      mockUsersRepository.update.mockResolvedValue({});
+      mockUsersRepository.update.mockResolvedValue(baseUser);
       const event = makeEvent(
         'invoice.payment_succeeded',
         makeInvoice('cus_test', { id: 'price_platinum' }),
@@ -161,7 +152,7 @@ describe('BillingWebhookHandler', () => {
         ...baseUser,
         plan: Plan.PLATINUM,
       });
-      mockUsersRepository.update.mockResolvedValue({});
+      mockUsersRepository.update.mockResolvedValue(baseUser);
       const event = makeEvent(
         'invoice.payment_succeeded',
         makeInvoice('cus_test', 'price_gold'),
@@ -177,7 +168,7 @@ describe('BillingWebhookHandler', () => {
         ...baseUser,
         plan: Plan.FREE,
       });
-      mockUsersRepository.update.mockResolvedValue({});
+      mockUsersRepository.update.mockResolvedValue(baseUser);
       const event = makeEvent(
         'invoice.payment_succeeded',
         makeInvoice('cus_test', 'price_gold'),
@@ -239,7 +230,7 @@ describe('BillingWebhookHandler', () => {
         ...baseUser,
         plan: Plan.GOLD,
       });
-      mockUsersRepository.update.mockResolvedValue({});
+      mockUsersRepository.update.mockResolvedValue(baseUser);
       const event = makeEvent('customer.subscription.deleted', {
         customer: 'cus_test',
       });
@@ -296,7 +287,7 @@ describe('BillingWebhookHandler', () => {
         ...baseUser,
         plan: Plan.FREE,
       });
-      mockUsersRepository.update.mockResolvedValue({});
+      mockUsersRepository.update.mockResolvedValue(baseUser);
       const event = makeEvent(
         'customer.subscription.updated',
         makeSubscription({
@@ -315,7 +306,7 @@ describe('BillingWebhookHandler', () => {
         ...baseUser,
         plan: Plan.PLATINUM,
       });
-      mockUsersRepository.update.mockResolvedValue({});
+      mockUsersRepository.update.mockResolvedValue(baseUser);
       const event = makeEvent(
         'customer.subscription.updated',
         makeSubscription({

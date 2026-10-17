@@ -6,6 +6,8 @@ jest.mock('@shared/config/env', () => ({
   },
 }));
 
+import { mock } from 'jest-mock-extended';
+import { transactionRow } from '../../../../test/helpers/prisma-rows';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from '../infra/http/dto/create-transaction.dto';
@@ -17,34 +19,20 @@ import { ValidateTransactionOwnershipService } from './validate-transaction-owne
 import { PlanGuardService } from '@shared/plan/plan-guard.service';
 import { CategorizationQueueService } from '../infra/queue/categorization-queue.service';
 
-const mockTransactionsRepository = {
-  findMany: jest.fn(),
-  create: jest.fn(),
-  findFirst: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-};
+const mockTransactionsRepository = mock<TransactionsRepository>();
 
-const mockValidateBankAccountOwnershipService = {
-  validate: jest.fn(),
-};
+const mockValidateBankAccountOwnershipService =
+  mock<ValidateBankAccountOwnershipService>();
 
-const mockValidateCategoryOwnershipService = {
-  validate: jest.fn(),
-};
+const mockValidateCategoryOwnershipService =
+  mock<ValidateCategoryOwnershipService>();
 
-const mockValidateTransactionOwnershipService = {
-  validate: jest.fn(),
-};
+const mockValidateTransactionOwnershipService =
+  mock<ValidateTransactionOwnershipService>();
 
-const mockPlanGuardService = {
-  validateDailyTransactionLimit: jest.fn(),
-  validateBankAccountIsActive: jest.fn(),
-};
+const mockPlanGuardService = mock<PlanGuardService>();
 
-const mockCategorizationQueueService = {
-  enqueue: jest.fn(),
-};
+const mockCategorizationQueueService = mock<CategorizationQueueService>();
 
 const makeService = async () => {
   const module: TestingModule = await Test.createTestingModule({
@@ -94,7 +82,9 @@ describe('TransactionsService', () => {
     };
 
     beforeEach(() => {
-      mockTransactionsRepository.create.mockResolvedValue({ id: 'tx-1' });
+      mockTransactionsRepository.create.mockResolvedValue(
+        transactionRow({ id: 'tx-1' }),
+      );
     });
 
     it('enqueues categorization when categoryId is absent', async () => {
@@ -116,7 +106,9 @@ describe('TransactionsService', () => {
     });
 
     it('never enqueues on update, even without categoryId', async () => {
-      mockTransactionsRepository.update.mockResolvedValue({ id: 'tx-1' });
+      mockTransactionsRepository.update.mockResolvedValue(
+        transactionRow({ id: 'tx-1' }),
+      );
 
       await service.update('user-1', 'tx-1', createDto);
 
@@ -201,7 +193,9 @@ describe('TransactionsService', () => {
     };
 
     it('runs all ownership and plan-guard checks with correct args', async () => {
-      mockTransactionsRepository.create.mockResolvedValue({ id: 'tx-1' });
+      mockTransactionsRepository.create.mockResolvedValue(
+        transactionRow({ id: 'tx-1' }),
+      );
 
       await service.create('user-1', createDto);
 
@@ -256,7 +250,9 @@ describe('TransactionsService', () => {
     });
 
     it('calls repository.create with correct shape, converting date to Date', async () => {
-      mockTransactionsRepository.create.mockResolvedValue({ id: 'tx-1' });
+      mockTransactionsRepository.create.mockResolvedValue(
+        transactionRow({ id: 'tx-1' }),
+      );
 
       await service.create('user-1', createDto);
 
@@ -283,7 +279,9 @@ describe('TransactionsService', () => {
     };
 
     it('validates ownership of transaction, bank account, and category', async () => {
-      mockTransactionsRepository.update.mockResolvedValue({ id: 'tx-1' });
+      mockTransactionsRepository.update.mockResolvedValue(
+        transactionRow({ id: 'tx-1' }),
+      );
 
       await service.update('user-1', 'tx-1', updateDto);
 
@@ -311,7 +309,9 @@ describe('TransactionsService', () => {
     });
 
     it('calls repository.update with correct shape, converting date to Date', async () => {
-      mockTransactionsRepository.update.mockResolvedValue({ id: 'tx-1' });
+      mockTransactionsRepository.update.mockResolvedValue(
+        transactionRow({ id: 'tx-1' }),
+      );
 
       await service.update('user-1', 'tx-1', updateDto);
 

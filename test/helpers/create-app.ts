@@ -16,29 +16,26 @@ import { EmbeddingProvider } from '../../src/modules/education/domain/embedding-
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env.test') });
 
-export const mockMailService = {
-  sendWelcome: jest.fn().mockResolvedValue(undefined),
-  sendEmailChangeConfirmation: jest.fn().mockResolvedValue(undefined),
-  sendDowngradeNotification: jest.fn().mockResolvedValue(undefined),
-  sendSubscriptionCancelled: jest.fn().mockResolvedValue(undefined),
-};
+export const mockMailService = mock<MailService>();
+mockMailService.sendWelcome.mockResolvedValue(undefined);
+mockMailService.sendEmailChangeConfirmation.mockResolvedValue(undefined);
+mockMailService.sendDowngradeNotification.mockResolvedValue(undefined);
+mockMailService.sendSubscriptionCancelled.mockResolvedValue(undefined);
 
-export const mockStorageService = {
-  generateUploadUrl: jest.fn().mockResolvedValue({
-    uploadUrl: 'https://s3.example.com/upload',
-    avatarUrl: 'https://s3.example.com/avatar.jpg',
-  }),
-};
+export const mockStorageService = mock<StorageService>();
+mockStorageService.generateUploadUrl.mockResolvedValue({
+  uploadUrl: 'https://s3.example.com/upload',
+  avatarUrl: 'https://s3.example.com/avatar.jpg',
+});
 
-export const mockBillingService = {
-  createSetupIntent: jest
-    .fn()
-    .mockResolvedValue({ clientSecret: 'seti_fake_secret' }),
-  createSubscription: jest.fn().mockResolvedValue(undefined),
-  changePlan: jest.fn().mockResolvedValue(undefined),
-  cancelSubscription: jest.fn().mockResolvedValue(undefined),
-  createCustomerAndSubscribe: jest.fn().mockResolvedValue(undefined),
-};
+export const mockBillingService = mock<BillingService>();
+mockBillingService.createSetupIntent.mockResolvedValue({
+  clientSecret: 'seti_fake_secret',
+});
+mockBillingService.createSubscription.mockResolvedValue(undefined);
+mockBillingService.changePlan.mockResolvedValue(undefined);
+mockBillingService.cancelSubscription.mockResolvedValue(undefined);
+mockBillingService.createCustomerAndSubscribe.mockResolvedValue(undefined);
 
 // The Claude API is an external boundary like Resend or Stripe: e2e never
 // calls it. Specs that exercise categorization set return values per test.

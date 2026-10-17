@@ -29,17 +29,24 @@ const cases = [
   },
 ];
 
+type Deps = Parameters<typeof runAgentEval>[0];
+const agentFn = () =>
+  jest.fn<ReturnType<Deps['agent']>, Parameters<Deps['agent']>>();
+const judgeFn = () =>
+  jest.fn<ReturnType<Deps['judge']>, Parameters<Deps['judge']>>();
+
 describe('runAgentEval', () => {
   it('passes a case only when the number matches and the judge says grounded', async () => {
-    const agent = jest.fn().mockResolvedValue({
+    const agent = agentFn().mockResolvedValue({
       status: 'COMPLETED',
       answer: 'R$ 302,37',
       steps: 2,
       trace,
     });
-    const judge = jest
-      .fn()
-      .mockResolvedValueOnce({ reasoning: 'r', grounded: true });
+    const judge = judgeFn().mockResolvedValueOnce({
+      reasoning: 'r',
+      grounded: true,
+    });
 
     const [r] = await runAgentEval({ cases, agent, judge });
 
@@ -60,15 +67,16 @@ describe('runAgentEval', () => {
   });
 
   it('fails a right number the judge finds ungrounded', async () => {
-    const agent = jest.fn().mockResolvedValue({
+    const agent = agentFn().mockResolvedValue({
       status: 'COMPLETED',
       answer: 'R$ 302,37',
       steps: 1,
       trace: [],
     });
-    const judge = jest
-      .fn()
-      .mockResolvedValue({ reasoning: 'no tool call', grounded: false });
+    const judge = judgeFn().mockResolvedValue({
+      reasoning: 'no tool call',
+      grounded: false,
+    });
 
     const [r] = await runAgentEval({ cases, agent, judge });
 
@@ -76,13 +84,13 @@ describe('runAgentEval', () => {
   });
 
   it('fails a wrong number without paying for the judge', async () => {
-    const agent = jest.fn().mockResolvedValue({
+    const agent = agentFn().mockResolvedValue({
       status: 'COMPLETED',
       answer: 'R$ 300,00',
       steps: 2,
       trace,
     });
-    const judge = jest.fn();
+    const judge = judgeFn();
 
     const [r] = await runAgentEval({ cases, agent, judge });
 
@@ -98,8 +106,7 @@ describe('runAgentEval', () => {
       { ...cases[0], id: 'a02' },
       { ...cases[0], id: 'a03' },
     ];
-    const agent = jest
-      .fn()
+    const agent = agentFn()
       .mockResolvedValueOnce({
         status: 'DEGRADED',
         answer: 'x',
@@ -113,7 +120,7 @@ describe('runAgentEval', () => {
         steps: 2,
         trace,
       });
-    const judge = jest.fn().mockResolvedValue(null);
+    const judge = judgeFn().mockResolvedValue(null);
 
     const results = await runAgentEval({ cases: twoCases, agent, judge });
 

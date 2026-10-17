@@ -1,13 +1,15 @@
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { bankAccountRow } from '../../../../test/helpers/prisma-rows';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ValidateBankAccountOwnershipService } from './validate-bank-account-ownership.service';
 import { BankAccountsRepository } from '../domain/repositories/bank-accounts.repository';
 
 describe('ValidateBankAccountOwnershipService', () => {
   let service: ValidateBankAccountOwnershipService;
-  let mockRepository: { findFirst: jest.Mock };
+  let mockRepository: MockProxy<BankAccountsRepository>;
 
   beforeEach(async () => {
-    mockRepository = { findFirst: jest.fn() };
+    mockRepository = mock<BankAccountsRepository>();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -20,7 +22,7 @@ describe('ValidateBankAccountOwnershipService', () => {
   });
 
   it('returns the entity when found', async () => {
-    const entity = { id: 'account-1', userId: 'user-1' };
+    const entity = bankAccountRow({ id: 'account-1', userId: 'user-1' });
     mockRepository.findFirst.mockResolvedValue(entity);
 
     const result = await service.validate('user-1', 'account-1');

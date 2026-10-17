@@ -1,3 +1,4 @@
+import { must } from '../helpers/must';
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
 import type { App } from 'supertest/types';
@@ -42,10 +43,11 @@ describe('Rate limiting (e2e)', () => {
       else statuses.push(res.status);
     }
 
-    expect(blocked).toBeDefined();
     expect(statuses.length).toBeLessThanOrEqual(3);
     expect(statuses.every((s) => s === 401)).toBe(true);
-    expect(Number(blocked!.headers['retry-after'])).toBeGreaterThan(0);
+    expect(
+      Number(must(blocked, 'a 429 response').headers['retry-after']),
+    ).toBeGreaterThan(0);
 
     const other = await request(app.getHttpServer())
       .get('/categories')

@@ -1,3 +1,4 @@
+import { must } from '../../test/helpers/must';
 import Anthropic from '@anthropic-ai/sdk';
 import { mock } from 'jest-mock-extended';
 import { type LlmService } from '../../src/shared/llm/llm.service';
@@ -12,7 +13,10 @@ import {
 import { type GoldenCase } from './golden-set';
 
 const idOf = (name: string, type: 'INCOME' | 'EXPENSE') =>
-  EVAL_CATEGORIES.find((c) => c.name === name && c.type === type)!.id;
+  must(
+    EVAL_CATEGORIES.find((c) => c.name === name && c.type === type),
+    `category ${name}`,
+  ).id;
 
 const tokens = usage({ input_tokens: 400, output_tokens: 30 });
 

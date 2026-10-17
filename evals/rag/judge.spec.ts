@@ -78,6 +78,12 @@ describe('judgeAnswer', () => {
   });
 });
 
+type Deps = Parameters<typeof runAnswerEval>[0];
+const answerFn = () =>
+  jest.fn<ReturnType<Deps['answer']>, Parameters<Deps['answer']>>();
+const judgeFn = () =>
+  jest.fn<ReturnType<Deps['judge']>, Parameters<Deps['judge']>>();
+
 describe('runAnswerEval', () => {
   const cases = [
     { id: 'q1', question: 'Q1', keyPoints: ['p'] },
@@ -86,8 +92,7 @@ describe('runAnswerEval', () => {
   ];
 
   it('scores answered cases with the judge, fails not-covered ones without judging, and counts a broken judge as an error', async () => {
-    const answer = jest
-      .fn()
+    const answer = answerFn()
       .mockResolvedValueOnce({
         answer: 'A1',
         citations: [{ citedText: 't', page: 1, chunkId: 'c' }],
@@ -103,8 +108,7 @@ describe('runAnswerEval', () => {
         citations: [{ citedText: 't', page: 1, chunkId: 'c' }],
         result: 'answered',
       });
-    const judge = jest
-      .fn()
+    const judge = judgeFn()
       .mockResolvedValueOnce(verdict({}))
       .mockResolvedValueOnce(null);
 

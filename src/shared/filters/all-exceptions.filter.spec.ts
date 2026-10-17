@@ -14,7 +14,7 @@ import { objectContaining, stringMatching } from '../../../test/helpers/match';
 
 function makeMockHost(overrides: { url?: string; method?: string } = {}) {
   const json = jest.fn<void, [body: unknown]>();
-  const status = jest.fn().mockReturnValue({ json });
+  const status = jest.fn((_code: number) => ({ json }));
   const response = { status };
   const request = {
     url: overrides.url ?? '/test',

@@ -1,13 +1,15 @@
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { categoryRow } from '../../../../test/helpers/prisma-rows';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ValidateCategoryOwnershipService } from './validate-category-ownership.service';
 import { CategoriesRepository } from '../domain/repositories/categories.repository';
 
 describe('ValidateCategoryOwnershipService', () => {
   let service: ValidateCategoryOwnershipService;
-  let mockRepository: { findFirst: jest.Mock };
+  let mockRepository: MockProxy<CategoriesRepository>;
 
   beforeEach(async () => {
-    mockRepository = { findFirst: jest.fn() };
+    mockRepository = mock<CategoriesRepository>();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -20,7 +22,7 @@ describe('ValidateCategoryOwnershipService', () => {
   });
 
   it('returns the entity when found', async () => {
-    const entity = { id: 'category-1', userId: 'user-1' };
+    const entity = categoryRow({ id: 'category-1', userId: 'user-1' });
     mockRepository.findFirst.mockResolvedValue(entity);
 
     const result = await service.validate('user-1', 'category-1');

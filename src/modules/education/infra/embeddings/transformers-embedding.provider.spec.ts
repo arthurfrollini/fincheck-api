@@ -56,7 +56,7 @@ describe('TransformersEmbeddingProvider', () => {
 
   it('retries the model load after a failed one instead of caching the failure', async () => {
     const factory = jest
-      .fn()
+      .fn<Promise<ReturnType<typeof fakeExtractor>>, []>()
       .mockRejectedValueOnce(new Error('network down'))
       .mockResolvedValueOnce(fakeExtractor());
     const provider = new TransformersEmbeddingProvider(factory);
@@ -67,7 +67,9 @@ describe('TransformersEmbeddingProvider', () => {
   });
 
   it('preloads the model on module init without failing boot when the load fails', async () => {
-    const factory = jest.fn().mockRejectedValue(new Error('offline'));
+    const factory = jest
+      .fn<Promise<ReturnType<typeof fakeExtractor>>, []>()
+      .mockRejectedValue(new Error('offline'));
     const provider = new TransformersEmbeddingProvider(factory);
 
     expect(() => provider.onModuleInit()).not.toThrow();

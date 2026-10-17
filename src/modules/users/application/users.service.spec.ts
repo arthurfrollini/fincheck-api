@@ -1,7 +1,9 @@
-jest.mock('uuid', () => ({ v4: jest.fn().mockReturnValue('test-uuid') }));
+jest.mock('uuid', () => ({ v4: () => 'test-uuid' }));
 
 jest.mock('bcryptjs', () => ({
-  hash: jest.fn().mockResolvedValue('hashed-password'),
+  hash: jest
+    .fn<Promise<string>, [string, number]>()
+    .mockResolvedValue('hashed-password'),
 }));
 
 jest.mock('@shared/config/env', () => ({
@@ -14,6 +16,7 @@ jest.mock('@shared/config/env', () => ({
   },
 }));
 
+import { mock, type MockProxy } from 'jest-mock-extended';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
@@ -47,29 +50,13 @@ const makeUser = (overrides: Partial<UserEntity> = {}): UserEntity => ({
 
 describe('UsersService', () => {
   let service: UsersService;
-  let mockUsersRepository: jest.Mocked<{
-    findById: jest.Mock;
-    findByEmail: jest.Mock;
-    findByEmailToken: jest.Mock;
-    findMany: jest.Mock;
-    create: jest.Mock;
-    update: jest.Mock;
-    delete: jest.Mock;
-  }>;
-  let mockMailQueueService: { queueEmailChangeConfirmation: jest.Mock };
+  let mockUsersRepository: MockProxy<UsersRepository>;
+  let mockMailQueueService: MockProxy<MailQueueService>;
 
   beforeEach(async () => {
-    mockUsersRepository = {
-      findById: jest.fn(),
-      findByEmail: jest.fn(),
-      findByEmailToken: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    };
+    mockUsersRepository = mock<UsersRepository>();
 
-    mockMailQueueService = { queueEmailChangeConfirmation: jest.fn() };
+    mockMailQueueService = mock<MailQueueService>();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -78,7 +65,7 @@ describe('UsersService', () => {
         { provide: MailQueueService, useValue: mockMailQueueService },
         {
           provide: StorageService,
-          useValue: { generateUploadUrl: jest.fn() },
+          useValue: mock<StorageService>(),
         },
       ],
     }).compile();

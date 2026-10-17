@@ -1,3 +1,5 @@
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { categoryRow } from '../../../../test/helpers/prisma-rows';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
@@ -11,24 +13,14 @@ const CATEGORY_ID = 'category-1';
 
 describe('CategoriesService', () => {
   let service: CategoriesService;
-  let mockCategoriesRepository: {
-    findAllByUserId: jest.Mock;
-    create: jest.Mock;
-    update: jest.Mock;
-    delete: jest.Mock;
-  };
-  let mockValidateOwnership: { validate: jest.Mock };
-  let mockPlanGuard: { validateCategoryAccess: jest.Mock };
+  let mockCategoriesRepository: MockProxy<CategoriesRepository>;
+  let mockValidateOwnership: MockProxy<ValidateCategoryOwnershipService>;
+  let mockPlanGuard: MockProxy<PlanGuardService>;
 
   beforeEach(async () => {
-    mockCategoriesRepository = {
-      findAllByUserId: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    };
-    mockValidateOwnership = { validate: jest.fn() };
-    mockPlanGuard = { validateCategoryAccess: jest.fn() };
+    mockCategoriesRepository = mock<CategoriesRepository>();
+    mockValidateOwnership = mock<ValidateCategoryOwnershipService>();
+    mockPlanGuard = mock<PlanGuardService>();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -109,9 +101,11 @@ describe('CategoriesService', () => {
     const dto = { name: 'Groceries', icon: 'cart' };
 
     it('calls planGuard.validateCategoryAccess and validateOwnership.validate then categoriesRepository.update', async () => {
-      const updated = { id: CATEGORY_ID, userId: USER_ID, ...dto };
+      const updated = categoryRow({ id: CATEGORY_ID, userId: USER_ID, ...dto });
       mockPlanGuard.validateCategoryAccess.mockResolvedValue(undefined);
-      mockValidateOwnership.validate.mockResolvedValue(undefined);
+      mockValidateOwnership.validate.mockResolvedValue(
+        categoryRow({ id: CATEGORY_ID }),
+      );
       mockCategoriesRepository.update.mockResolvedValue(updated);
 
       const result = await service.update(USER_ID, CATEGORY_ID, dto);
@@ -134,7 +128,9 @@ describe('CategoriesService', () => {
       mockPlanGuard.validateCategoryAccess.mockRejectedValue(
         new ForbiddenException('Limit reached'),
       );
-      mockValidateOwnership.validate.mockResolvedValue(undefined);
+      mockValidateOwnership.validate.mockResolvedValue(
+        categoryRow({ id: CATEGORY_ID }),
+      );
 
       await expect(service.update(USER_ID, CATEGORY_ID, dto)).rejects.toThrow(
         ForbiddenException,
@@ -158,7 +154,9 @@ describe('CategoriesService', () => {
   describe('remove', () => {
     it('calls planGuard.validateCategoryAccess and validateOwnership.validate then categoriesRepository.delete', async () => {
       mockPlanGuard.validateCategoryAccess.mockResolvedValue(undefined);
-      mockValidateOwnership.validate.mockResolvedValue(undefined);
+      mockValidateOwnership.validate.mockResolvedValue(
+        categoryRow({ id: CATEGORY_ID }),
+      );
       mockCategoriesRepository.delete.mockResolvedValue(undefined);
 
       await service.remove(USER_ID, CATEGORY_ID);
@@ -177,7 +175,9 @@ describe('CategoriesService', () => {
       mockPlanGuard.validateCategoryAccess.mockRejectedValue(
         new ForbiddenException('Limit reached'),
       );
-      mockValidateOwnership.validate.mockResolvedValue(undefined);
+      mockValidateOwnership.validate.mockResolvedValue(
+        categoryRow({ id: CATEGORY_ID }),
+      );
 
       await expect(service.remove(USER_ID, CATEGORY_ID)).rejects.toThrow(
         ForbiddenException,

@@ -1,7 +1,7 @@
-jest.mock('uuid', () => ({ v4: jest.fn().mockReturnValue('test-uuid') }));
+jest.mock('uuid', () => ({ v4: () => 'test-uuid' }));
 jest.mock('bcryptjs', () => ({
-  hash: jest.fn().mockResolvedValue('hashed'),
-  compare: jest.fn(),
+  hash: () => Promise.resolve('hashed'),
+  compare: () => Promise.resolve(false),
 }));
 jest.mock('@shared/config/env', () => ({
   env: {
