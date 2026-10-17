@@ -7,11 +7,13 @@ describe('promoteToAdmin', () => {
   it('sets role and plan to ADMINISTRATOR for the user with that email', async () => {
     const prisma = mockDeep<PrismaClient>();
     prisma.user.findUnique.mockResolvedValue(userRow({ id: 'u1' }));
-    prisma.user.update.mockResolvedValue(userRow({ id: 'u1' }));
+    const updated = userRow({ id: 'u1', role: 'ADMINISTRATOR' });
+    prisma.user.update.mockResolvedValue(updated);
 
-    await expect(
-      promoteToAdmin(prisma, '  owner@example.com '),
-    ).resolves.toMatchObject({ id: 'u1' });
+    // Returns what update() selected, not the row it looked up.
+    await expect(promoteToAdmin(prisma, '  owner@example.com ')).resolves.toBe(
+      updated,
+    );
     expect(prisma.user.findUnique).toHaveBeenCalledWith({
       where: { email: 'owner@example.com' },
     });

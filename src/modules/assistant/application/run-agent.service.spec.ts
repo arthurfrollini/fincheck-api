@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { Prisma } from '@prisma/client';
 import { mock, type MockProxy } from 'jest-mock-extended';
 import { PinoLogger } from 'nestjs-pino';
 import { LlmService } from '@shared/llm/llm.service';
@@ -328,15 +329,17 @@ describe('RunAgentService', () => {
   let llm: MockProxy<LlmService>;
   let service: RunAgentService;
   let logger: MockProxy<PinoLogger>;
+  let transactions: MockProxy<TransactionsRepository>;
 
   beforeEach(() => {
     repo = mock<AgentRunsRepository>();
     llm = mock<LlmService>();
     llm.complete.mockResolvedValue(final('R$ 10,00'));
     logger = mock<PinoLogger>();
+    transactions = mock<TransactionsRepository>();
     service = new RunAgentService(
       repo,
-      mock<TransactionsRepository>(),
+      transactions,
       mock<CategoriesRepository>(),
       llm,
       logger,
@@ -354,6 +357,43 @@ describe('RunAgentService', () => {
       answer: 'R$ 10,00',
       steps: 1,
     });
+  });
+
+  it.each<[string, unknown, string]>([
+    [
+      'a Prisma error by its code',
+      new Prisma.PrismaClientKnownRequestError('x', {
+        code: 'P2024',
+        clientVersion: '6.19.3',
+      }),
+      'P2024',
+    ],
+    ['an Error by its class name', new TypeError('x'), 'TypeError'],
+    ['a thrown string as unknown', 'boom', 'unknown'],
+    ['a thrown null as unknown', null, 'unknown'],
+  ])('logs a failed tool with %s', async (_label, thrown, code) => {
+    repo.findById.mockResolvedValue({ ...base, status: 'QUEUED' });
+    llm.complete
+      .mockResolvedValueOnce(
+        toolCall([
+          'compute_totals',
+          {
+            from: '2026-09-01',
+            to: '2026-09-30',
+            type: 'EXPENSE',
+            groupBy: 'none',
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(final('ok'));
+    transactions.totals.mockRejectedValue(thrown);
+
+    await service.run('run-1');
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { runId: 'run-1', tool: 'compute_totals', code },
+      'Agent tool failed',
+    );
   });
 
   it.each<FinishedStatus>(['COMPLETED', 'DEGRADED', 'FAILED'])(

@@ -97,9 +97,10 @@ describe('TransactionsPrismaRepository read queries for the agent', () => {
     );
     expect(args?.orderBy).toEqual({ value: 'desc' });
     expect(args?.take).toBe(5);
-    expect(result.total).toBe(7);
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0]).toMatchObject({ id: 't1', categoryName: 'Mercado' });
+    expect(result).toEqual({
+      data: [objectContaining({ id: 't1', categoryName: 'Mercado' })],
+      total: 7,
+    });
   });
 
   it('totals without grouping sums the filtered transactions', async () => {

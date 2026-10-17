@@ -25,6 +25,15 @@ describe('CategorizationProcessor', () => {
     processor = new CategorizationProcessor(service, mock<PinoLogger>());
   });
 
+  it('fails a job with malformed data without retrying or categorizing', async () => {
+    await expect(
+      processor.process(
+        mock<Job>({ name: 'categorize-transaction', data: { userId: 'u' } }),
+      ),
+    ).rejects.toBeInstanceOf(UnrecoverableError);
+    expect(service.categorize).not.toHaveBeenCalled();
+  });
+
   it.each<CategorizationResult>([
     'categorized',
     'uncategorized',

@@ -24,6 +24,13 @@ describe('AgentProcessor', () => {
     processor = new AgentProcessor(service, mock<PinoLogger>());
   });
 
+  it('fails a job with malformed data without retrying or running', async () => {
+    await expect(
+      processor.process(mock<Job>({ name: 'run-agent', data: {} })),
+    ).rejects.toBeInstanceOf(UnrecoverableError);
+    expect(service.run).not.toHaveBeenCalled();
+  });
+
   it('runs the agent for the job run id', async () => {
     await processor.process(job());
     expect(service.run).toHaveBeenCalledWith('run-1');

@@ -189,6 +189,25 @@ describe('BillingWebhookHandler', () => {
     });
   });
 
+  it.each([
+    ['invoice.payment_succeeded', { customer: null, lines: { data: [] } }],
+    ['customer.subscription.deleted', { customer: null }],
+    [
+      'customer.subscription.updated',
+      { customer: null, status: 'active', cancel_at_period_end: false },
+    ],
+  ])(
+    'acknowledges %s without a customer and changes nothing',
+    async (type, object) => {
+      await expect(
+        handler.handle(makeEvent(type, object)),
+      ).resolves.toBeUndefined();
+
+      expect(mockUsersRepository.findByStripeCustomerId).not.toHaveBeenCalled();
+      expect(mockStripeEventsRepository.unregister).not.toHaveBeenCalled();
+    },
+  );
+
   it('reads the customer id from an expanded customer object', async () => {
     mockUsersRepository.findByStripeCustomerId.mockResolvedValue(null);
     const event = makeEvent('customer.subscription.deleted', {
