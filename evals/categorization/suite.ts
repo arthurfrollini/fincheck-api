@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { type LlmService } from '@shared/llm/llm.service';
 import { LLM_PRICING, type LlmModel } from '@shared/llm/llm-pricing';
 import { CATEGORIZATION_MODEL } from '@modules/transactions/application/categorization.constants';
@@ -5,6 +6,7 @@ import {
   compareToBaseline,
   type Baseline,
   type GateResult,
+  baselineSchema,
 } from '../lib/baseline';
 import { renderReport } from '../lib/report';
 import { score, type Score } from '../lib/score';
@@ -15,7 +17,11 @@ import {
   shouldFailAsInfra,
 } from './runner';
 
-export type StoredBaselines = Record<string, Baseline & { recordedAt: string }>;
+export const storedBaselinesSchema = z.record(
+  z.string(),
+  baselineSchema.extend({ recordedAt: z.string() }),
+);
+export type StoredBaselines = z.infer<typeof storedBaselinesSchema>;
 
 export interface SuiteIO {
   readBaselines(): StoredBaselines;
@@ -37,15 +43,20 @@ export interface SuiteOptions {
 
 type ModelOutput = { score: Score; gate?: GateResult };
 
+// Own keys only: 'toString' is `in` every object.
+function isLlmModel(name: string): name is LlmModel {
+  return Object.hasOwn(LLM_PRICING, name);
+}
+
 export function parseModels(raw: string): LlmModel[] {
   return raw.split(',').map((name) => {
     const model = name.trim();
-    if (!(model in LLM_PRICING)) {
+    if (!isLlmModel(model)) {
       throw new Error(
         `Unknown model "${model}". Known: ${Object.keys(LLM_PRICING).join(', ')}.`,
       );
     }
-    return model as LlmModel;
+    return model;
   });
 }
 

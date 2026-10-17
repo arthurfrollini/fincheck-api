@@ -1,4 +1,6 @@
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { StorageService } from './storage.service';
+import { objectContaining, stringMatching } from '../../../test/helpers/match';
 
 // Mock env to avoid validation errors during tests
 jest.mock('@shared/config/env', () => ({
@@ -13,7 +15,9 @@ jest.mock('@shared/config/env', () => ({
 // Mock the AWS SDK modules before importing StorageService
 jest.mock('@aws-sdk/client-s3', () => ({
   S3Client: jest.fn().mockImplementation(() => ({})),
-  PutObjectCommand: jest.fn().mockImplementation((input) => ({ input })),
+  PutObjectCommand: jest
+    .fn()
+    .mockImplementation((input: unknown) => ({ input })),
 }));
 
 jest.mock('@aws-sdk/s3-request-presigner', () => ({
@@ -40,13 +44,11 @@ describe('StorageService', () => {
     });
 
     it('builds key as avatars/{userId}/{uuid}.{ext}', async () => {
-      const { PutObjectCommand } = jest.requireMock('@aws-sdk/client-s3');
-
       await service.generateUploadUrl('user-abc', 'png');
 
       expect(PutObjectCommand).toHaveBeenCalledWith(
-        expect.objectContaining({
-          Key: expect.stringMatching(/^avatars\/user-abc\/.+\.png$/),
+        objectContaining({
+          Key: stringMatching(/^avatars\/user-abc\/.+\.png$/),
         }),
       );
     });

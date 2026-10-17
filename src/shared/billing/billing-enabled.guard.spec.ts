@@ -10,6 +10,17 @@ jest.mock('@shared/config/env', () => ({
 import { NotFoundException } from '@nestjs/common';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { BillingController } from './billing.controller';
+
+// The guards @UseGuards attached to a controller method ([] when none).
+function guardsOf(method: string): unknown[] {
+  const handler: unknown = Object.getOwnPropertyDescriptor(
+    BillingController.prototype,
+    method,
+  )?.value;
+  if (typeof handler !== 'function') throw new Error(`${method}: no method`);
+  const guards: unknown = Reflect.getMetadata(GUARDS_METADATA, handler);
+  return Array.isArray(guards) ? guards : [];
+}
 import { BillingEnabledGuard } from './billing-enabled.guard';
 
 describe('BillingEnabledGuard', () => {
@@ -41,21 +52,10 @@ describe('BillingEnabledGuard', () => {
     'changePlan',
     'cancelSubscription',
   ])('guards %s', (method) => {
-    const guards = Reflect.getMetadata(
-      GUARDS_METADATA,
-      BillingController.prototype[method as keyof BillingController],
-    ) as unknown[];
-    expect(guards).toContain(BillingEnabledGuard);
+    expect(guardsOf(method)).toContain(BillingEnabledGuard);
   });
 
   it('leaves the Stripe webhook unguarded so plan changes keep syncing', () => {
-    const guards = Reflect.getMetadata(
-      GUARDS_METADATA,
-      Object.getOwnPropertyDescriptor(
-        BillingController.prototype,
-        'handleWebhook',
-      )?.value as object,
-    ) as unknown[] | undefined;
-    expect(guards ?? []).not.toContain(BillingEnabledGuard);
+    expect(guardsOf('handleWebhook')).not.toContain(BillingEnabledGuard);
   });
 });

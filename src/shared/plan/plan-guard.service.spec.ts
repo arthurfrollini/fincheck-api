@@ -2,32 +2,33 @@ import {
   ForbiddenException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import type { Plan } from '@prisma/client';
+import { mock, mockDeep } from 'jest-mock-extended';
+import { PrismaService } from '@shared/database/prisma.service';
+import { AiUsageRepository } from '@shared/llm/ai-usage.repository';
+import { bankAccountRow, userRow } from '../../../test/helpers/prisma-rows';
+import { anyInstance } from '../../../test/helpers/match';
 import { PlanGuardService } from './plan-guard.service';
 
-const makePrisma = (overrides: Record<string, unknown> = {}) => ({
-  user: { findUnique: jest.fn() },
-  bankAccount: { count: jest.fn(), findMany: jest.fn() },
-  transaction: { count: jest.fn() },
-  ...overrides,
-});
+const makePrisma = () => mockDeep<PrismaService>();
 
 describe('PlanGuardService', () => {
   describe('validateBankAccountLimit', () => {
     it('allows creation when under limit', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
       prisma.bankAccount.count.mockResolvedValue(2);
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       await expect(svc.validateBankAccountLimit('u1')).resolves.toBeUndefined();
     });
 
     it('throws when at limit', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
       prisma.bankAccount.count.mockResolvedValue(3);
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       await expect(svc.validateBankAccountLimit('u1')).rejects.toThrow(
         ForbiddenException,
       );
@@ -35,12 +36,10 @@ describe('PlanGuardService', () => {
 
     it('never throws for PLATINUM', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({
-        plan: 'PLATINUM',
-      });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'PLATINUM' }));
       prisma.bankAccount.count.mockResolvedValue(999);
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       await expect(svc.validateBankAccountLimit('u1')).resolves.toBeUndefined();
     });
   });
@@ -48,9 +47,9 @@ describe('PlanGuardService', () => {
   describe('validateCategoryAccess', () => {
     it('throws for FREE plan', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       await expect(svc.validateCategoryAccess('u1')).rejects.toThrow(
         ForbiddenException,
       );
@@ -58,9 +57,9 @@ describe('PlanGuardService', () => {
 
     it('allows GOLD plan', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({ plan: 'GOLD' });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'GOLD' }));
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       await expect(svc.validateCategoryAccess('u1')).resolves.toBeUndefined();
     });
   });
@@ -68,25 +67,23 @@ describe('PlanGuardService', () => {
   describe('getActiveAccountIds', () => {
     it('returns isUnlimited for PLATINUM', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({
-        plan: 'PLATINUM',
-      });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'PLATINUM' }));
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       const result = await svc.getActiveAccountIds('u1');
       expect(result.isUnlimited).toBe(true);
     });
 
     it('returns set of first N account ids for FREE', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
       prisma.bankAccount.findMany.mockResolvedValue([
-        { id: 'a1' },
-        { id: 'a2' },
-        { id: 'a3' },
+        bankAccountRow({ id: 'a1' }),
+        bankAccountRow({ id: 'a2' }),
+        bankAccountRow({ id: 'a3' }),
       ]);
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       const result = await svc.getActiveAccountIds('u1');
       expect(result.isUnlimited).toBe(false);
       expect(result.ids.has('a1')).toBe(true);
@@ -98,11 +95,11 @@ describe('PlanGuardService', () => {
 
     it('returns isUnlimited for ADMINISTRATOR without querying accounts', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({
-        plan: 'ADMINISTRATOR',
-      });
+      prisma.user.findUnique.mockResolvedValue(
+        userRow({ plan: 'ADMINISTRATOR' }),
+      );
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       const result = await svc.getActiveAccountIds('u1');
       expect(result.isUnlimited).toBe(true);
       expect(result.ids.size).toBe(0);
@@ -113,10 +110,10 @@ describe('PlanGuardService', () => {
   describe('validateDailyTransactionLimit', () => {
     it('allows when under limit for FREE plan', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
       prisma.transaction.count.mockResolvedValue(30);
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       await expect(
         svc.validateDailyTransactionLimit('u1'),
       ).resolves.toBeUndefined();
@@ -124,10 +121,10 @@ describe('PlanGuardService', () => {
 
     it('throws when at limit for FREE plan', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
       prisma.transaction.count.mockResolvedValue(50);
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       await expect(svc.validateDailyTransactionLimit('u1')).rejects.toThrow(
         ForbiddenException,
       );
@@ -135,11 +132,11 @@ describe('PlanGuardService', () => {
 
     it('never throws for ADMINISTRATOR plan', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({
-        plan: 'ADMINISTRATOR',
-      });
+      prisma.user.findUnique.mockResolvedValue(
+        userRow({ plan: 'ADMINISTRATOR' }),
+      );
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       await expect(
         svc.validateDailyTransactionLimit('u1'),
       ).resolves.toBeUndefined();
@@ -150,13 +147,13 @@ describe('PlanGuardService', () => {
   describe('validateBankAccountIsActive', () => {
     it('allows when account id is in active set', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
       prisma.bankAccount.findMany.mockResolvedValue([
-        { id: 'a1' },
-        { id: 'a2' },
+        bankAccountRow({ id: 'a1' }),
+        bankAccountRow({ id: 'a2' }),
       ]);
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       await expect(
         svc.validateBankAccountIsActive('u1', 'a1'),
       ).resolves.toBeUndefined();
@@ -164,13 +161,13 @@ describe('PlanGuardService', () => {
 
     it('throws when account id is not in active set', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({ plan: 'FREE' });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'FREE' }));
       prisma.bankAccount.findMany.mockResolvedValue([
-        { id: 'a1' },
-        { id: 'a2' },
+        bankAccountRow({ id: 'a1' }),
+        bankAccountRow({ id: 'a2' }),
       ]);
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       await expect(svc.validateBankAccountIsActive('u1', 'a3')).rejects.toThrow(
         ForbiddenException,
       );
@@ -178,9 +175,9 @@ describe('PlanGuardService', () => {
 
     it('allows any account id when isUnlimited is true', async () => {
       const prisma = makePrisma();
-      prisma.user.findUnique.mockResolvedValue({ plan: 'PLATINUM' });
+      prisma.user.findUnique.mockResolvedValue(userRow({ plan: 'PLATINUM' }));
 
-      const svc = new PlanGuardService(prisma as any);
+      const svc = new PlanGuardService(prisma);
       await expect(
         svc.validateBankAccountIsActive('u1', 'any-id'),
       ).resolves.toBeUndefined();
@@ -191,20 +188,17 @@ describe('PlanGuardService', () => {
 
 describe('PlanGuardService AI limits', () => {
   function build(
-    plan: string,
+    plan: Plan,
     counts: { rag?: number; agent?: number; spend?: number } = {},
   ) {
-    const prisma = {
-      user: { findUnique: jest.fn().mockResolvedValue({ plan }) },
-      agentRun: { count: jest.fn().mockResolvedValue(counts.agent ?? 0) },
-    };
-    const usage = {
-      countForUserToday: jest.fn().mockResolvedValue(counts.rag ?? 0),
-      spendToday: jest.fn().mockResolvedValue(counts.spend ?? 0),
-      record: jest.fn(),
-    };
+    const prisma = mockDeep<PrismaService>();
+    prisma.user.findUnique.mockResolvedValue(userRow({ plan }));
+    prisma.agentRun.count.mockResolvedValue(counts.agent ?? 0);
+    const usage = mock<AiUsageRepository>();
+    usage.countForUserToday.mockResolvedValue(counts.rag ?? 0);
+    usage.spendToday.mockResolvedValue(counts.spend ?? 0);
     return {
-      svc: new PlanGuardService(prisma as any, usage),
+      svc: new PlanGuardService(prisma, usage),
       prisma,
       usage,
     };
@@ -251,7 +245,7 @@ describe('PlanGuardService AI limits', () => {
     await svc.validateDailyAiQuota('u1', 'agent');
     await svc.validateDailyAiQuota('u1', 'rag');
     expect(prisma.agentRun.count).toHaveBeenCalledWith({
-      where: { userId: 'u1', createdAt: { gte: expect.any(Date) } },
+      where: { userId: 'u1', createdAt: { gte: anyInstance(Date) } },
     });
     expect(usage.countForUserToday).toHaveBeenCalledWith('u1', 'rag');
   });

@@ -7,7 +7,6 @@ jest.mock('@shared/config/env', () => ({
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
-import Stripe from 'stripe';
 import { UnauthorizedException } from '@nestjs/common';
 import { getLoggerToken } from 'nestjs-pino';
 import { BillingWebhookHandler } from './billing.webhook';
@@ -16,6 +15,7 @@ import { MailQueueService } from '@shared/mail/mail-queue.service';
 import { StripeEventsRepository } from './stripe-events.repository';
 import { Plan } from '@modules/users/entities/User';
 import { STRIPE_CLIENT } from './stripe.provider';
+import { stripeEvent } from '../../../test/helpers/stripe';
 
 const mockUsersRepository = {
   findByStripeCustomerId: jest.fn(),
@@ -40,17 +40,20 @@ const mockStripe = {
   webhooks: { constructEvent: jest.fn() },
 };
 
-const makeEvent = (
-  type: string,
-  object: Record<string, unknown>,
-): Stripe.Event =>
-  ({ id: 'evt_test', type, data: { object } }) as unknown as Stripe.Event;
+const makeEvent = (type: string, object: Record<string, unknown>) =>
+  stripeEvent(type, object);
 
-const baseUser = {
+const baseUser: {
+  id: string;
+  name: string;
+  email: string;
+  plan: Plan;
+  stripeCustomerId: string;
+} = {
   id: 'user_1',
   name: 'Test User',
   email: 'test@example.com',
-  plan: Plan.FREE as Plan,
+  plan: Plan.FREE,
   stripeCustomerId: 'cus_test',
 };
 
@@ -186,6 +189,38 @@ describe('BillingWebhookHandler', () => {
     });
   });
 
+  it.each([
+    ['invoice.payment_succeeded', { customer: null, lines: { data: [] } }],
+    ['customer.subscription.deleted', { customer: null }],
+    [
+      'customer.subscription.updated',
+      { customer: null, status: 'active', cancel_at_period_end: false },
+    ],
+  ])(
+    'acknowledges %s without a customer and changes nothing',
+    async (type, object) => {
+      await expect(
+        handler.handle(makeEvent(type, object)),
+      ).resolves.toBeUndefined();
+
+      expect(mockUsersRepository.findByStripeCustomerId).not.toHaveBeenCalled();
+      expect(mockStripeEventsRepository.unregister).not.toHaveBeenCalled();
+    },
+  );
+
+  it('reads the customer id from an expanded customer object', async () => {
+    mockUsersRepository.findByStripeCustomerId.mockResolvedValue(null);
+    const event = makeEvent('customer.subscription.deleted', {
+      customer: { id: 'cus_expanded', object: 'customer' },
+    });
+
+    await handler.handle(event);
+
+    expect(mockUsersRepository.findByStripeCustomerId).toHaveBeenCalledWith(
+      'cus_expanded',
+    );
+  });
+
   describe('handle — customer.subscription.deleted', () => {
     it('returns early when user not found', async () => {
       mockUsersRepository.findByStripeCustomerId.mockResolvedValue(null);
@@ -312,11 +347,11 @@ describe('BillingWebhookHandler', () => {
   describe('idempotency', () => {
     it('registers the event id before processing', async () => {
       mockUsersRepository.findByStripeCustomerId.mockResolvedValue(null);
-      const event = {
-        id: 'evt_123',
-        type: 'customer.subscription.deleted',
-        data: { object: { customer: 'cus_1' } },
-      } as unknown as Stripe.Event;
+      const event = stripeEvent(
+        'customer.subscription.deleted',
+        { customer: 'cus_1' },
+        'evt_123',
+      );
 
       await handler.handle(event);
 
@@ -328,11 +363,11 @@ describe('BillingWebhookHandler', () => {
 
     it('skips processing entirely on a duplicate delivery', async () => {
       mockStripeEventsRepository.register.mockResolvedValue(false);
-      const event = {
-        id: 'evt_dup',
-        type: 'customer.subscription.deleted',
-        data: { object: { customer: 'cus_1' } },
-      } as unknown as Stripe.Event;
+      const event = stripeEvent(
+        'customer.subscription.deleted',
+        { customer: 'cus_1' },
+        'evt_dup',
+      );
 
       await handler.handle(event);
 
@@ -347,11 +382,11 @@ describe('BillingWebhookHandler', () => {
       mockUsersRepository.findByStripeCustomerId.mockRejectedValue(
         new Error('db down'),
       );
-      const event = {
-        id: 'evt_fail',
-        type: 'customer.subscription.deleted',
-        data: { object: { customer: 'cus_1' } },
-      } as unknown as Stripe.Event;
+      const event = stripeEvent(
+        'customer.subscription.deleted',
+        { customer: 'cus_1' },
+        'evt_fail',
+      );
 
       await expect(handler.handle(event)).rejects.toThrow('db down');
       expect(mockStripeEventsRepository.unregister).toHaveBeenCalledWith(
@@ -366,11 +401,11 @@ describe('BillingWebhookHandler', () => {
       mockStripeEventsRepository.unregister.mockRejectedValue(
         new Error('unregister also failed'),
       );
-      const event = {
-        id: 'evt_double_fail',
-        type: 'customer.subscription.deleted',
-        data: { object: { customer: 'cus_1' } },
-      } as unknown as Stripe.Event;
+      const event = stripeEvent(
+        'customer.subscription.deleted',
+        { customer: 'cus_1' },
+        'evt_double_fail',
+      );
 
       await expect(handler.handle(event)).rejects.toThrow('original failure');
     });
@@ -378,7 +413,7 @@ describe('BillingWebhookHandler', () => {
 
   describe('constructEvent', () => {
     it('returns the parsed event when the signature is valid', () => {
-      const event = { id: 'evt_1', type: 'x' } as unknown as Stripe.Event;
+      const event = stripeEvent('customer.created', {}, 'evt_1');
       mockStripe.webhooks.constructEvent.mockReturnValue(event);
 
       const result = handler.constructEvent(Buffer.from('raw'), 'sig_valid');
@@ -399,6 +434,13 @@ describe('BillingWebhookHandler', () => {
       expect(() =>
         handler.constructEvent(Buffer.from('raw'), 'sig_bad'),
       ).toThrow(UnauthorizedException);
+    });
+
+    it('throws UnauthorizedException without calling Stripe when the raw body is missing', () => {
+      expect(() => handler.constructEvent(undefined, 'sig_valid')).toThrow(
+        UnauthorizedException,
+      );
+      expect(mockStripe.webhooks.constructEvent).not.toHaveBeenCalled();
     });
   });
 });

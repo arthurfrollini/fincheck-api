@@ -26,6 +26,7 @@ import { BadRequestException } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { UsersRepository } from '@modules/users/domain/repositories/users.repository';
 import { STRIPE_CLIENT } from './stripe.provider';
+import { objectContaining } from '../../../test/helpers/match';
 
 const mockUsersRepository = {
   findById: jest.fn(),
@@ -37,12 +38,18 @@ const ACTIVE_SUB = {
   items: { data: [{ id: 'si_1', price: { id: 'price_gold' } }] },
 };
 
-const baseUser = {
+const baseUser: {
+  id: string;
+  email: string;
+  name: string;
+  stripeCustomerId: string | null;
+  stripePriceId: string | null;
+} = {
   id: 'user_1',
   email: 'test@example.com',
   name: 'Test User',
-  stripeCustomerId: null as string | null,
-  stripePriceId: null as string | null,
+  stripeCustomerId: null,
+  stripePriceId: null,
 };
 
 describe('BillingService', () => {
@@ -172,6 +179,29 @@ describe('BillingService', () => {
       expect(mockUsersRepository.update).toHaveBeenCalledWith('user_1', {
         stripePriceId: 'price_gold',
       });
+    });
+
+    it('uses the id of an expanded default payment method', async () => {
+      mockUsersRepository.findById.mockResolvedValue({
+        ...baseUser,
+        stripeCustomerId: 'cus_1',
+      });
+      mockStripe.customers.retrieve.mockResolvedValue({
+        deleted: false,
+        invoice_settings: {
+          default_payment_method: {
+            id: 'pm_expanded',
+            object: 'payment_method',
+          },
+        },
+      });
+      mockStripe.subscriptions.create.mockResolvedValue({});
+
+      await service.createSubscription('user_1', 'GOLD');
+
+      expect(mockStripe.subscriptions.create).toHaveBeenCalledWith(
+        objectContaining({ default_payment_method: 'pm_expanded' }),
+      );
     });
   });
 

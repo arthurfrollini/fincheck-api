@@ -1,37 +1,51 @@
+import { mock, type MockProxy } from 'jest-mock-extended';
 import Anthropic from '@anthropic-ai/sdk';
 import { Job, UnrecoverableError } from 'bullmq';
 import { PinoLogger } from 'nestjs-pino';
-import { CategorizeTransactionService } from '../../application/categorize-transaction.service';
+import {
+  CategorizeTransactionService,
+  type CategorizationResult,
+} from '../../application/categorize-transaction.service';
 import { CategorizationProcessor } from './categorization.processor';
 
-const job = {
+const job = mock<Job>({
   name: 'categorize-transaction',
   data: { userId: 'user-1', transactionId: 'tx-1' },
-} as unknown as Job;
+});
 
 const headers = new Headers();
 
 describe('CategorizationProcessor', () => {
-  let categorize: jest.Mock;
+  let service: MockProxy<CategorizeTransactionService>;
   let processor: CategorizationProcessor;
 
   beforeEach(() => {
-    categorize = jest.fn().mockResolvedValue('categorized');
-    processor = new CategorizationProcessor(
-      { categorize } as unknown as CategorizeTransactionService,
-      { error: jest.fn() } as unknown as PinoLogger,
-    );
+    service = mock<CategorizeTransactionService>();
+    service.categorize.mockResolvedValue('categorized');
+    processor = new CategorizationProcessor(service, mock<PinoLogger>());
   });
 
-  it.each(['categorized', 'uncategorized', 'skipped', 'rejected', 'failed'])(
-    'completes the job when the result is %s',
-    async (result) => {
-      categorize.mockResolvedValueOnce(result);
+  it('fails a job with malformed data without retrying or categorizing', async () => {
+    await expect(
+      processor.process(
+        mock<Job>({ name: 'categorize-transaction', data: { userId: 'u' } }),
+      ),
+    ).rejects.toBeInstanceOf(UnrecoverableError);
+    expect(service.categorize).not.toHaveBeenCalled();
+  });
 
-      await expect(processor.process(job)).resolves.toBeUndefined();
-      expect(categorize).toHaveBeenCalledWith('user-1', 'tx-1');
-    },
-  );
+  it.each<CategorizationResult>([
+    'categorized',
+    'uncategorized',
+    'skipped',
+    'rejected',
+    'failed',
+  ])('completes the job when the result is %s', async (result) => {
+    service.categorize.mockResolvedValueOnce(result);
+
+    await expect(processor.process(job)).resolves.toBeUndefined();
+    expect(service.categorize).toHaveBeenCalledWith('user-1', 'tx-1');
+  });
 
   it.each([
     [
@@ -46,13 +60,13 @@ describe('CategorizationProcessor', () => {
     ['APIConnectionTimeoutError', new Anthropic.APIConnectionTimeoutError()],
     ['a non-SDK error', new Error('database connection lost')],
   ])('rethrows %s so BullMQ retries it', async (_name, error) => {
-    categorize.mockRejectedValueOnce(error);
+    service.categorize.mockRejectedValueOnce(error);
 
     await expect(processor.process(job)).rejects.toBe(error);
   });
 
   it('fails a non-HTTP SDK error (e.g. output parsing) without retrying', async () => {
-    categorize.mockRejectedValueOnce(
+    service.categorize.mockRejectedValueOnce(
       new Anthropic.AnthropicError('bad output'),
     );
 
@@ -79,7 +93,7 @@ describe('CategorizationProcessor', () => {
       new Anthropic.NotFoundError(404, undefined, 'x', headers),
     ],
   ])('fails %s without retrying', async (_name, error) => {
-    categorize.mockRejectedValueOnce(error);
+    service.categorize.mockRejectedValueOnce(error);
 
     await expect(processor.process(job)).rejects.toBeInstanceOf(
       UnrecoverableError,

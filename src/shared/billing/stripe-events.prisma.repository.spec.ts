@@ -1,3 +1,4 @@
+import { type DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { Prisma } from '@prisma/client';
 import { StripeEventsPrismaRepository } from './stripe-events.prisma.repository';
 import { PrismaService } from '@shared/database/prisma.service';
@@ -8,26 +9,12 @@ const p2002 = new Prisma.PrismaClientKnownRequestError('dup', {
 });
 
 describe('StripeEventsPrismaRepository', () => {
-  let mockPrisma: {
-    processedStripeEvent: {
-      create: jest.Mock;
-      delete: jest.Mock;
-      deleteMany: jest.Mock;
-    };
-  };
+  let mockPrisma: DeepMockProxy<PrismaService>;
   let repository: StripeEventsPrismaRepository;
 
   beforeEach(() => {
-    mockPrisma = {
-      processedStripeEvent: {
-        create: jest.fn().mockResolvedValue(undefined),
-        delete: jest.fn().mockResolvedValue(undefined),
-        deleteMany: jest.fn().mockResolvedValue(undefined),
-      },
-    };
-    repository = new StripeEventsPrismaRepository(
-      mockPrisma as unknown as PrismaService,
-    );
+    mockPrisma = mockDeep<PrismaService>();
+    repository = new StripeEventsPrismaRepository(mockPrisma);
   });
 
   describe('register', () => {

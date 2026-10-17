@@ -1,3 +1,4 @@
+import { toolUseBlock } from '../../../../test/helpers/llm';
 import type Anthropic from '@anthropic-ai/sdk';
 import { AGENT_TOOLS, buildToolHandlers, runTool } from './agent-tools';
 
@@ -41,12 +42,14 @@ function deps() {
 }
 
 const use = (name: string, input: unknown): Anthropic.ToolUseBlock =>
-  ({
-    type: 'tool_use',
-    id: `tu-${name}`,
-    name,
-    input,
-  }) as Anthropic.ToolUseBlock;
+  toolUseBlock(`tu-${name}`, name, input);
+
+// The JSON a tool returned, parsed back.
+function jsonContent(result: Anthropic.ToolResultBlockParam): unknown {
+  if (typeof result.content !== 'string') throw new Error('not JSON text');
+  const value: unknown = JSON.parse(result.content);
+  return value;
+}
 
 describe('agent tools', () => {
   it('expose no user identifier in any schema and are strict', () => {
@@ -83,7 +86,7 @@ describe('agent tools', () => {
       'u1',
       expect.objectContaining({ limit: 20, orderBy: 'date' }),
     );
-    expect(JSON.parse(result.content as string)).toEqual({
+    expect(jsonContent(result)).toEqual({
       transactions: [
         {
           id: 't1',
@@ -123,7 +126,7 @@ describe('agent tools', () => {
       buildToolHandlers('u1', deps()),
       use('fetch_categories', {}),
     );
-    expect(JSON.parse(result.content as string)).toEqual([
+    expect(jsonContent(result)).toEqual([
       { id: 'c1', name: 'Mercado', type: 'EXPENSE' },
     ]);
   });
@@ -265,4 +268,18 @@ describe('agent tools', () => {
     );
     expect(result.is_error).toBe(true);
   });
+
+  it.each(['toString', 'constructor', '__proto__'])(
+    'treats an inherited property name (%s) as an unknown tool',
+    async (name) => {
+      const result = await runTool(
+        buildToolHandlers('u1', deps()),
+        use(name, {}),
+      );
+      expect(result).toMatchObject({
+        is_error: true,
+        content: `Unknown tool ${name}.`,
+      });
+    },
+  );
 });

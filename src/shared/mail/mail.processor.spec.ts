@@ -1,4 +1,6 @@
-import { Job } from 'bullmq';
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { PinoLogger } from 'nestjs-pino';
+import { Job, UnrecoverableError } from 'bullmq';
 
 // Mock env to avoid validation errors during tests
 jest.mock('@shared/config/env', () => ({
@@ -25,34 +27,30 @@ import {
   EMAIL_RETRY_MAX_DELAY_MS,
 } from './mail-job.types';
 
-const makeJob = (name: string, data: object): Job =>
-  ({ name, data }) as unknown as Job;
+const makeJob = (name: string, data: object): Job => mock<Job>({ name, data });
 
 describe('MailProcessor', () => {
-  let mockMailService: jest.Mocked<
-    Pick<
-      MailService,
-      | 'sendWelcome'
-      | 'sendEmailChangeConfirmation'
-      | 'sendDowngradeNotification'
-      | 'sendSubscriptionCancelled'
-    >
-  >;
-  let mockLogger: { error: jest.Mock };
+  let mockMailService: MockProxy<MailService>;
+  let mockLogger: MockProxy<PinoLogger>;
   let processor: MailProcessor;
 
   beforeEach(() => {
-    mockMailService = {
-      sendWelcome: jest.fn().mockResolvedValue(undefined),
-      sendEmailChangeConfirmation: jest.fn().mockResolvedValue(undefined),
-      sendDowngradeNotification: jest.fn().mockResolvedValue(undefined),
-      sendSubscriptionCancelled: jest.fn().mockResolvedValue(undefined),
-    };
-    mockLogger = { error: jest.fn() };
-    processor = new MailProcessor(
-      mockMailService as unknown as MailService,
-      mockLogger as unknown as import('nestjs-pino').PinoLogger,
+    mockMailService = mock<MailService>();
+    mockMailService.sendWelcome.mockResolvedValue(undefined);
+    mockMailService.sendEmailChangeConfirmation.mockResolvedValue(undefined);
+    mockMailService.sendDowngradeNotification.mockResolvedValue(undefined);
+    mockMailService.sendSubscriptionCancelled.mockResolvedValue(undefined);
+    mockLogger = mock<PinoLogger>();
+    processor = new MailProcessor(mockMailService, mockLogger);
+  });
+
+  it('fails a job with malformed data without retrying or sending', async () => {
+    const job = makeJob(WELCOME_JOB_NAME, { to: 42 });
+
+    await expect(processor.process(job)).rejects.toBeInstanceOf(
+      UnrecoverableError,
     );
+    expect(mockMailService.sendWelcome).not.toHaveBeenCalled();
   });
 
   it('calls sendWelcome for a welcome job', async () => {

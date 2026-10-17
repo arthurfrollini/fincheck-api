@@ -1,7 +1,12 @@
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { PlanGuardService } from '@shared/plan/plan-guard.service';
+import { type AgentRun } from '../entities/AgentRun';
+import { AgentRunsRepository } from '../domain/repositories/agent-runs.repository';
+import { AgentQueueService } from '../infra/queue/agent-queue.service';
 import { ForbiddenException } from '@nestjs/common';
 import { AssistantService } from './assistant.service';
 
-const run = (id: string) => ({
+const run = (id: string): AgentRun => ({
   id,
   userId: 'u1',
   idempotencyKey: 'k',
@@ -12,34 +17,20 @@ const run = (id: string) => ({
 });
 
 describe('AssistantService.ask', () => {
-  let repo: {
-    findByIdempotencyKey: jest.Mock;
-    register: jest.Mock;
-    findForUser: jest.Mock;
-  };
-  let queue: { enqueue: jest.Mock };
-  let planGuard: {
-    validateGlobalAiBudget: jest.Mock;
-    validateDailyAiQuota: jest.Mock;
-  };
+  let repo: MockProxy<AgentRunsRepository>;
+  let queue: MockProxy<AgentQueueService>;
+  let planGuard: MockProxy<PlanGuardService>;
   let service: AssistantService;
 
   beforeEach(() => {
-    repo = {
-      findByIdempotencyKey: jest.fn().mockResolvedValue(null),
-      register: jest.fn().mockResolvedValue({ run: run('r1'), created: true }),
-      findForUser: jest.fn(),
-    };
-    queue = { enqueue: jest.fn() };
-    planGuard = {
-      validateGlobalAiBudget: jest.fn().mockResolvedValue(undefined),
-      validateDailyAiQuota: jest.fn().mockResolvedValue(undefined),
-    };
-    service = new AssistantService(
-      repo as never,
-      queue as never,
-      planGuard as never,
-    );
+    repo = mock<AgentRunsRepository>();
+    repo.findByIdempotencyKey.mockResolvedValue(null);
+    repo.register.mockResolvedValue({ run: run('r1'), created: true });
+    queue = mock<AgentQueueService>();
+    planGuard = mock<PlanGuardService>();
+    planGuard.validateGlobalAiBudget.mockResolvedValue(undefined);
+    planGuard.validateDailyAiQuota.mockResolvedValue(undefined);
+    service = new AssistantService(repo, queue, planGuard);
   });
 
   it('checks budget and quota, then registers and enqueues a new run', async () => {

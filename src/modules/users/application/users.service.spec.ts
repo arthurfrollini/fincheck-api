@@ -26,6 +26,7 @@ import { UsersRepository } from '../domain/repositories/users.repository';
 import { MailQueueService } from '@shared/mail/mail-queue.service';
 import { StorageService } from '@shared/storage/storage.service';
 import { Plan, Role, UserEntity } from '../entities/User';
+import { anyInstance, objectContaining } from '../../../../test/helpers/match';
 
 const makeUser = (overrides: Partial<UserEntity> = {}): UserEntity => ({
   id: 'user-1',
@@ -195,7 +196,7 @@ describe('UsersService', () => {
 
       expect(mockUsersRepository.update).toHaveBeenCalledWith(
         'user-1',
-        expect.objectContaining({ plan: 'GOLD' }),
+        objectContaining({ plan: 'GOLD' }),
       );
     });
 
@@ -297,10 +298,10 @@ describe('UsersService', () => {
 
       expect(mockUsersRepository.update).toHaveBeenCalledWith(
         'user-1',
-        expect.objectContaining({
+        objectContaining({
           pendingEmail: 'new@example.com',
           emailToken: 'test-uuid',
-          emailTokenExpiresAt: expect.any(Date),
+          emailTokenExpiresAt: anyInstance(Date),
         }),
       );
     });

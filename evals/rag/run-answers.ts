@@ -8,18 +8,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
-import { type PinoLogger } from 'nestjs-pino';
 import { createAnthropicClient } from '../../src/shared/llm/anthropic-client';
 import { LlmMetrics } from '../../src/shared/llm/llm.metrics';
 import { LlmService } from '../../src/shared/llm/llm.service';
 import { AnswerQuestionService } from '../../src/modules/education/application/answer-question.service';
 import { KnowledgeChunksPrismaRepository } from '../../src/modules/education/infra/database/knowledge-chunks.prisma.repository';
 import { TransformersEmbeddingProvider } from '../../src/modules/education/infra/embeddings/transformers-embedding.provider';
-import { type PrismaService } from '../../src/shared/database/prisma.service';
-import { type PlanGuardService } from '../../src/shared/plan/plan-guard.service';
+import { createEvalLogger } from '../lib/eval-logger';
+import { PrismaService } from '../../src/shared/database/prisma.service';
+import { PlanGuardService } from '../../src/shared/plan/plan-guard.service';
 import { assertRealKey } from '../categorization/runner';
-import { type Baseline } from '../lib/baseline';
+import { baselineSchema } from '../lib/baseline';
+import { readJsonFile } from '../lib/json-file';
 import {
   judgeAnswer,
   loadAnswerSet,
@@ -34,18 +34,26 @@ dotenv.config({
   override: Boolean(process.env.DOTENV_PATH),
 });
 
+// Evals measure answer quality, not quotas: nothing is limited here.
+class UnlimitedPlanGuard extends PlanGuardService {
+  override validateGlobalAiBudget(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  override validateDailyAiQuota(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
 const BASELINE_FILE = path.resolve(__dirname, '../baselines/rag-answers.json');
 
 async function main(): Promise<number> {
   const key = process.env.ANTHROPIC_API_KEY;
   assertRealKey(key);
 
-  const prisma = new PrismaClient();
+  const prisma = new PrismaService();
   try {
-    const logger = {
-      info: () => undefined,
-      warn: (obj: object, msg: string) => console.warn(msg, obj),
-    } as unknown as PinoLogger;
+    const logger = createEvalLogger();
     const llm = new LlmService(
       createAnthropicClient(key),
       new LlmMetrics(),
@@ -53,13 +61,9 @@ async function main(): Promise<number> {
     );
     const rag = new AnswerQuestionService(
       new TransformersEmbeddingProvider(),
-      new KnowledgeChunksPrismaRepository(prisma as unknown as PrismaService),
+      new KnowledgeChunksPrismaRepository(prisma),
       llm,
-      // Evals measure answer quality, not quotas: nothing is limited here.
-      {
-        validateGlobalAiBudget: () => Promise.resolve(),
-        validateDailyAiQuota: () => Promise.resolve(),
-      } as unknown as PlanGuardService,
+      new UnlimitedPlanGuard(prisma),
     );
 
     const results = await runAnswerEval({
@@ -70,9 +74,7 @@ async function main(): Promise<number> {
       judge: (input) => judgeAnswer(llm, input),
     });
 
-    const baseline = fs.existsSync(BASELINE_FILE)
-      ? (JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')) as Baseline)
-      : undefined;
+    const baseline = readJsonFile(BASELINE_FILE, baselineSchema);
     const updating = process.argv.includes('--update-baseline');
     const summary = summarizeAnswerRun(results, baseline, updating);
 

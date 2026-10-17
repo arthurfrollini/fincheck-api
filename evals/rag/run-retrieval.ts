@@ -7,19 +7,19 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
 import { KnowledgeChunksPrismaRepository } from '../../src/modules/education/infra/database/knowledge-chunks.prisma.repository';
 import { TransformersEmbeddingProvider } from '../../src/modules/education/infra/embeddings/transformers-embedding.provider';
 import { RAG_MIN_SIMILARITY } from '../../src/modules/education/application/rag.constants';
-import { type PrismaService } from '../../src/shared/database/prisma.service';
+import { PrismaService } from '../../src/shared/database/prisma.service';
 import { loadQuerySet, validateQuerySet } from './query-set';
 import {
   compareRetrieval,
   isRelevant,
   retrievalMetrics,
   separation,
-  type RetrievalMetrics,
+  retrievalMetricsSchema,
 } from './retrieval';
+import { readJsonFile } from '../lib/json-file';
 
 // Prisma's client loads .env on import, so an explicit DOTENV_PATH must
 // override it; without one, values exported in the shell keep precedence.
@@ -32,11 +32,9 @@ const BASELINE_FILE = path.resolve(__dirname, '../baselines/retrieval.json');
 const K = 10;
 
 async function main(): Promise<number> {
-  const prisma = new PrismaClient();
+  const prisma = new PrismaService();
   try {
-    const repo = new KnowledgeChunksPrismaRepository(
-      prisma as unknown as PrismaService,
-    );
+    const repo = new KnowledgeChunksPrismaRepository(prisma);
     const embeddings = new TransformersEmbeddingProvider();
     const queries = loadQuerySet();
 
@@ -73,9 +71,7 @@ async function main(): Promise<number> {
       inScope.map((r) => r.best),
       rankings.filter((r) => !r.inScope).map((r) => r.best),
     );
-    const baseline = fs.existsSync(BASELINE_FILE)
-      ? (JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')) as RetrievalMetrics)
-      : undefined;
+    const baseline = readJsonFile(BASELINE_FILE, retrievalMetricsSchema);
     const updating = process.argv.includes('--update-baseline');
     const gate = updating ? undefined : compareRetrieval(metrics, baseline);
 

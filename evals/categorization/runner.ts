@@ -37,7 +37,7 @@ const realSleep = (ms: number) =>
 function isTransient(err: unknown): boolean {
   if (err instanceof Anthropic.APIConnectionError) return true;
   if (!(err instanceof Anthropic.APIError)) return false;
-  const status = err.status ?? 0;
+  const status = typeof err.status === 'number' ? err.status : 0;
   return status === 408 || status === 409 || status === 429 || status >= 500;
 }
 

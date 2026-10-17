@@ -1,28 +1,28 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import request from 'supertest';
+import { parseBody } from '../helpers/body';
+import { z } from 'zod';
 import { INestApplication } from '@nestjs/common';
+import type { App } from 'supertest/types';
 import {
   createApp,
   fakeEmbedding,
   mockLlmService,
 } from '../helpers/create-app';
+import { loadMessageFixture } from '../helpers/llm';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
 import { PrismaService } from '../../src/shared/database/prisma.service';
 import { KnowledgeChunksRepository } from '../../src/modules/education/domain/repositories/knowledge-chunks.repository';
 
-const cited = JSON.parse(
-  fs.readFileSync(
-    path.resolve(__dirname, '../fixtures/llm/rag/cited.json'),
-    'utf8',
-  ),
+const cited = loadMessageFixture(
+  path.resolve(__dirname, '../fixtures/llm/rag/cited.json'),
 );
 
 const QUESTION = 'quanto devo guardar por mês?';
 
 describe('Education (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
   let accessToken: string;
 
   beforeAll(async () => {
@@ -79,11 +79,12 @@ describe('Education (e2e)', () => {
     const res = await ask(QUESTION);
 
     expect(res.status).toBe(200);
-    expect(res.body.citations).toHaveLength(2);
-    expect(
-      res.body.citations.map((c: { page: number }) => c.page).sort(),
-    ).toEqual([12, 40]);
-    expect(res.body.model).toBe('claude-sonnet-5-5');
+    const { citations } = parseBody(
+      res,
+      z.object({ citations: z.array(z.object({ page: z.number() })) }),
+    );
+    expect(citations.map((c) => c.page).sort()).toEqual([12, 40]);
+    expect(res.body).toMatchObject({ model: 'claude-sonnet-5-5' });
     expect(res.body).not.toHaveProperty('result');
   });
 
@@ -91,7 +92,7 @@ describe('Education (e2e)', () => {
     const res = await ask('receita de bolo de cenoura');
 
     expect(res.status).toBe(200);
-    expect(res.body.citations).toEqual([]);
+    expect(res.body).toMatchObject({ citations: [] });
     expect(mockLlmService.complete).not.toHaveBeenCalled();
   });
 

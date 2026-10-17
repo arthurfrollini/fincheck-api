@@ -1,19 +1,18 @@
+import { mock, type MockProxy } from 'jest-mock-extended';
 import { PinoLogger } from 'nestjs-pino';
-import { Queue } from 'bullmq';
+import { Job, Queue } from 'bullmq';
 import { AgentQueueService } from './agent-queue.service';
 
 describe('AgentQueueService', () => {
-  let queue: { add: jest.Mock; on: jest.Mock };
-  let logger: { error: jest.Mock };
+  let queue: MockProxy<Queue>;
+  let logger: MockProxy<PinoLogger>;
   let service: AgentQueueService;
 
   beforeEach(() => {
-    queue = { add: jest.fn().mockResolvedValue(undefined), on: jest.fn() };
-    logger = { error: jest.fn() };
-    service = new AgentQueueService(
-      queue as unknown as Queue,
-      logger as unknown as PinoLogger,
-    );
+    queue = mock<Queue>();
+    queue.add.mockResolvedValue(mock<Job>());
+    logger = mock<PinoLogger>();
+    service = new AgentQueueService(queue, logger);
   });
 
   it('enqueues one deduplicated job per run with the retry config', async () => {

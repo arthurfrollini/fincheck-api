@@ -1,12 +1,14 @@
 import request from 'supertest';
+import { idList, parseBody } from '../helpers/body';
 import { INestApplication } from '@nestjs/common';
+import type { App } from 'supertest/types';
 import { createApp } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens, uniqueEmail } from '../helpers/auth.helper';
 import { PrismaService } from '../../src/shared/database/prisma.service';
 
 describe('Categories (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
   let accessToken: string;
 
   beforeAll(async () => {
@@ -41,8 +43,7 @@ describe('Categories (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(res.status).toBe(200);
-      expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.length).toBeGreaterThan(0);
+      expect(parseBody(res, idList).length).toBeGreaterThan(0);
     });
 
     it('returns 401 without token', async () => {
@@ -61,8 +62,8 @@ describe('Categories (e2e)', () => {
         .get('/categories')
         .set('Authorization', `Bearer ${accessToken}`);
 
-      const myIds = myRes.body.map((c: { id: string }) => c.id);
-      const otherIds = res.body.map((c: { id: string }) => c.id);
+      const myIds = parseBody(myRes, idList).map((c) => c.id);
+      const otherIds = parseBody(res, idList).map((c) => c.id);
       expect(myIds).not.toEqual(expect.arrayContaining(otherIds));
     });
   });
@@ -76,7 +77,7 @@ describe('Categories (e2e)', () => {
       const listRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${accessToken}`);
-      const categoryId = listRes.body[0].id;
+      const categoryId = parseBody(listRes, idList)[0].id;
 
       const res = await request(app.getHttpServer())
         .patch(`/categories/${categoryId}`)
@@ -84,8 +85,8 @@ describe('Categories (e2e)', () => {
         .send({ name: 'Renamed', icon: 'new-icon' });
 
       expect(res.status).toBe(200);
-      expect(res.body.name).toBe('Renamed');
-      expect(res.body.icon).toBe('new-icon');
+      expect(res.body).toMatchObject({ name: 'Renamed' });
+      expect(res.body).toMatchObject({ icon: 'new-icon' });
     });
 
     it('returns 404 when updating another user category', async () => {
@@ -103,7 +104,7 @@ describe('Categories (e2e)', () => {
       const otherListRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${otherToken}`);
-      const otherCategoryId = otherListRes.body[0].id;
+      const otherCategoryId = parseBody(otherListRes, idList)[0].id;
 
       const res = await request(app.getHttpServer())
         .patch(`/categories/${otherCategoryId}`)
@@ -117,7 +118,7 @@ describe('Categories (e2e)', () => {
       const listRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${accessToken}`);
-      const categoryId = listRes.body[0].id;
+      const categoryId = parseBody(listRes, idList)[0].id;
 
       const res = await request(app.getHttpServer())
         .patch(`/categories/${categoryId}`)
@@ -137,7 +138,7 @@ describe('Categories (e2e)', () => {
       const listRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${accessToken}`);
-      const categoryId = listRes.body[0].id;
+      const categoryId = parseBody(listRes, idList)[0].id;
 
       const res = await request(app.getHttpServer())
         .delete(`/categories/${categoryId}`)
@@ -161,7 +162,7 @@ describe('Categories (e2e)', () => {
       const otherListRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${otherToken}`);
-      const otherCategoryId = otherListRes.body[0].id;
+      const otherCategoryId = parseBody(otherListRes, idList)[0].id;
 
       const res = await request(app.getHttpServer())
         .delete(`/categories/${otherCategoryId}`)
@@ -174,7 +175,7 @@ describe('Categories (e2e)', () => {
       const listRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${accessToken}`);
-      const categoryId = listRes.body[0].id;
+      const categoryId = parseBody(listRes, idList)[0].id;
 
       const res = await request(app.getHttpServer())
         .delete(`/categories/${categoryId}`)
