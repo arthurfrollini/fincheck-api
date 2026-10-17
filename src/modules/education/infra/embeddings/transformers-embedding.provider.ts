@@ -60,6 +60,7 @@ export class TransformersEmbeddingProvider
 
   async embedQuery(text: string): Promise<number[]> {
     const [vector] = await this.embed([`query: ${text}`]);
+    if (!vector) throw new Error('Embedding model returned no vector.');
     return vector;
   }
 

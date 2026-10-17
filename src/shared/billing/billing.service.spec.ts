@@ -286,6 +286,21 @@ describe('BillingService', () => {
         }),
       );
     });
+
+    it('fails loudly when the active subscription has no items', async () => {
+      mockUsersRepository.findById.mockResolvedValue({
+        ...baseUser,
+        stripeCustomerId: 'cus_1',
+      });
+      stripe.subscriptions.list.mockResolvedValue({
+        data: [{ id: 'sub_1', items: { data: [] } }],
+      });
+
+      await expect(service.changePlan('user_1', 'GOLD')).rejects.toThrow(
+        InternalServerErrorException,
+      );
+      expect(stripe.subscriptions.update).not.toHaveBeenCalled();
+    });
   });
 
   // ──────────────────────────────────────────────

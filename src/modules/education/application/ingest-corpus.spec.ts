@@ -4,6 +4,7 @@ import { type EmbeddingProvider } from '../domain/embedding-provider';
 import { type KnowledgeChunksRepository } from '../domain/repositories/knowledge-chunks.repository';
 import { type PageText } from './chunking';
 import { ingestCorpus } from './ingest-corpus';
+import { nthCall } from '../../../../test/helpers/must';
 
 const pdf = new TextEncoder().encode('fake pdf bytes');
 const sha = createHash('sha256').update(pdf).digest('hex');
@@ -45,13 +46,21 @@ describe('ingestCorpus', () => {
 
     const result = await ingestCorpus(d.input);
 
-    const [stored] = d.repository.replaceAll.mock.calls[0];
+    const [stored] = nthCall(d.repository.replaceAll.mock);
     expect(stored.map((c) => [c.chunkIndex, c.page, c.embedding])).toEqual([
       [0, 1, [0]],
       [1, 2, [1]],
     ]);
     expect(stored.every((c) => c.documentSha === sha)).toBe(true);
     expect(result).toEqual({ chunks: 2, stored: 2 });
+  });
+
+  it('refuses to store a chunk the embedder returned no vector for', async () => {
+    const d = deps();
+    d.input.embeddings.embedPassages.mockResolvedValue([[0]]);
+
+    await expect(ingestCorpus(d.input)).rejects.toThrow(/no embedding/i);
+    expect(d.repository.replaceAll).not.toHaveBeenCalled();
   });
 
   it('re-ingesting replaces the stored chunks instead of adding to them', async () => {

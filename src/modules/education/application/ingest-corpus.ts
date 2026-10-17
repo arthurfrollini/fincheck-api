@@ -31,11 +31,12 @@ export async function ingestCorpus(
   // Replace, not append: re-running is idempotent, and a new edition,
   // chunker or model never coexists with the old one in search results.
   const stored = await deps.repository.replaceAll(
-    chunks.map((c, i) => ({
-      ...c,
-      documentSha: sha,
-      embedding: embeddings[i],
-    })),
+    chunks.map((c, i) => {
+      const embedding = embeddings[i];
+      if (!embedding)
+        throw new Error(`No embedding for chunk ${c.chunkIndex}.`);
+      return { ...c, documentSha: sha, embedding };
+    }),
   );
   return { chunks: chunks.length, stored };
 }

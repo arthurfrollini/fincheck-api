@@ -134,8 +134,13 @@ export class BillingService {
     const isUpgrade =
       user.stripePriceId === env.stripePriceGold && newPlanId === 'PLATINUM';
 
+    const item = subscription.items.data[0];
+    if (!item) {
+      throw new InternalServerErrorException('Subscription has no items.');
+    }
+
     await this.stripe.subscriptions.update(subscription.id, {
-      items: [{ id: subscription.items.data[0].id, price: newPriceId }],
+      items: [{ id: item.id, price: newPriceId }],
       proration_behavior: isUpgrade ? 'always_invoice' : 'none',
     });
 
