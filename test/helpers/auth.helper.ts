@@ -1,5 +1,7 @@
 import request from 'supertest';
+import { authTokens, parseBody } from './body';
 import { INestApplication } from '@nestjs/common';
+import type { App } from 'supertest/types';
 
 export interface AuthTokens {
   accessToken: string;
@@ -13,7 +15,7 @@ export function uniqueEmail(prefix = 'user'): string {
 }
 
 export async function signUpAndGetTokens(
-  app: INestApplication,
+  app: INestApplication<App>,
   email = uniqueEmail(),
   password = 'Test@1234',
   name = 'Test User',
@@ -32,8 +34,5 @@ export async function signUpAndGetTokens(
     .post('/auth/signin')
     .send({ email, password });
 
-  return {
-    accessToken: res.body.accessToken,
-    refreshToken: res.body.refreshToken,
-  };
+  return parseBody(res, authTokens);
 }

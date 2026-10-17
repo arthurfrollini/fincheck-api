@@ -1,22 +1,28 @@
+import type Anthropic from '@anthropic-ai/sdk';
 import request from 'supertest';
+import {
+  categoryList,
+  parseBody,
+  runStatus,
+  withId,
+  withRunId,
+} from '../helpers/body';
+import { z } from 'zod';
+import { message, textBlock, toolUseBlock, usage } from '../helpers/llm';
 import { INestApplication } from '@nestjs/common';
+import type { App } from 'supertest/types';
 import { createApp, mockLlmService } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
 import { PrismaService } from '../../src/shared/database/prisma.service';
 
-const usage = {
-  input_tokens: 500,
-  output_tokens: 80,
-  cache_read_input_tokens: null,
-  cache_creation_input_tokens: null,
-};
+const tokens = usage({ input_tokens: 500, output_tokens: 80 });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 describe('Assistant (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
   let token: string;
-  let toolResults: unknown[];
+  let toolResults: Anthropic.ContentBlockParam[];
 
   beforeAll(async () => {
     app = await createApp();
@@ -45,9 +51,10 @@ describe('Assistant (e2e)', () => {
     const categories = await request(server)
       .get('/categories')
       .set('Authorization', `Bearer ${token}`);
-    const food = categories.body.find(
-      (c: { name: string }) => c.name === 'Alimentação',
+    const food = parseBody(categories, categoryList).find(
+      (c) => c.name === 'Alimentação',
     );
+    if (!food) throw new Error('no Alimentação category');
     for (const [name, value] of [
       ['99 Food', 40.5],
       ['Restaurante', 59.5],
@@ -60,7 +67,7 @@ describe('Assistant (e2e)', () => {
           value,
           type: 'EXPENSE',
           date: '2026-09-10',
-          bankAccountId: bank.body.id,
+          bankAccountId: parseBody(bank, withId).id,
           categoryId: food.id,
         });
     }
@@ -74,35 +81,38 @@ describe('Assistant (e2e)', () => {
         const last = params.messages[params.messages.length - 1];
         if (last.role === 'user' && Array.isArray(last.content)) {
           toolResults.push(...last.content);
-          return Promise.resolve({
-            role: 'assistant',
-            stop_reason: 'end_turn',
-            usage,
-            content: [
-              { type: 'text', text: 'Você gastou R$ 100,00.', citations: null },
-            ],
-          });
+          return Promise.resolve(
+            message({
+              usage: tokens,
+              content: [textBlock('Você gastou R$ 100,00.')],
+            }),
+          );
         }
-        return Promise.resolve({
-          role: 'assistant',
-          stop_reason: 'tool_use',
-          usage,
-          content: [
-            {
-              type: 'tool_use',
-              id: 'tu-1',
-              name: 'compute_totals',
-              input: {
+        return Promise.resolve(
+          message({
+            stop_reason: 'tool_use',
+            usage: tokens,
+            content: [
+              toolUseBlock('tu-1', 'compute_totals', {
                 from: '2026-09-01',
                 to: '2026-09-30',
                 type: 'EXPENSE',
                 groupBy: 'none',
-              },
-            },
-          ],
-        });
+              }),
+            ],
+          }),
+        );
       });
   });
+
+  // The compute_totals result the tool handler produced on the first round.
+  const grandTotal = () => {
+    const block = toolResults[0];
+    if (block?.type !== 'tool_result' || typeof block.content !== 'string')
+      throw new Error('no compute_totals result captured');
+    const parsed: unknown = JSON.parse(block.content);
+    return z.object({ grandTotal: z.number() }).parse(parsed).grandTotal;
+  };
 
   const ask = (question: string, key?: string, auth = token) => {
     const req = request(app.getHttpServer())
@@ -116,7 +126,8 @@ describe('Assistant (e2e)', () => {
       const res = await request(app.getHttpServer())
         .get(`/assistant/runs/${runId}`)
         .set('Authorization', `Bearer ${token}`);
-      if (!['QUEUED', 'RUNNING'].includes(res.body.status)) return res.body;
+      const run = parseBody(res, runStatus);
+      if (!['QUEUED', 'RUNNING'].includes(run.status)) return run;
       await sleep(100);
     }
     throw new Error('run did not finish');
@@ -126,8 +137,9 @@ describe('Assistant (e2e)', () => {
     const res = await ask('quanto gastei em setembro?');
 
     expect(res.status).toBe(202);
-    expect(res.body).toEqual({ runId: expect.any(String), status: 'QUEUED' });
-    const run = await poll(res.body.runId);
+    const { runId } = parseBody(res, withRunId);
+    expect(res.body).toEqual({ runId, status: 'QUEUED' });
+    const run = await poll(runId);
     expect(run).toEqual(
       expect.objectContaining({
         status: 'COMPLETED',
@@ -135,9 +147,7 @@ describe('Assistant (e2e)', () => {
         steps: 2,
       }),
     );
-    expect(
-      JSON.parse((toolResults[0] as { content: string }).content).grandTotal,
-    ).toBe(100);
+    expect(grandTotal()).toBe(100);
   });
 
   it('returns the same run for a repeated Idempotency-Key and runs it once', async () => {
@@ -146,19 +156,20 @@ describe('Assistant (e2e)', () => {
 
     expect(first.status).toBe(202);
     expect(second.status).toBe(200);
-    expect(second.body.runId).toBe(first.body.runId);
-    await poll(first.body.runId);
+    const { runId } = parseBody(first, withRunId);
+    expect(parseBody(second, withRunId).runId).toBe(runId);
+    await poll(runId);
     await sleep(300);
     expect(mockLlmService.complete).toHaveBeenCalledTimes(2);
   });
 
   it('does not show a run to another user', async () => {
-    const res = await ask('quanto gastei?');
-    await poll(res.body.runId);
+    const { runId } = parseBody(await ask('quanto gastei?'), withRunId);
+    await poll(runId);
     const { accessToken: other } = await signUpAndGetTokens(app);
 
     const peek = await request(app.getHttpServer())
-      .get(`/assistant/runs/${res.body.runId}`)
+      .get(`/assistant/runs/${runId}`)
       .set('Authorization', `Bearer ${other}`);
     expect(peek.status).toBe(404);
   });
@@ -168,11 +179,9 @@ describe('Assistant (e2e)', () => {
     await app.get(PrismaService).user.updateMany({ data: { plan: 'GOLD' } });
     const res = await ask('quanto gastei em setembro?', undefined, other);
     token = other;
-    await poll(res.body.runId);
+    await poll(parseBody(res, withRunId).runId);
 
-    expect(
-      JSON.parse((toolResults[0] as { content: string }).content).grandTotal,
-    ).toBe(0);
+    expect(grandTotal()).toBe(0);
   });
 
   it.each([

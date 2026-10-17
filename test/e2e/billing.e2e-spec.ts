@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
+import type { App } from 'supertest/types';
 import Stripe from 'stripe';
 import {
   createApp,
@@ -13,7 +14,7 @@ import { cleanMailQueue, waitForLatestMailJob } from '../helpers/queue-helper';
 import { SUBSCRIPTION_CANCELLED_JOB_NAME } from '../../src/shared/mail/mail-job.types';
 
 describe('Billing (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
   let accessToken: string;
 
   beforeAll(async () => {

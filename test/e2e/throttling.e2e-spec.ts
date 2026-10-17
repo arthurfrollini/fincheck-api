@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
+import type { App } from 'supertest/types';
 import { createApp } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
@@ -7,7 +8,7 @@ import { signUpAndGetTokens } from '../helpers/auth.helper';
 // Limits are read per request, so this suite can tighten them at runtime
 // while the rest of the e2e suite runs with the high limits in .env.test.
 describe('Rate limiting (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
   const saved = { auth: process.env.THROTTLE_AUTH_LIMIT };
 
   beforeAll(async () => {

@@ -1,12 +1,14 @@
 import request from 'supertest';
+import { authTokens, idList, parseBody } from '../helpers/body';
 import { INestApplication } from '@nestjs/common';
+import type { App } from 'supertest/types';
 import { createApp } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens, uniqueEmail } from '../helpers/auth.helper';
 import { PrismaService } from '../../src/shared/database/prisma.service';
 
 describe('Admin routes (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
 
   beforeAll(async () => {
     app = await createApp();
@@ -37,7 +39,7 @@ describe('Admin routes (e2e)', () => {
       .send({ email, password });
 
     return {
-      accessToken: signinRes.body.accessToken as string,
+      accessToken: parseBody(signinRes, authTokens).accessToken,
       userId: user.id,
     };
   }
@@ -51,8 +53,7 @@ describe('Admin routes (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(res.status).toBe(200);
-      expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.some((u: { id: string }) => u.id === userId)).toBe(true);
+      expect(parseBody(res, idList).some((u) => u.id === userId)).toBe(true);
     });
 
     it('non-admin token returns 403', async () => {
@@ -87,8 +88,8 @@ describe('Admin routes (e2e)', () => {
         });
 
       expect(res.status).toBe(201);
-      expect(res.body.email).toBe(newEmail);
-      expect(res.body.name).toBe('Created User');
+      expect(res.body).toMatchObject({ email: newEmail });
+      expect(res.body).toMatchObject({ name: 'Created User' });
     });
 
     it('non-admin token returns 403', async () => {
@@ -151,7 +152,7 @@ describe('Admin routes (e2e)', () => {
         .send({ name: 'Updated' });
 
       expect(res.status).toBe(200);
-      expect(res.body.name).toBe('Updated');
+      expect(res.body).toMatchObject({ name: 'Updated' });
     });
 
     it("admin can change a user's plan (how plans are set when billing is off)", async () => {
@@ -169,7 +170,7 @@ describe('Admin routes (e2e)', () => {
         .send({ plan: 'GOLD' });
 
       expect(res.status).toBe(200);
-      expect(res.body.plan).toBe('GOLD');
+      expect(res.body).toMatchObject({ plan: 'GOLD' });
       expect(
         (await prisma.user.findUniqueOrThrow({ where: { id: target.id } }))
           .plan,
@@ -242,7 +243,7 @@ describe('Admin routes (e2e)', () => {
         .get('/users')
         .set('Authorization', `Bearer ${accessToken}`);
 
-      expect(listRes.body.some((u: { id: string }) => u.id === target.id)).toBe(
+      expect(parseBody(listRes, idList).some((u) => u.id === target.id)).toBe(
         false,
       );
     });
