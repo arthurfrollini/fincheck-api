@@ -75,3 +75,14 @@ export function toolUseBlock(
 ): Anthropic.ToolUseBlock {
   return { type: 'tool_use', id, name, input, caller: { type: 'direct' } };
 }
+
+function isParsedResult(value: unknown): value is LlmResult<unknown> {
+  return isMessage(value) && 'parsed_output' in value;
+}
+
+// Recorded structured-output responses (LlmService.parse results).
+export function loadParsedFixture(file: string): LlmResult<unknown> {
+  const value: unknown = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!isParsedResult(value)) throw new Error(`${file} is not a parse result`);
+  return value;
+}

@@ -23,18 +23,17 @@ jest.mock('@shared/config/env', () => ({
   },
 }));
 
+import { mock, type MockProxy } from 'jest-mock-extended';
 import { AuthController } from './auth.controller';
 import { AuthService } from '../../application/auth.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
-  let mockAuthService: { googleAuth: jest.Mock };
+  let mockAuthService: MockProxy<AuthService>;
 
   beforeEach(() => {
-    mockAuthService = {
-      googleAuth: jest.fn(),
-    };
-    controller = new AuthController(mockAuthService as unknown as AuthService);
+    mockAuthService = mock<AuthService>();
+    controller = new AuthController(mockAuthService);
   });
 
   describe('googleCallback', () => {

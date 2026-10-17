@@ -3,46 +3,30 @@ import { PinoLogger } from 'nestjs-pino';
 import { z } from 'zod';
 import { LlmService } from './llm.service';
 import { LlmMetrics } from './llm.metrics';
+import { AiUsageRepository } from './ai-usage.repository';
+import {
+  type DeepMockProxy,
+  mock,
+  mockDeep,
+  type MockProxy,
+} from 'jest-mock-extended';
+import {
+  message as baseMessage,
+  textBlock,
+  usage,
+} from '../../../test/helpers/llm';
+import { closeTo } from '../../../test/helpers/match';
 
-function usage(fields: Partial<Anthropic.Usage> = {}): Anthropic.Usage {
-  return {
-    cache_creation: null,
-    cache_creation_input_tokens: null,
-    cache_read_input_tokens: null,
-    inference_geo: null,
-    input_tokens: 300,
-    output_tokens: 50,
-    output_tokens_details: null,
-    server_tool_use: null,
-    service_tier: null,
-    speed: null,
-    ...fields,
-  };
-}
-
+// A reply with the leading thinking block adaptive thinking produces.
 function message(
   text: string | null,
-  overrides: Partial<{
-    stop_reason: Anthropic.StopReason;
-    usage: Anthropic.Usage;
-  }> = {},
-) {
-  const content: unknown[] = [
+  fields: Partial<Anthropic.Message> = {},
+): Anthropic.Message {
+  const content: Anthropic.ContentBlock[] = [
     { type: 'thinking', thinking: '', signature: 'sig' },
   ];
-  if (text !== null) content.push({ type: 'text', text, citations: null });
-  return {
-    id: 'msg_1',
-    type: 'message',
-    role: 'assistant',
-    model: 'claude-haiku-5-5',
-    content,
-    stop_reason: 'end_turn',
-    stop_sequence: null,
-    stop_details: null,
-    usage: usage(),
-    ...overrides,
-  };
+  if (text !== null) content.push(textBlock(text));
+  return baseMessage({ content, ...fields });
 }
 
 const SCHEMA = z.object({ answer: z.enum(['a', 'b']) });
@@ -54,20 +38,17 @@ const PARAMS = {
 };
 
 describe('LlmService', () => {
-  let create: jest.Mock;
-  let metrics: jest.Mocked<Pick<LlmMetrics, 'record'>>;
-  let logger: jest.Mocked<Pick<PinoLogger, 'info' | 'warn'>>;
+  let anthropic: DeepMockProxy<Anthropic>;
+  let metrics: MockProxy<LlmMetrics>;
+  let logger: MockProxy<PinoLogger>;
   let service: LlmService;
 
   beforeEach(() => {
-    create = jest.fn().mockResolvedValue(message('{"answer":"a"}'));
-    metrics = { record: jest.fn() };
-    logger = { info: jest.fn(), warn: jest.fn() };
-    service = new LlmService(
-      { messages: { create } } as unknown as Anthropic,
-      metrics as unknown as LlmMetrics,
-      logger as unknown as PinoLogger,
-    );
+    anthropic = mockDeep<Anthropic>();
+    anthropic.messages.create.mockResolvedValue(message('{"answer":"a"}'));
+    metrics = mock<LlmMetrics>();
+    logger = mock<PinoLogger>();
+    service = new LlmService(anthropic, metrics, logger);
   });
 
   it('parses the text block after a leading thinking block and records outcome ok', async () => {
@@ -76,7 +57,7 @@ describe('LlmService', () => {
     });
 
     expect(result.parsed_output).toEqual({ answer: 'a' });
-    expect(create).toHaveBeenCalledWith(PARAMS);
+    expect(anthropic.messages.create).toHaveBeenCalledWith(PARAMS);
     expect(metrics.record).toHaveBeenCalledWith(
       'claude-haiku-5-5',
       'categorization',
@@ -105,7 +86,7 @@ describe('LlmService', () => {
   ])(
     'returns parsed_output null with outcome unparsed for %s, keeping usage',
     async (_label, text) => {
-      create.mockResolvedValueOnce(message(text));
+      anthropic.messages.create.mockResolvedValueOnce(message(text));
 
       const result = await service.parse('categorization', PARAMS, SCHEMA);
 
@@ -125,7 +106,7 @@ describe('LlmService', () => {
   ] as const)(
     'records outcome %s even when partial text is present, without parsing it',
     async (stopReason, outcome) => {
-      create.mockResolvedValueOnce(
+      anthropic.messages.create.mockResolvedValueOnce(
         message('{"answer":"a"', { stop_reason: stopReason }),
       );
 
@@ -149,7 +130,7 @@ describe('LlmService', () => {
       'rate limited',
       new Headers(),
     );
-    create.mockRejectedValueOnce(error);
+    anthropic.messages.create.mockRejectedValueOnce(error);
 
     await expect(service.parse('categorization', PARAMS, SCHEMA)).rejects.toBe(
       error,
@@ -163,7 +144,7 @@ describe('LlmService', () => {
   });
 
   it('warns when input_tokens exceeds 100_000 on claude-haiku-5-5', async () => {
-    create.mockResolvedValueOnce(
+    anthropic.messages.create.mockResolvedValueOnce(
       message('{"answer":"a"}', { usage: usage({ input_tokens: 100_001 }) }),
     );
 
@@ -184,8 +165,8 @@ describe('LlmService', () => {
 });
 
 describe('LlmService.complete', () => {
-  let create: jest.Mock;
-  let metrics: jest.Mocked<Pick<LlmMetrics, 'record'>>;
+  let anthropic: DeepMockProxy<Anthropic>;
+  let metrics: MockProxy<LlmMetrics>;
   let service: LlmService;
   const params = {
     model: 'claude-sonnet-5-5' as const,
@@ -194,13 +175,10 @@ describe('LlmService.complete', () => {
   };
 
   beforeEach(() => {
-    create = jest.fn().mockResolvedValue(message('An answer.'));
-    metrics = { record: jest.fn() };
-    service = new LlmService(
-      { messages: { create } } as unknown as Anthropic,
-      metrics as unknown as LlmMetrics,
-      { info: jest.fn(), warn: jest.fn() } as unknown as PinoLogger,
-    );
+    anthropic = mockDeep<Anthropic>();
+    anthropic.messages.create.mockResolvedValue(message('An answer.'));
+    metrics = mock<LlmMetrics>();
+    service = new LlmService(anthropic, metrics, mock<PinoLogger>());
   });
 
   it('returns the message and records outcome ok', async () => {
@@ -220,7 +198,9 @@ describe('LlmService.complete', () => {
   it.each(['refusal', 'max_tokens'] as const)(
     'records outcome %s',
     async (stopReason) => {
-      create.mockResolvedValueOnce(message('x', { stop_reason: stopReason }));
+      anthropic.messages.create.mockResolvedValueOnce(
+        message('x', { stop_reason: stopReason }),
+      );
 
       await service.complete('rag', params);
 
@@ -240,7 +220,7 @@ describe('LlmService.complete', () => {
       'x',
       new Headers(),
     );
-    create.mockRejectedValueOnce(error);
+    anthropic.messages.create.mockRejectedValueOnce(error);
 
     await expect(service.complete('rag', params)).rejects.toBe(error);
     expect(metrics.record).toHaveBeenCalledWith(
@@ -253,26 +233,23 @@ describe('LlmService.complete', () => {
 });
 
 describe('LlmService usage recording', () => {
-  let create: jest.Mock;
-  let usageRepo: { record: jest.Mock };
-  let logger: { info: jest.Mock; warn: jest.Mock };
+  let anthropic: DeepMockProxy<Anthropic>;
+  let usageRepo: MockProxy<AiUsageRepository>;
+  let logger: MockProxy<PinoLogger>;
   const params = {
     model: 'claude-sonnet-5-5' as const,
     max_tokens: 4096,
     messages: [{ role: 'user' as const, content: 'q' }],
   };
-  const build = (repo?: unknown) =>
-    new LlmService(
-      { messages: { create } } as unknown as Anthropic,
-      { record: jest.fn() } as unknown as LlmMetrics,
-      logger as unknown as PinoLogger,
-      repo as never,
-    );
+  const build = (repo?: AiUsageRepository) =>
+    new LlmService(anthropic, mock<LlmMetrics>(), logger, repo);
 
   beforeEach(() => {
-    create = jest.fn().mockResolvedValue(message('An answer.'));
-    usageRepo = { record: jest.fn().mockResolvedValue(undefined) };
-    logger = { info: jest.fn(), warn: jest.fn() };
+    anthropic = mockDeep<Anthropic>();
+    anthropic.messages.create.mockResolvedValue(message('An answer.'));
+    usageRepo = mock<AiUsageRepository>();
+    usageRepo.record.mockResolvedValue(undefined);
+    logger = mock<PinoLogger>();
   });
 
   it('records tokens and cost for the user when the caller passes userId', async () => {
@@ -284,7 +261,7 @@ describe('LlmService usage recording', () => {
       model: 'claude-sonnet-5-5',
       inputTokens: 300,
       outputTokens: 50,
-      costUsd: expect.closeTo(0.0011, 6) as number,
+      costUsd: closeTo(0.0011, 6),
     });
   });
 

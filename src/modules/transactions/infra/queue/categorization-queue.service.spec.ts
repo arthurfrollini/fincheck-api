@@ -1,19 +1,18 @@
+import { mock, type MockProxy } from 'jest-mock-extended';
 import { PinoLogger } from 'nestjs-pino';
-import { Queue } from 'bullmq';
+import { Job, Queue } from 'bullmq';
 import { CategorizationQueueService } from './categorization-queue.service';
 
 describe('CategorizationQueueService', () => {
-  let mockQueue: jest.Mocked<Pick<Queue, 'add' | 'on'>>;
-  let mockLogger: jest.Mocked<Pick<PinoLogger, 'error'>>;
+  let mockQueue: MockProxy<Queue>;
+  let mockLogger: MockProxy<PinoLogger>;
   let service: CategorizationQueueService;
 
   beforeEach(() => {
-    mockQueue = { add: jest.fn().mockResolvedValue(undefined), on: jest.fn() };
-    mockLogger = { error: jest.fn() };
-    service = new CategorizationQueueService(
-      mockQueue as unknown as Queue,
-      mockLogger as unknown as PinoLogger,
-    );
+    mockQueue = mock<Queue>();
+    mockQueue.add.mockResolvedValue(mock<Job>());
+    mockLogger = mock<PinoLogger>();
+    service = new CategorizationQueueService(mockQueue, mockLogger);
   });
 
   it('enqueues a deduplicated job with the retry config', async () => {

@@ -1,4 +1,6 @@
-import type Anthropic from '@anthropic-ai/sdk';
+import { mock } from 'jest-mock-extended';
+import { type LlmService } from '../../src/shared/llm/llm.service';
+import { parsedResult } from '../../test/helpers/llm';
 import { judgeGrounding } from './grade';
 import { runAgentEval } from './runner';
 
@@ -125,18 +127,14 @@ describe('runAgentEval', () => {
 
 describe('judgeGrounding', () => {
   it('asks Opus 5.5 at low effort and shows it every tool call and result', async () => {
-    const llm = {
-      parse: jest.fn().mockResolvedValue({
-        parsed_output: { reasoning: 'r', grounded: true },
-      }),
-    };
+    const llm = mock<LlmService>();
+    llm.parse.mockResolvedValue(
+      parsedResult({ reasoning: 'r', grounded: true }),
+    );
 
-    await judgeGrounding(llm as never, { question: 'Q', answer: 'A', trace });
+    await judgeGrounding(llm, { question: 'Q', answer: 'A', trace });
 
-    const [feature, params] = llm.parse.mock.calls[0] as [
-      string,
-      Anthropic.MessageCreateParamsNonStreaming,
-    ];
+    const [feature, params] = llm.parse.mock.calls[0];
     expect(feature).toBe('judge');
     expect(params.model).toBe('claude-opus-5-5');
     expect(params.output_config).toEqual(

@@ -1,17 +1,17 @@
+import type { PrismaClient } from '@prisma/client';
+import { mockDeep } from 'jest-mock-extended';
+import { userRow } from '../../../../test/helpers/prisma-rows';
 import { promoteToAdmin } from './promote-admin';
 
 describe('promoteToAdmin', () => {
   it('sets role and plan to ADMINISTRATOR for the user with that email', async () => {
-    const prisma = {
-      user: {
-        findUnique: jest.fn().mockResolvedValue({ id: 'u1' }),
-        update: jest.fn().mockResolvedValue({ id: 'u1' }),
-      },
-    };
+    const prisma = mockDeep<PrismaClient>();
+    prisma.user.findUnique.mockResolvedValue(userRow({ id: 'u1' }));
+    prisma.user.update.mockResolvedValue(userRow({ id: 'u1' }));
 
     await expect(
-      promoteToAdmin(prisma as never, '  owner@example.com '),
-    ).resolves.toEqual({ id: 'u1' });
+      promoteToAdmin(prisma, '  owner@example.com '),
+    ).resolves.toMatchObject({ id: 'u1' });
     expect(prisma.user.findUnique).toHaveBeenCalledWith({
       where: { email: 'owner@example.com' },
     });
@@ -23,16 +23,12 @@ describe('promoteToAdmin', () => {
   });
 
   it('refuses an email that has no account', async () => {
-    const prisma = {
-      user: {
-        findUnique: jest.fn().mockResolvedValue(null),
-        update: jest.fn(),
-      },
-    };
+    const prisma = mockDeep<PrismaClient>();
+    prisma.user.findUnique.mockResolvedValue(null);
 
-    await expect(
-      promoteToAdmin(prisma as never, 'nobody@example.com'),
-    ).rejects.toThrow(/nobody@example.com/);
+    await expect(promoteToAdmin(prisma, 'nobody@example.com')).rejects.toThrow(
+      /nobody@example.com/,
+    );
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

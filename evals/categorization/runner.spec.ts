@@ -1,4 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { mock } from 'jest-mock-extended';
+import { type LlmService } from '../../src/shared/llm/llm.service';
+import { parsedResult, usage } from '../../test/helpers/llm';
 import {
   EVAL_CATEGORIES,
   assertRealKey,
@@ -11,19 +14,10 @@ import { type GoldenCase } from './golden-set';
 const idOf = (name: string, type: 'INCOME' | 'EXPENSE') =>
   EVAL_CATEGORIES.find((c) => c.name === name && c.type === type)!.id;
 
-const usage = {
-  input_tokens: 400,
-  output_tokens: 30,
-  cache_read_input_tokens: null,
-  cache_creation_input_tokens: null,
-} as Anthropic.Usage;
+const tokens = usage({ input_tokens: 400, output_tokens: 30 });
 
 function answer(categoryId: string, confidence = 0.9) {
-  return {
-    stop_reason: 'end_turn',
-    parsed_output: { categoryId, confidence },
-    usage,
-  };
+  return parsedResult({ categoryId, confidence }, { usage: tokens });
 }
 
 const expense: GoldenCase = {
@@ -47,9 +41,8 @@ const noSleep = () => Promise.resolve();
 
 describe('runCategorizationEval', () => {
   it('maps a correct answer back to the expected category name', async () => {
-    const llm = {
-      parse: jest.fn().mockResolvedValue(answer(idOf('Mercado', 'EXPENSE'))),
-    };
+    const llm = mock<LlmService>();
+    llm.parse.mockResolvedValue(answer(idOf('Mercado', 'EXPENSE')));
 
     const [r] = await runCategorizationEval({
       llm,
@@ -65,9 +58,8 @@ describe('runCategorizationEval', () => {
   });
 
   it('resolves Outro through the case type, so INCOME Outro is not EXPENSE Outro', async () => {
-    const llm = {
-      parse: jest.fn().mockResolvedValue(answer(idOf('Outro', 'INCOME'))),
-    };
+    const llm = mock<LlmService>();
+    llm.parse.mockResolvedValue(answer(idOf('Outro', 'INCOME')));
 
     const [r] = await runCategorizationEval({
       llm,
@@ -77,19 +69,14 @@ describe('runCategorizationEval', () => {
     });
 
     expect(r.got).toBe('Outro');
-    const params = llm.parse.mock.calls[0][1] as {
-      messages: { content: string }[];
-    };
+    const params = llm.parse.mock.calls[0][1];
     expect(params.messages[0].content).toContain(idOf('Outro', 'INCOME'));
     expect(params.messages[0].content).not.toContain(idOf('Outro', 'EXPENSE'));
   });
 
   it('applies the production confidence floor', async () => {
-    const llm = {
-      parse: jest
-        .fn()
-        .mockResolvedValue(answer(idOf('Mercado', 'EXPENSE'), 0.4)),
-    };
+    const llm = mock<LlmService>();
+    llm.parse.mockResolvedValue(answer(idOf('Mercado', 'EXPENSE'), 0.4));
 
     const [r] = await runCategorizationEval({
       llm,
@@ -102,13 +89,10 @@ describe('runCategorizationEval', () => {
   });
 
   it('records a refusal as a miss with no answer', async () => {
-    const llm = {
-      parse: jest.fn().mockResolvedValue({
-        stop_reason: 'refusal',
-        parsed_output: null,
-        usage,
-      }),
-    };
+    const llm = mock<LlmService>();
+    llm.parse.mockResolvedValue(
+      parsedResult(null, { stop_reason: 'refusal', usage: tokens }),
+    );
 
     const [r] = await runCategorizationEval({
       llm,
@@ -123,14 +107,12 @@ describe('runCategorizationEval', () => {
   });
 
   it('retries a rate limit and then succeeds', async () => {
-    const llm = {
-      parse: jest
-        .fn()
-        .mockRejectedValueOnce(
-          new Anthropic.RateLimitError(429, undefined, 'x', new Headers()),
-        )
-        .mockResolvedValueOnce(answer(idOf('Mercado', 'EXPENSE'))),
-    };
+    const llm = mock<LlmService>();
+    llm.parse
+      .mockRejectedValueOnce(
+        new Anthropic.RateLimitError(429, undefined, 'x', new Headers()),
+      )
+      .mockResolvedValueOnce(answer(idOf('Mercado', 'EXPENSE')));
 
     const [r] = await runCategorizationEval({
       llm,
@@ -144,13 +126,10 @@ describe('runCategorizationEval', () => {
   });
 
   it('gives up after 3 server errors and records outcome error', async () => {
-    const llm = {
-      parse: jest
-        .fn()
-        .mockRejectedValue(
-          new Anthropic.InternalServerError(500, undefined, 'x', new Headers()),
-        ),
-    };
+    const llm = mock<LlmService>();
+    llm.parse.mockRejectedValue(
+      new Anthropic.InternalServerError(500, undefined, 'x', new Headers()),
+    );
 
     const [r] = await runCategorizationEval({
       llm,
@@ -164,13 +143,10 @@ describe('runCategorizationEval', () => {
   });
 
   it('does not retry an authentication error', async () => {
-    const llm = {
-      parse: jest
-        .fn()
-        .mockRejectedValue(
-          new Anthropic.AuthenticationError(401, undefined, 'x', new Headers()),
-        ),
-    };
+    const llm = mock<LlmService>();
+    llm.parse.mockRejectedValue(
+      new Anthropic.AuthenticationError(401, undefined, 'x', new Headers()),
+    );
 
     const [r] = await runCategorizationEval({
       llm,

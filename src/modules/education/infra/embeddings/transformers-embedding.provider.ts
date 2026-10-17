@@ -21,7 +21,7 @@ const loadExtractor: ExtractorFactory = async () => {
   // for at boot. Not import(): Jest can't run dynamic imports without
   // --experimental-vm-modules.
   // require() returns any; the annotation restores the module's real type.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
   const transformers: TransformersModule = require('@huggingface/transformers');
   transformers.env.cacheDir = process.env.TRANSFORMERS_CACHE ?? '.cache/models';
   const extractor = await transformers.pipeline(

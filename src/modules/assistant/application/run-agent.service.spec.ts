@@ -1,4 +1,17 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { mock, type MockProxy } from 'jest-mock-extended';
+import { PinoLogger } from 'nestjs-pino';
+import { LlmService } from '@shared/llm/llm.service';
+import { CategoriesRepository } from '@modules/categories/domain/repositories/categories.repository';
+import { TransactionsRepository } from '@modules/transactions/domain/repositories/transactions.repository';
+import { type AgentRun, type FinishedStatus } from '../entities/AgentRun';
+import { AgentRunsRepository } from '../domain/repositories/agent-runs.repository';
+import {
+  message,
+  textBlock,
+  toolUseBlock,
+  usage,
+} from '../../../../test/helpers/llm';
 import { RunAgentService, runAgentLoop } from './run-agent.service';
 import {
   AGENT_MODEL,
@@ -10,37 +23,37 @@ import {
 } from './agent.constants';
 import { type ToolHandlers } from './agent-tools';
 
-const usage = {
-  input_tokens: 500,
-  output_tokens: 80,
-  cache_read_input_tokens: null,
-  cache_creation_input_tokens: null,
+const tokens = usage({ input_tokens: 500, output_tokens: 80 });
+const thinking: Anthropic.ThinkingBlock = {
+  type: 'thinking',
+  thinking: '',
+  signature: 'sig',
 };
-const thinking = { type: 'thinking', thinking: '', signature: 'sig' };
 
-function toolCall(...calls: [string, unknown][]) {
-  return {
-    role: 'assistant',
+function toolCall(...calls: [string, unknown][]): Anthropic.Message {
+  return message({
     content: [
       thinking,
-      ...calls.map(([name, input], i) => ({
-        type: 'tool_use',
-        id: `tu-${name}-${i}`,
-        name,
-        input,
-      })),
+      ...calls.map(([name, input], i) =>
+        toolUseBlock(`tu-${name}-${i}`, name, input),
+      ),
     ],
     stop_reason: 'tool_use',
-    usage,
-  } as unknown as Anthropic.Message;
+    usage: tokens,
+  });
 }
-const final = (text: string) =>
-  ({
-    role: 'assistant',
-    content: [thinking, { type: 'text', text, citations: null }],
-    stop_reason: 'end_turn',
-    usage,
-  }) as unknown as Anthropic.Message;
+const final = (text: string): Anthropic.Message =>
+  message({ content: [thinking, textBlock(text)], usage: tokens });
+
+// The tool_result blocks of a user turn the loop sent back.
+function toolResults(
+  content: Anthropic.MessageParam['content'],
+): Anthropic.ToolResultBlockParam[] {
+  if (typeof content === 'string') return [];
+  return content.filter(
+    (b): b is Anthropic.ToolResultBlockParam => b.type === 'tool_result',
+  );
+}
 
 function handlers(overrides: Partial<ToolHandlers> = {}): ToolHandlers {
   return {
@@ -66,12 +79,10 @@ const totals: [string, unknown] = [
 describe('runAgentLoop', () => {
   it('runs tools until the model answers, appending each assistant turn unchanged', async () => {
     const first = toolCall(totals);
-    const llm = {
-      complete: jest
-        .fn()
-        .mockResolvedValueOnce(first)
-        .mockResolvedValueOnce(final('Você gastou R$ 412,37.')),
-    };
+    const llm = mock<LlmService>();
+    llm.complete
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce(final('Você gastou R$ 412,37.'));
 
     const result = await runAgentLoop({
       question: 'quanto gastei?',
@@ -87,8 +98,7 @@ describe('runAgentLoop', () => {
         steps: 2,
       }),
     );
-    const secondCall = llm.complete.mock
-      .calls[1][1] as Anthropic.MessageCreateParamsNonStreaming;
+    const secondCall = llm.complete.mock.calls[1][1];
     expect(secondCall.messages[1]).toEqual({
       role: 'assistant',
       content: first.content,
@@ -104,12 +114,10 @@ describe('runAgentLoop', () => {
   });
 
   it('returns every result of a parallel tool round in one user message, in order', async () => {
-    const llm = {
-      complete: jest
-        .fn()
-        .mockResolvedValueOnce(toolCall(['fetch_categories', {}], totals))
-        .mockResolvedValueOnce(final('ok')),
-    };
+    const llm = mock<LlmService>();
+    llm.complete
+      .mockResolvedValueOnce(toolCall(['fetch_categories', {}], totals))
+      .mockResolvedValueOnce(final('ok'));
 
     await runAgentLoop({
       question: 'q',
@@ -118,12 +126,10 @@ describe('runAgentLoop', () => {
       now: NOW,
     });
 
-    const messages = (
-      llm.complete.mock.calls[1][1] as Anthropic.MessageCreateParamsNonStreaming
-    ).messages;
+    const { messages } = llm.complete.mock.calls[1][1];
     // The mock holds the live array, so later turns are appended to it;
     // the round under test is the third message.
-    const results = messages[2].content as Anthropic.ToolResultBlockParam[];
+    const results = toolResults(messages[2].content);
     expect(messages[2].role).toBe('user');
     expect(results.map((r) => r.tool_use_id)).toEqual([
       'tu-fetch_categories-0',
@@ -132,7 +138,8 @@ describe('runAgentLoop', () => {
   });
 
   it('degrades after the step limit without a final answer', async () => {
-    const llm = { complete: jest.fn().mockResolvedValue(toolCall(totals)) };
+    const llm = mock<LlmService>();
+    llm.complete.mockResolvedValue(toolCall(totals));
 
     const result = await runAgentLoop({
       question: 'q',
@@ -152,7 +159,8 @@ describe('runAgentLoop', () => {
   });
 
   it('degrades after two consecutive rounds where every tool failed', async () => {
-    const llm = { complete: jest.fn().mockResolvedValue(toolCall(totals)) };
+    const llm = mock<LlmService>();
+    llm.complete.mockResolvedValue(toolCall(totals));
     const failing = handlers({
       compute_totals: jest.fn().mockRejectedValue(new Error('db down')),
     });
@@ -178,13 +186,11 @@ describe('runAgentLoop', () => {
       .fn()
       .mockRejectedValueOnce(new Error('blip'))
       .mockResolvedValue({ groups: [], grandTotal: 1 });
-    const llm = {
-      complete: jest
-        .fn()
-        .mockResolvedValueOnce(toolCall(totals))
-        .mockResolvedValueOnce(toolCall(totals))
-        .mockResolvedValueOnce(final('ok')),
-    };
+    const llm = mock<LlmService>();
+    llm.complete
+      .mockResolvedValueOnce(toolCall(totals))
+      .mockResolvedValueOnce(toolCall(totals))
+      .mockResolvedValueOnce(final('ok'));
 
     const result = await runAgentLoop({
       question: 'q',
@@ -198,11 +204,12 @@ describe('runAgentLoop', () => {
   });
 
   it('does not run tools from a response cut off by max_tokens', async () => {
-    const cut = {
+    const cut: Anthropic.Message = {
       ...toolCall(totals),
       stop_reason: 'max_tokens',
-    } as Anthropic.Message;
-    const llm = { complete: jest.fn().mockResolvedValue(cut) };
+    };
+    const llm = mock<LlmService>();
+    llm.complete.mockResolvedValue(cut);
     const h = handlers();
 
     const result = await runAgentLoop({
@@ -223,27 +230,24 @@ describe('runAgentLoop', () => {
   });
 
   it('leaves room for adaptive thinking plus the answer', async () => {
-    const llm = { complete: jest.fn().mockResolvedValue(final('ok')) };
+    const llm = mock<LlmService>();
+    llm.complete.mockResolvedValue(final('ok'));
     await runAgentLoop({
       question: 'q',
       llm: llm,
       handlers: handlers(),
       now: NOW,
     });
-    expect(
-      (llm.complete.mock.calls[0][1] as { max_tokens: number }).max_tokens,
-    ).toBeGreaterThanOrEqual(16000);
+    expect(llm.complete.mock.calls[0][1].max_tokens).toBeGreaterThanOrEqual(
+      16000,
+    );
   });
 
   it('degrades on refusal', async () => {
-    const llm = {
-      complete: jest.fn().mockResolvedValue({
-        role: 'assistant',
-        content: [],
-        stop_reason: 'refusal',
-        usage,
-      }),
-    };
+    const llm = mock<LlmService>();
+    llm.complete.mockResolvedValue(
+      message({ content: [], stop_reason: 'refusal', usage: tokens }),
+    );
 
     const result = await runAgentLoop({
       question: 'q',
@@ -268,7 +272,8 @@ describe('runAgentLoop', () => {
       'x',
       new Headers(),
     );
-    const llm = { complete: jest.fn().mockRejectedValue(error) };
+    const llm = mock<LlmService>();
+    llm.complete.mockRejectedValue(error);
 
     await expect(
       runAgentLoop({
@@ -281,7 +286,8 @@ describe('runAgentLoop', () => {
   });
 
   it('asks Sonnet 5.5 at medium effort with the tools, today in the system prompt and the question only in the messages', async () => {
-    const llm = { complete: jest.fn().mockResolvedValue(final('ok')) };
+    const llm = mock<LlmService>();
+    llm.complete.mockResolvedValue(final('ok'));
 
     await runAgentLoop({
       question: 'quanto gastei com comida?',
@@ -290,14 +296,11 @@ describe('runAgentLoop', () => {
       now: NOW,
     });
 
-    const [feature, params] = llm.complete.mock.calls[0] as [
-      string,
-      Anthropic.MessageCreateParamsNonStreaming,
-    ];
+    const [feature, params] = llm.complete.mock.calls[0];
     expect(feature).toBe('agent');
     expect(params.model).toBe(AGENT_MODEL);
     expect(params.output_config).toEqual({ effort: 'medium' });
-    expect(params.tools?.map((t) => (t as Anthropic.Tool).name)).toEqual([
+    expect(params.tools?.map((t) => ('name' in t ? t.name : t.type))).toEqual([
       'fetch_categories',
       'query_transactions',
       'compute_totals',
@@ -313,7 +316,7 @@ describe('runAgentLoop', () => {
 });
 
 describe('RunAgentService', () => {
-  const base = {
+  const base: Omit<AgentRun, 'status'> = {
     id: 'run-1',
     userId: 'u1',
     idempotencyKey: null,
@@ -321,21 +324,22 @@ describe('RunAgentService', () => {
     answer: null,
     steps: 0,
   };
-  let repo: { findById: jest.Mock; markRunning: jest.Mock; finish: jest.Mock };
-  let llm: { complete: jest.Mock };
+  let repo: MockProxy<AgentRunsRepository>;
+  let llm: MockProxy<LlmService>;
   let service: RunAgentService;
-  let logger: { info: jest.Mock; warn: jest.Mock };
+  let logger: MockProxy<PinoLogger>;
 
   beforeEach(() => {
-    repo = { findById: jest.fn(), markRunning: jest.fn(), finish: jest.fn() };
-    llm = { complete: jest.fn().mockResolvedValue(final('R$ 10,00')) };
-    logger = { info: jest.fn(), warn: jest.fn() };
+    repo = mock<AgentRunsRepository>();
+    llm = mock<LlmService>();
+    llm.complete.mockResolvedValue(final('R$ 10,00'));
+    logger = mock<PinoLogger>();
     service = new RunAgentService(
-      repo as never,
-      { search: jest.fn(), totals: jest.fn() } as never,
-      { findAllByUserId: jest.fn() } as never,
-      llm as never,
-      logger as never,
+      repo,
+      mock<TransactionsRepository>(),
+      mock<CategoriesRepository>(),
+      llm,
+      logger,
     );
   });
 
@@ -352,7 +356,7 @@ describe('RunAgentService', () => {
     });
   });
 
-  it.each(['COMPLETED', 'DEGRADED', 'FAILED'])(
+  it.each<FinishedStatus>(['COMPLETED', 'DEGRADED', 'FAILED'])(
     'does nothing for a run already %s (duplicate delivery)',
     async (status) => {
       repo.findById.mockResolvedValue({ ...base, status });

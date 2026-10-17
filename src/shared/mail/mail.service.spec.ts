@@ -1,4 +1,9 @@
 import { MailService } from './mail.service';
+import {
+  anyInstance,
+  objectContaining,
+  stringContaining,
+} from '../../../test/helpers/match';
 
 // Mock env to avoid validation errors during tests
 jest.mock('@shared/config/env', () => ({
@@ -34,15 +39,15 @@ describe('MailService', () => {
 
       expect(sendMock).toHaveBeenCalledTimes(1);
       expect(sendMock).toHaveBeenCalledWith(
-        expect.objectContaining({
+        objectContaining({
           from: 'noreply@fincheck.test',
           to: 'user@example.com',
           subject: 'Confirme a alteração do seu e-mail',
-          html: expect.stringContaining(
+          html: stringContaining(
             'http://localhost:3000/users/confirm-email?token=abc-token-123',
           ),
         }),
-        { signal: expect.any(AbortSignal) },
+        { signal: anyInstance(AbortSignal) },
       );
     });
   });
@@ -53,13 +58,13 @@ describe('MailService', () => {
 
       expect(sendMock).toHaveBeenCalledTimes(1);
       expect(sendMock).toHaveBeenCalledWith(
-        expect.objectContaining({
+        objectContaining({
           from: 'noreply@fincheck.test',
           to: 'user@example.com',
           subject: 'Bem-vindo ao Fincheck!',
-          html: expect.stringContaining('Olá, Arthur!'),
+          html: stringContaining('Olá, Arthur!'),
         }),
-        { signal: expect.any(AbortSignal) },
+        { signal: anyInstance(AbortSignal) },
       );
     });
   });
@@ -74,19 +79,19 @@ describe('MailService', () => {
 
       expect(sendMock).toHaveBeenCalledTimes(1);
       expect(sendMock).toHaveBeenCalledWith(
-        expect.objectContaining({
+        objectContaining({
           from: 'noreply@fincheck.test',
           to: 'user@example.com',
           subject: 'Seu plano Fincheck foi alterado',
-          html: expect.stringContaining('Olá, Arthur!'),
+          html: stringContaining('Olá, Arthur!'),
         }),
-        { signal: expect.any(AbortSignal) },
+        { signal: anyInstance(AbortSignal) },
       );
       expect(sendMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          html: expect.stringContaining('<strong>FREE</strong>'),
+        objectContaining({
+          html: stringContaining('<strong>FREE</strong>'),
         }),
-        { signal: expect.any(AbortSignal) },
+        { signal: anyInstance(AbortSignal) },
       );
     });
   });
@@ -97,13 +102,13 @@ describe('MailService', () => {
 
       expect(sendMock).toHaveBeenCalledTimes(1);
       expect(sendMock).toHaveBeenCalledWith(
-        expect.objectContaining({
+        objectContaining({
           from: 'noreply@fincheck.test',
           to: 'user@example.com',
           subject: 'Sua assinatura Fincheck foi cancelada',
-          html: expect.stringContaining('Olá, Arthur!'),
+          html: stringContaining('Olá, Arthur!'),
         }),
-        { signal: expect.any(AbortSignal) },
+        { signal: anyInstance(AbortSignal) },
       );
     });
   });
@@ -142,7 +147,7 @@ describe('MailService delivery config', () => {
     delete process.env.MAIL_REDIRECT_TO;
     await service.sendWelcome('user@example.com', 'Ana');
     expect(sendMock).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'user@example.com' }),
+      objectContaining({ to: 'user@example.com' }),
       expect.anything(),
     );
   });
@@ -151,7 +156,7 @@ describe('MailService delivery config', () => {
     process.env.MAIL_REDIRECT_TO = 'owner@example.com';
     await service.sendWelcome('user@example.com', 'Ana');
     expect(sendMock).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'owner@example.com' }),
+      objectContaining({ to: 'owner@example.com' }),
       expect.anything(),
     );
   });

@@ -1,3 +1,4 @@
+import { mock, type MockProxy } from 'jest-mock-extended';
 import Anthropic from '@anthropic-ai/sdk';
 import { Job, UnrecoverableError } from 'bullmq';
 import { PinoLogger } from 'nestjs-pino';
@@ -5,26 +6,22 @@ import { RunAgentService } from '../../application/run-agent.service';
 import { AgentProcessor } from './agent.processor';
 
 const job = (attemptsMade = 1, attempts = 3) =>
-  ({
+  mock<Job>({
     name: 'run-agent',
     data: { runId: 'run-1' },
     attemptsMade,
     opts: { attempts },
-  }) as unknown as Job;
+  });
 
 describe('AgentProcessor', () => {
-  let service: { run: jest.Mock; markFailed: jest.Mock };
+  let service: MockProxy<RunAgentService>;
   let processor: AgentProcessor;
 
   beforeEach(() => {
-    service = {
-      run: jest.fn().mockResolvedValue(undefined),
-      markFailed: jest.fn().mockResolvedValue(undefined),
-    };
-    processor = new AgentProcessor(
-      service as unknown as RunAgentService,
-      { error: jest.fn() } as unknown as PinoLogger,
-    );
+    service = mock<RunAgentService>();
+    service.run.mockResolvedValue(undefined);
+    service.markFailed.mockResolvedValue(undefined);
+    processor = new AgentProcessor(service, mock<PinoLogger>());
   });
 
   it('runs the agent for the job run id', async () => {
