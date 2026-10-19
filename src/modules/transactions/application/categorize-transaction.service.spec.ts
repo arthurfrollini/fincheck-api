@@ -21,6 +21,7 @@ import {
   interpretAnswer,
 } from './categorize-transaction.service';
 import { CATEGORIZATION_SYSTEM_PROMPT } from './categorization.constants';
+import { nthCall, must } from '../../../../test/helpers/must';
 
 const FIXTURES = path.resolve(
   __dirname,
@@ -173,7 +174,7 @@ describe('CategorizeTransactionService', () => {
 
   it('rejects an owned category of the other type', async () => {
     ownership.validate.mockResolvedValueOnce({
-      ...expenseCategories[1],
+      ...must(expenseCategories[1], 'a second category'),
       type: 'INCOME',
     });
 
@@ -238,10 +239,10 @@ describe('CategorizeTransactionService', () => {
 
   describe('request shape', () => {
     function request(): LlmParams {
-      return llm.parse.mock.calls[0][1];
+      return nthCall(llm.parse.mock)[1];
     }
     function userText(): string {
-      const { content } = request().messages[0];
+      const { content } = must(request().messages[0], 'the user message');
       if (typeof content !== 'string') throw new Error('expected text');
       return content;
     }
@@ -289,7 +290,7 @@ describe('CategorizeTransactionService', () => {
     it('validates the answer client-side, including the 0-1 confidence range', async () => {
       await service.categorize(USER_ID, TX_ID);
 
-      const schema = llm.parse.mock.calls[0][2];
+      const schema = nthCall(llm.parse.mock)[2];
       expect(
         schema.safeParse({ categoryId: GROCERY, confidence: 0.9 }).success,
       ).toBe(true);

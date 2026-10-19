@@ -18,8 +18,8 @@ REST API for a personal finance app. Users track bank accounts and transactions 
 - **Billing:** Stripe (subscriptions, webhooks, dunning)
 - **Security:** IP rate limiting (`@nestjs/throttler`), per-plan AI quotas, a global daily AI spend ceiling
 - **Observability:** OpenTelemetry traces and metrics to Jaeger and Prometheus, structured logs (`nestjs-pino`) to Loki, all in Grafana, including an LLM spend dashboard
-- **Tests:** Jest 30 + Supertest. 466 unit tests (including the eval harness) and 95 e2e tests, 95.6% combined statement coverage. Mocks are typed (`jest-mock-extended`), so a fixture that drifts from the real type fails to compile.
-- **Type safety:** TypeScript `strict`, with no `any`, no type assertions (`as const` aside) and no non-null `!` anywhere, tests included. ESLint enforces all three. Untrusted input (env vars, job payloads, JSON files, HTTP response bodies in e2e) is parsed with zod.
+- **Tests:** Jest 30 + Supertest. 470 unit tests (including the eval harness) and 95 e2e tests, 95.6% combined statement coverage. Mocks are typed (`jest-mock-extended`), so a fixture that drifts from the real type fails to compile.
+- **Type safety:** TypeScript `strict` plus `noUncheckedIndexedAccess` (an array or record lookup may be `undefined` until checked), with no `any`, no type assertions (`as const` aside) and no non-null `!` anywhere, tests included. ESLint enforces all three. Untrusted input (env vars, job payloads, JSON files, HTTP response bodies in e2e) is parsed with zod.
 
 ## Architecture
 
@@ -254,7 +254,7 @@ npm run test:e2e      # e2e only, real DB
 npm test              # both, with the merged coverage report
 ```
 
-`npm test` merges both coverage reports with `nyc`: unit touches `application`/`domain`, and e2e touches `infra`/`http`. Combined: 95.5% statements.
+`npm test` merges both coverage reports with `nyc`: unit touches `application`/`domain`, and e2e touches `infra`/`http`. Combined: 95.6% statements.
 
 E2E needs Docker running (`docker compose up -d`) and a local `.env.test`, with the same shape as `.env` but fake credentials, high `THROTTLE_*` limits and `BULLMQ_PREFIX=bull-test`. It is gitignored and never used for a real network call.
 

@@ -7,6 +7,7 @@ import {
 import { objectContaining } from '../../../../../test/helpers/match';
 import { TransactionsPrismaRepository } from './transactions.prisma.repository';
 import { PrismaService } from '@shared/database/prisma.service';
+import { nthCall } from '../../../../../test/helpers/must';
 
 describe('TransactionsPrismaRepository', () => {
   let mockPrisma: DeepMockProxy<PrismaService>;
@@ -84,7 +85,7 @@ describe('TransactionsPrismaRepository read queries for the agent', () => {
       orderBy: 'value',
     });
 
-    const args = prisma.transaction.findMany.mock.calls[0][0];
+    const args = nthCall(prisma.transaction.findMany.mock)[0];
     expect(Object.keys(args?.where ?? {})[0]).toBe('userId');
     expect(args?.where).toEqual(
       objectContaining<Prisma.TransactionWhereInput>({
@@ -109,7 +110,7 @@ describe('TransactionsPrismaRepository read queries for the agent', () => {
     ).resolves.toEqual([
       { key: 'all', label: 'Total', total: 150.5, count: 3 },
     ]);
-    expect(prisma.transaction.aggregate.mock.calls[0][0].where).toMatchObject({
+    expect(nthCall(prisma.transaction.aggregate.mock)[0].where).toMatchObject({
       userId: 'u1',
     });
   });
@@ -142,7 +143,7 @@ describe('TransactionsPrismaRepository read queries for the agent', () => {
       { key: 'c1', label: 'Mercado', total: 100.11, count: 2 },
       { key: 'none', label: 'Sem categoria', total: 20, count: 1 },
     ]);
-    expect(prisma.category.findMany.mock.calls[0][0]?.where).toEqual({
+    expect(nthCall(prisma.category.findMany.mock)[0]?.where).toEqual({
       userId: 'u1',
       id: { in: ['c1'] },
     });

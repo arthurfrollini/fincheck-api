@@ -8,6 +8,7 @@ import { ValidateBankAccountOwnershipService } from './validate-bank-account-own
 import { PlanGuardService } from '@shared/plan/plan-guard.service';
 import { TransactionType } from '@modules/transactions/entities/Transaction';
 import { BankAccountType } from '../entities/BankAccount';
+import { only } from '../../../../test/helpers/must';
 
 jest.mock('@shared/config/env', () => ({
   env: {
@@ -117,7 +118,7 @@ describe('BankAccountsService', () => {
         isUnlimited: false,
       });
 
-      const [result] = await service.findAllByUserId(USER_ID);
+      const result = only(await service.findAllByUserId(USER_ID), 'account');
 
       // 100 + 50 - 30 = 120
       expect(result.currentBalance).toBe(120);
@@ -134,7 +135,7 @@ describe('BankAccountsService', () => {
         isUnlimited: false,
       });
 
-      const [result] = await service.findAllByUserId(USER_ID);
+      const result = only(await service.findAllByUserId(USER_ID), 'account');
 
       expect(result.isActive).toBe(true);
     });
@@ -149,7 +150,7 @@ describe('BankAccountsService', () => {
         isUnlimited: true,
       });
 
-      const [result] = await service.findAllByUserId(USER_ID);
+      const result = only(await service.findAllByUserId(USER_ID), 'account');
 
       expect(result.isActive).toBe(true);
     });
@@ -164,7 +165,7 @@ describe('BankAccountsService', () => {
         isUnlimited: false,
       });
 
-      const [result] = await service.findAllByUserId(USER_ID);
+      const result = only(await service.findAllByUserId(USER_ID), 'account');
 
       expect(result.isActive).toBe(false);
     });

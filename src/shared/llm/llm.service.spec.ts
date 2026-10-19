@@ -16,6 +16,7 @@ import {
   usage,
 } from '../../../test/helpers/llm';
 import { anyNumber, closeTo } from '../../../test/helpers/match';
+import { nthCall } from '../../../test/helpers/must';
 
 // A reply with the leading thinking block adaptive thinking produces.
 function message(
@@ -66,7 +67,7 @@ describe('LlmService', () => {
     );
     const payload = z
       .record(z.string(), z.unknown())
-      .parse(logger.info.mock.calls[0][0]);
+      .parse(nthCall(logger.info.mock)[0]);
     expect(payload).toEqual(
       expect.objectContaining({
         feature: 'categorization',

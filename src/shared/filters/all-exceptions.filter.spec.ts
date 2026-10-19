@@ -11,6 +11,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 import { Prisma } from '@prisma/client';
 import { objectContaining, stringMatching } from '../../../test/helpers/match';
+import { nthCall } from '../../../test/helpers/must';
 
 function makeMockHost(overrides: { url?: string; method?: string } = {}) {
   const json = jest.fn<void, [body: unknown]>();
@@ -56,7 +57,7 @@ describe('AllExceptionsFilter', () => {
     expect(mockLogger.error).toHaveBeenCalledTimes(1);
     const logPayload = z
       .object({ err: z.unknown(), errorId: z.string() })
-      .parse(mockLogger.error.mock.calls[0][0]);
+      .parse(nthCall(mockLogger.error.mock)[0]);
     expect(logPayload.err).toBe(unexpected);
     expect(logPayload.errorId).toEqual(stringMatching(/^[0-9a-f-]{8}$/));
   });
@@ -71,7 +72,7 @@ describe('AllExceptionsFilter', () => {
     expect(json).toHaveBeenCalledWith(
       objectContaining({ message: 'Bank account not found.' }),
     );
-    const [body] = json.mock.calls[0];
+    const [body] = nthCall(json.mock);
     expect(body).not.toHaveProperty?.('errorId');
     expect(mockLogger.info).toHaveBeenCalledTimes(1);
     expect(mockLogger.error).not.toHaveBeenCalled();

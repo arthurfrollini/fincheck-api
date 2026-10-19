@@ -29,6 +29,18 @@ describe('TransformersEmbeddingProvider', () => {
     );
   });
 
+  it('fails loudly when the model returns no vector for a query', async () => {
+    const provider = new TransformersEmbeddingProvider(() =>
+      Promise.resolve(
+        jest.fn((_inputs: string[]) => Promise.resolve({ tolist: () => [] })),
+      ),
+    );
+
+    await expect(provider.embedQuery('quanto guardar')).rejects.toThrow(
+      /no vector/i,
+    );
+  });
+
   it('embeds passages in batches of 32, preserving order', async () => {
     const extractor = fakeExtractor();
     const provider = new TransformersEmbeddingProvider(() =>

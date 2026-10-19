@@ -84,9 +84,8 @@ export function chunkPages(pages: PageText[]): TextChunk[] {
           page,
           text: current.join('\n\n'),
         });
-        const overlap = current[current.length - 1];
-        current = [overlap];
-        words = wordCount(overlap);
+        current = current.slice(-1);
+        words = wordCount(current.join(' '));
         hasNewContent = false;
       }
       current.push(paragraph);

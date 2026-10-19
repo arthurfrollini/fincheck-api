@@ -78,8 +78,8 @@ describe('Assistant (e2e)', () => {
     mockLlmService.complete
       .mockReset()
       .mockImplementation((_feature, params) => {
-        const last = params.messages[params.messages.length - 1];
-        if (last.role === 'user' && Array.isArray(last.content)) {
+        const last = params.messages.at(-1);
+        if (last?.role === 'user' && Array.isArray(last.content)) {
           toolResults.push(...last.content);
           return Promise.resolve(
             message({

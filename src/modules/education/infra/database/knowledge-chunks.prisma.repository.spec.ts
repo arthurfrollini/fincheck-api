@@ -5,6 +5,7 @@ import { type DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { arrayContaining } from '../../../../../test/helpers/match';
 import { PrismaService } from '@shared/database/prisma.service';
 import { KnowledgeChunksPrismaRepository } from './knowledge-chunks.prisma.repository';
+import { nthCall } from '../../../../../test/helpers/must';
 
 // The repository passes Prisma.sql fragments, never a template string.
 function sqlOf(query: TemplateStringsArray | Prisma.Sql): Prisma.Sql {
@@ -36,7 +37,7 @@ describe('KnowledgeChunksPrismaRepository', () => {
 
     const results = await repository.searchSimilar([0.1, 0.2], 6);
 
-    const sql = sqlOf(prisma.$queryRaw.mock.calls[0][0]);
+    const sql = sqlOf(nthCall(prisma.$queryRaw.mock)[0]);
     expect(sql.sql).toContain('<=>');
     expect(sql.sql).toMatch(/ORDER BY/i);
     expect(sql.values).toEqual(arrayContaining<unknown>(['[0.1,0.2]', 6]));
@@ -69,7 +70,7 @@ describe('KnowledgeChunksPrismaRepository', () => {
     expect(stored).toBe(2);
     expect(tx.knowledgeChunk.deleteMany).toHaveBeenCalledWith({});
     expect(tx.$executeRaw).toHaveBeenCalledTimes(2);
-    expect(sqlOf(tx.$executeRaw.mock.calls[0][0]).values).toContain('[0.1]');
+    expect(sqlOf(nthCall(tx.$executeRaw.mock)[0]).values).toContain('[0.1]');
   });
 
   it('never uses the unsafe raw query APIs', () => {

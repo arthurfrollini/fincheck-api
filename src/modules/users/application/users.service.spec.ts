@@ -101,10 +101,9 @@ describe('UsersService', () => {
 
   describe('listAll', () => {
     it('returns users without password or other sensitive fields', async () => {
-      const users = [
-        makeUser({ id: 'user-1' }),
-        makeUser({ id: 'user-2', email: 'other@example.com' }),
-      ];
+      const first = makeUser({ id: 'user-1' });
+      const second = makeUser({ id: 'user-2', email: 'other@example.com' });
+      const users = [first, second];
       mockUsersRepository.findMany.mockResolvedValue(users);
 
       const result = await service.listAll();
@@ -113,19 +112,19 @@ describe('UsersService', () => {
       expect(result).toEqual([
         {
           id: 'user-1',
-          name: users[0].name,
-          email: users[0].email,
-          role: users[0].role,
-          plan: users[0].plan,
-          avatarUrl: users[0].avatarUrl,
+          name: first.name,
+          email: first.email,
+          role: first.role,
+          plan: first.plan,
+          avatarUrl: first.avatarUrl,
         },
         {
           id: 'user-2',
-          name: users[1].name,
-          email: users[1].email,
-          role: users[1].role,
-          plan: users[1].plan,
-          avatarUrl: users[1].avatarUrl,
+          name: second.name,
+          email: second.email,
+          role: second.role,
+          plan: second.plan,
+          avatarUrl: second.avatarUrl,
         },
       ]);
       result.forEach((user) => expect(user).not.toHaveProperty('password'));

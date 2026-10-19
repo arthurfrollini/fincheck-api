@@ -17,6 +17,7 @@ import {
   RAG_TOP_K,
   REFUSAL_ANSWER,
 } from './rag.constants';
+import { must, nthCall } from '../../../../test/helpers/must';
 
 const FIXTURES = path.resolve(__dirname, '../../../../test/fixtures/llm/rag');
 const fixture = (name: string) =>
@@ -98,13 +99,13 @@ describe('AnswerQuestionService', () => {
       'quanto guardar por mês?',
     );
     expect(repo.searchSimilar).toHaveBeenCalledWith([0.1, 0.2], RAG_TOP_K);
-    const [feature, params, context] = llm.complete.mock.calls[0];
+    const [feature, params, context] = nthCall(llm.complete.mock);
     expect(feature).toBe('rag');
     expect(context).toEqual({ userId: 'u1' });
     expect(params.model).toBe('claude-sonnet-5-5');
     expect(params.system).toBe(RAG_SYSTEM_PROMPT);
     expect(params).not.toHaveProperty('output_config.format');
-    const { content } = params.messages[0];
+    const { content } = must(params.messages[0], 'the user message');
     expect(content).toEqual([
       {
         type: 'document',

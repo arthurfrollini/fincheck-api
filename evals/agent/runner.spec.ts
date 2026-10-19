@@ -3,6 +3,7 @@ import { type LlmService } from '../../src/shared/llm/llm.service';
 import { parsedResult } from '../../test/helpers/llm';
 import { judgeGrounding } from './grade';
 import { runAgentEval } from './runner';
+import { nthCall, must, only } from '../../test/helpers/must';
 
 const trace = [
   {
@@ -48,7 +49,7 @@ describe('runAgentEval', () => {
       grounded: true,
     });
 
-    const [r] = await runAgentEval({ cases, agent, judge });
+    const r = only(await runAgentEval({ cases, agent, judge }), 'case result');
 
     expect(r).toEqual(
       expect.objectContaining({
@@ -78,7 +79,7 @@ describe('runAgentEval', () => {
       grounded: false,
     });
 
-    const [r] = await runAgentEval({ cases, agent, judge });
+    const r = only(await runAgentEval({ cases, agent, judge }), 'case result');
 
     expect(r.passed).toBe(false);
   });
@@ -92,7 +93,7 @@ describe('runAgentEval', () => {
     });
     const judge = judgeFn();
 
-    const [r] = await runAgentEval({ cases, agent, judge });
+    const r = only(await runAgentEval({ cases, agent, judge }), 'case result');
 
     expect(r).toEqual(
       expect.objectContaining({ passed: false, numberMatch: false }),
@@ -101,11 +102,8 @@ describe('runAgentEval', () => {
   });
 
   it('counts a degraded run as a miss and a crash or broken judge as an error', async () => {
-    const twoCases = [
-      cases[0],
-      { ...cases[0], id: 'a02' },
-      { ...cases[0], id: 'a03' },
-    ];
+    const base = must(cases[0], 'a case');
+    const twoCases = [base, { ...base, id: 'a02' }, { ...base, id: 'a03' }];
     const agent = agentFn()
       .mockResolvedValueOnce({
         status: 'DEGRADED',
@@ -141,7 +139,7 @@ describe('judgeGrounding', () => {
 
     await judgeGrounding(llm, { question: 'Q', answer: 'A', trace });
 
-    const [feature, params] = llm.parse.mock.calls[0];
+    const [feature, params] = nthCall(llm.parse.mock);
     expect(feature).toBe('judge');
     expect(params.model).toBe('claude-opus-5-5');
     expect(params.output_config).toEqual(

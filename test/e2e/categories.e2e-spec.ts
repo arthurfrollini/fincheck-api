@@ -6,6 +6,7 @@ import { createApp } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens, uniqueEmail } from '../helpers/auth.helper';
 import { PrismaService } from '../../src/shared/database/prisma.service';
+import { must } from '../helpers/must';
 
 describe('Categories (e2e)', () => {
   let app: INestApplication<App>;
@@ -77,7 +78,7 @@ describe('Categories (e2e)', () => {
       const listRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${accessToken}`);
-      const categoryId = parseBody(listRes, idList)[0].id;
+      const categoryId = must(parseBody(listRes, idList)[0], 'a category').id;
 
       const res = await request(app.getHttpServer())
         .patch(`/categories/${categoryId}`)
@@ -104,7 +105,10 @@ describe('Categories (e2e)', () => {
       const otherListRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${otherToken}`);
-      const otherCategoryId = parseBody(otherListRes, idList)[0].id;
+      const otherCategoryId = must(
+        parseBody(otherListRes, idList)[0],
+        'a category',
+      ).id;
 
       const res = await request(app.getHttpServer())
         .patch(`/categories/${otherCategoryId}`)
@@ -118,7 +122,7 @@ describe('Categories (e2e)', () => {
       const listRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${accessToken}`);
-      const categoryId = parseBody(listRes, idList)[0].id;
+      const categoryId = must(parseBody(listRes, idList)[0], 'a category').id;
 
       const res = await request(app.getHttpServer())
         .patch(`/categories/${categoryId}`)
@@ -138,7 +142,7 @@ describe('Categories (e2e)', () => {
       const listRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${accessToken}`);
-      const categoryId = parseBody(listRes, idList)[0].id;
+      const categoryId = must(parseBody(listRes, idList)[0], 'a category').id;
 
       const res = await request(app.getHttpServer())
         .delete(`/categories/${categoryId}`)
@@ -162,7 +166,10 @@ describe('Categories (e2e)', () => {
       const otherListRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${otherToken}`);
-      const otherCategoryId = parseBody(otherListRes, idList)[0].id;
+      const otherCategoryId = must(
+        parseBody(otherListRes, idList)[0],
+        'a category',
+      ).id;
 
       const res = await request(app.getHttpServer())
         .delete(`/categories/${otherCategoryId}`)
@@ -175,7 +182,7 @@ describe('Categories (e2e)', () => {
       const listRes = await request(app.getHttpServer())
         .get('/categories')
         .set('Authorization', `Bearer ${accessToken}`);
-      const categoryId = parseBody(listRes, idList)[0].id;
+      const categoryId = must(parseBody(listRes, idList)[0], 'a category').id;
 
       const res = await request(app.getHttpServer())
         .delete(`/categories/${categoryId}`)

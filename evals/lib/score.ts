@@ -36,8 +36,7 @@ function tally(map: Record<string, Tally>, key: string, hit: boolean): void {
 
 // Nearest-rank percentile: always an observed value, no interpolation.
 function percentile(sorted: number[], p: number): number {
-  if (sorted.length === 0) return 0;
-  return sorted[Math.ceil(p * sorted.length) - 1];
+  return sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)] ?? 0;
 }
 
 export function score(results: CaseResult[]): Score {

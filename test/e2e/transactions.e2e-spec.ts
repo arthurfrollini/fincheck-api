@@ -8,6 +8,7 @@ import * as path from 'path';
 import { createApp, mockLlmService } from '../helpers/create-app';
 import { cleanDatabase } from '../helpers/db-cleaner';
 import { signUpAndGetTokens } from '../helpers/auth.helper';
+import { must } from '../helpers/must';
 
 describe('Transactions (e2e)', () => {
   let app: INestApplication<App>;
@@ -41,7 +42,7 @@ describe('Transactions (e2e)', () => {
     const catRes = await request(app.getHttpServer())
       .get('/categories')
       .set('Authorization', `Bearer ${accessToken}`);
-    categoryId = parseBody(catRes, idList)[0].id;
+    categoryId = must(parseBody(catRes, idList)[0], 'a category').id;
   });
 
   const txPayload = (overrides = {}) => ({
