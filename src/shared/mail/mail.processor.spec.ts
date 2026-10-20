@@ -6,7 +6,7 @@ import { Job, UnrecoverableError } from 'bullmq';
 jest.mock('@shared/config/env', () => ({
   env: {
     resendApiKey: 'test-resend-api-key',
-    resendFromEmail: 'noreply@fincheck.test',
+    resendFromEmail: 'noreply@finwise.test',
   },
 }));
 

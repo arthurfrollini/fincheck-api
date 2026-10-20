@@ -26,15 +26,15 @@ describe('LlmMetrics', () => {
     new LlmMetrics().record('claude-haiku-5-5', 'categorization', usage, 'ok');
 
     const labels = { model: 'claude-haiku-5-5', feature: 'categorization' };
-    expect(counter('fincheck_llm_tokens').add.mock.calls).toEqual([
+    expect(counter('finwise_llm_tokens').add.mock.calls).toEqual([
       [300, { ...labels, direction: 'input' }],
       [50, { ...labels, direction: 'output' }],
     ]);
-    expect(counter('fincheck_llm_cost_usd').add).toHaveBeenCalledWith(
+    expect(counter('finwise_llm_cost_usd').add).toHaveBeenCalledWith(
       expect.closeTo(0.000055, 9),
       labels,
     );
-    expect(counter('fincheck_llm_requests').add).toHaveBeenCalledWith(1, {
+    expect(counter('finwise_llm_requests').add).toHaveBeenCalledWith(1, {
       ...labels,
       outcome: 'ok',
     });
@@ -48,9 +48,9 @@ describe('LlmMetrics', () => {
       'error',
     );
 
-    expect(counter('fincheck_llm_tokens').add).not.toHaveBeenCalled();
-    expect(counter('fincheck_llm_cost_usd').add).not.toHaveBeenCalled();
-    expect(counter('fincheck_llm_requests').add).toHaveBeenCalledWith(1, {
+    expect(counter('finwise_llm_tokens').add).not.toHaveBeenCalled();
+    expect(counter('finwise_llm_cost_usd').add).not.toHaveBeenCalled();
+    expect(counter('finwise_llm_requests').add).toHaveBeenCalledWith(1, {
       model: 'claude-haiku-5-5',
       feature: 'categorization',
       outcome: 'error',

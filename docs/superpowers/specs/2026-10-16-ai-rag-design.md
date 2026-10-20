@@ -101,7 +101,7 @@ evals/rag/{queries.jsonl, answers.jsonl, README.md, retrieval.ts, judge.ts, run-
 |---|---|
 | Question empty or > 500 chars | 400 (DTO validation) |
 | No chunks ingested yet | 503 with "knowledge base not ingested", logged at `error` |
-| Best similarity below threshold | 200 with the fixed "not covered" answer, no model call, `fincheck_rag_results{result="not_covered"}` |
+| Best similarity below threshold | 200 with the fixed "not covered" answer, no model call, `finwise_rag_results{result="not_covered"}` |
 | Claude 429 / 5xx / network / timeout | 503 "try again"; the SDK does not retry (`maxRetries: 0`); the client may retry. Usage recorded when a response exists. |
 | Refusal | 200 with a fixed "can't help with that" answer; `result="refusal"` |
 | Answer with zero citations | Returned, but counted as `result="uncited"`. It is a quality signal for the judge eval, not a user-facing error. |

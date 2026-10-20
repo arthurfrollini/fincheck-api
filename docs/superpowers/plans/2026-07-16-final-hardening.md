@@ -35,7 +35,7 @@
 ```ts
       expect(sendMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          from: 'noreply@fincheck.test',
+          from: 'noreply@finwise.test',
           to: 'user@example.com',
           subject: 'Confirme a alteração do seu e-mail',
           html: expect.stringContaining(
@@ -69,10 +69,10 @@ Then add `, { signal: AbortSignal.timeout(RESEND_TIMEOUT_MS) }` as the second ar
       {
         from: env.resendFromEmail,
         to,
-        subject: 'Bem-vindo ao Fincheck!',
+        subject: 'Bem-vindo ao Finwise!',
         html: `
         <h1>Olá, ${name}!</h1>
-        <p>Sua conta foi criada com sucesso. Seja bem-vindo ao Fincheck.</p>
+        <p>Sua conta foi criada com sucesso. Seja bem-vindo ao Finwise.</p>
         <p>Comece agora a organizar suas finanças.</p>
       `,
       },

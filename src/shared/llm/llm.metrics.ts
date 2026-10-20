@@ -11,14 +11,14 @@ export class LlmMetrics {
   private readonly requests: Counter;
 
   constructor() {
-    const meter = metrics.getMeter('fincheck-api');
-    this.tokens = meter.createCounter('fincheck_llm_tokens', {
+    const meter = metrics.getMeter('finwise-api');
+    this.tokens = meter.createCounter('finwise_llm_tokens', {
       description: 'Tokens billed by the Claude API, by direction',
     });
-    this.costUsd = meter.createCounter('fincheck_llm_cost_usd', {
+    this.costUsd = meter.createCounter('finwise_llm_cost_usd', {
       description: 'Estimated Claude API spend in USD',
     });
-    this.requests = meter.createCounter('fincheck_llm_requests', {
+    this.requests = meter.createCounter('finwise_llm_requests', {
       description: 'Claude API calls, by outcome',
     });
   }

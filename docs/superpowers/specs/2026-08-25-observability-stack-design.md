@@ -34,9 +34,9 @@ This exposes `http://localhost:9464/metrics` — a pull endpoint Prometheus scra
 import { metrics } from '@opentelemetry/api';
 import { db } from '@/shared/database/prisma.service'; // adjust import to actual PrismaService injection pattern used elsewhere
 
-const meter = metrics.getMeter('fincheck-api');
+const meter = metrics.getMeter('finwise-api');
 
-meter.createObservableGauge('fincheck_active_subscriptions').addCallback(async (result) => {
+meter.createObservableGauge('finwise_active_subscriptions').addCallback(async (result) => {
   const count = await db.user.count({ where: { plan: { in: ['GOLD', 'PLATINUM'] } } });
   result.observe(count);
 });
@@ -66,7 +66,7 @@ This was the only realistic option given the host-process constraint noted above
 
 Three new services: `prometheus`, `grafana`, `loki`. Total service count goes from 4 (db, redis, redisinsight, jaeger) to 7. Confirmed acceptable — RedisInsight stays too (unrelated tool, database inspection not observability).
 
-- `prometheus`: scrapes `fincheck-api:9464/metrics` on an interval (config file, mounted like the existing Jaeger config pattern in `docker/jaeger/`).
+- `prometheus`: scrapes `finwise-api:9464/metrics` on an interval (config file, mounted like the existing Jaeger config pattern in `docker/jaeger/`).
 - `loki`: receives pushed logs from `pino-loki`, in-memory/local filesystem storage for dev (no need for object storage at this scale).
 - `grafana`: provisioned with three datasources — Prometheus, Loki, and **Jaeger** (querying the already-running `jaeger` service's query API, not a new backend). This is what gives the "one Grafana tab for everything" outcome Arthur asked for, without replacing Jaeger (that would have required swapping to Grafana Tempo — considered and explicitly rejected earlier in this design conversation, since it would discard the already-verified Jaeger v2 setup for no functional gain at this stage).
 
@@ -84,7 +84,7 @@ Datasource provisioning goes in version-controlled YAML (Grafana's provisioning 
 
 No existing automated test suite covers infrastructure/observability wiring (same as the tracing work). Verification is manual, live, the same way tracing was validated:
 1. `docker compose up -d` — all 7 services healthy.
-2. Hit `/metrics` directly, confirm Prometheus-format output including `fincheck_active_subscriptions`.
+2. Hit `/metrics` directly, confirm Prometheus-format output including `finwise_active_subscriptions`.
 3. Open Prometheus UI, confirm the scrape target is up.
 4. Trigger a real signup (bumps a subscription-adjacent code path indirectly, or manually flip a test user's plan) and confirm the gauge value changes on next scrape.
 5. Open Grafana, confirm all three datasources connect, pull a trace via the Jaeger datasource, pull a log line via Loki, pull the metric via Prometheus — all from inside Grafana, no tab-switching to Jaeger's own UI required for that pass.

@@ -11,9 +11,9 @@
 ## Global Constraints
 
 - All tests use `jest.fn()` mocks — no real DB, HTTP, or Stripe calls
-- Run tests with: `npm test` (from project root `/Users/Arthur/Desktop/VS/Node/fincheck/api`)
+- Run tests with: `npm test` (from project root `/Users/Arthur/Desktop/VS/Node/finwise/api`)
 - All new/modified test files must pass `npm run lint` and `npx tsc --noEmit`
-- Working directory: `/Users/Arthur/Desktop/VS/Node/fincheck/api`
+- Working directory: `/Users/Arthur/Desktop/VS/Node/finwise/api`
 - Module aliases: `@modules/` → `src/modules/`, `@shared/` → `src/shared/`
 - NestJS Testing: use `Test.createTestingModule({ providers: [...] }).compile()`
 - Do NOT use `@nestjs/testing`'s `overrideProvider` — use direct `useValue` mocks in providers array

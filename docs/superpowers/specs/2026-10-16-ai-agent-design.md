@@ -67,7 +67,7 @@ src/modules/assistant/
 ```
 
 - **Prisma `AgentRun`:** `id`, `userId` (FK, cascade), `idempotencyKey String?`, `question`, `status` enum (`QUEUED | RUNNING | COMPLETED | DEGRADED | FAILED`), `answer String?`, `steps Int @default(0)`, `createdAt`, `completedAt?`, `@@unique([userId, idempotencyKey])`.
-- **Metrics:** `LlmFeature` += `'agent'`. New counter `fincheck_agent_runs{status}` and histogram-free counter `fincheck_agent_steps_total`.
+- **Metrics:** `LlmFeature` += `'agent'`. New counter `finwise_agent_runs{status}` and histogram-free counter `finwise_agent_steps_total`.
 - **System prompt:** today's date (so "mês passado" resolves); answer in Brazilian Portuguese; use the tools for every number and never invent one; say when the data doesn't cover the question. User data stays out of the system prompt.
 - **Log hygiene:** never log the question, tool inputs or tool results (user financial data). Log run id, step count, tool names and outcome.
 

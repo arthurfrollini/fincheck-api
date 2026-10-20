@@ -43,7 +43,7 @@ services:
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: root
-      POSTGRES_DB: fincheck
+      POSTGRES_DB: finwise
     ports:
       - '5432:5432'
     volumes:
@@ -65,7 +65,7 @@ services:
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: root
-      POSTGRES_DB: fincheck
+      POSTGRES_DB: finwise
     ports:
       - '5432:5432'
     volumes:
@@ -1239,24 +1239,24 @@ docker compose up -d
 ```
 with no further comment on what it provisions. Find this line and the paragraph around line 133 that says:
 ```
-E2E requires Docker running (`docker compose up -d`, which provisions both the `fincheck` and `fincheck_test` databases) and a local `.env.test` file (same shape as `.env`, fake credentials for Resend/AWS/Stripe/Google — gitignored, never used for a real network call).
+E2E requires Docker running (`docker compose up -d`, which provisions both the `finwise` and `finwise_test` databases) and a local `.env.test` file (same shape as `.env`, fake credentials for Resend/AWS/Stripe/Google — gitignored, never used for a real network call).
 ```
 
 Replace it with:
 ```
-E2E requires Docker running (`docker compose up -d`, which provisions the `fincheck`/`fincheck_test` Postgres databases plus Redis and RedisInsight for the email retry queue) and a local `.env.test` file (same shape as `.env`, fake credentials for Resend/AWS/Stripe/Google — gitignored, never used for a real network call).
+E2E requires Docker running (`docker compose up -d`, which provisions the `finwise`/`finwise_test` Postgres databases plus Redis and RedisInsight for the email retry queue) and a local `.env.test` file (same shape as `.env`, fake credentials for Resend/AWS/Stripe/Google — gitignored, never used for a real network call).
 ```
 
 - [ ] **Step 2: Update the E2E bullet in the Tests section**
 
 The `## Tests` section currently has:
 ```
-- **E2E** (`test:e2e`) — Jest + Supertest, booting the real `AppModule` against a dedicated `fincheck_test` Postgres database (`PrismaService` is never mocked). Only `MailService`, `StorageService`, `BillingService`, and the Stripe webhook handler are replaced with mocks — everything else runs for real, including Stripe webhook signature verification (via `stripe.webhooks.generateTestHeaderString`, pure local HMAC, no network call). 61 tests across 7 spec files: auth, users, admin routes, bank-accounts, categories, transactions, billing.
+- **E2E** (`test:e2e`) — Jest + Supertest, booting the real `AppModule` against a dedicated `finwise_test` Postgres database (`PrismaService` is never mocked). Only `MailService`, `StorageService`, `BillingService`, and the Stripe webhook handler are replaced with mocks — everything else runs for real, including Stripe webhook signature verification (via `stripe.webhooks.generateTestHeaderString`, pure local HMAC, no network call). 61 tests across 7 spec files: auth, users, admin routes, bank-accounts, categories, transactions, billing.
 ```
 
 Replace the last sentence's test count with whatever `npm run test:e2e` reported in Task 5 Step 4, and add a mention of the queue. For example (adjust the count to match the actual run):
 ```
-- **E2E** (`test:e2e`) — Jest + Supertest, booting the real `AppModule` against a dedicated `fincheck_test` Postgres database (`PrismaService` is never mocked). Only `MailService`, `StorageService`, `BillingService`, and the Stripe webhook handler are replaced with mocks — everything else runs for real, including the BullMQ email retry queue (real Redis, real worker, only the final Resend call is mocked) and Stripe webhook signature verification (via `stripe.webhooks.generateTestHeaderString`, pure local HMAC, no network call). N tests across 7 spec files: auth, users, admin routes, bank-accounts, categories, transactions, billing.
+- **E2E** (`test:e2e`) — Jest + Supertest, booting the real `AppModule` against a dedicated `finwise_test` Postgres database (`PrismaService` is never mocked). Only `MailService`, `StorageService`, `BillingService`, and the Stripe webhook handler are replaced with mocks — everything else runs for real, including the BullMQ email retry queue (real Redis, real worker, only the final Resend call is mocked) and Stripe webhook signature verification (via `stripe.webhooks.generateTestHeaderString`, pure local HMAC, no network call). N tests across 7 spec files: auth, users, admin routes, bank-accounts, categories, transactions, billing.
 ```
 
 - [ ] **Step 3: Commit**

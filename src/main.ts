@@ -25,7 +25,7 @@ async function bootstrap() {
   app.enableCors({ origin: '*' });
 
   const config = new DocumentBuilder()
-    .setTitle('Fincheck API')
+    .setTitle('Finwise API')
     .setDescription(
       'REST API for a personal finance management app. Users track bank accounts and transactions, organized by category, with plan-based feature limits enforced via Stripe subscriptions.',
     )

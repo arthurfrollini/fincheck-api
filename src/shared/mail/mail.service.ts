@@ -51,7 +51,7 @@ export class MailService {
       subject: 'Confirme a alteração do seu e-mail',
       html: `
         <h1>Solicitação de alteração de e-mail</h1>
-        <p>Clique no link abaixo para confirmar a alteração do seu e-mail no Fincheck:</p>
+        <p>Clique no link abaixo para confirmar a alteração do seu e-mail no Finwise:</p>
         <a href="${confirmUrl}">Confirmar alteração</a>
         <p>O link expira em 1 hora. Se você não solicitou essa alteração, ignore este e-mail.</p>
       `,
@@ -62,10 +62,10 @@ export class MailService {
     await this.send({
       from: env.resendFromEmail,
       to,
-      subject: 'Bem-vindo ao Fincheck!',
+      subject: 'Bem-vindo ao Finwise!',
       html: `
         <h1>Olá, ${name}!</h1>
-        <p>Sua conta foi criada com sucesso. Seja bem-vindo ao Fincheck.</p>
+        <p>Sua conta foi criada com sucesso. Seja bem-vindo ao Finwise.</p>
         <p>Comece agora a organizar suas finanças.</p>
       `,
     });
@@ -79,11 +79,11 @@ export class MailService {
     await this.send({
       from: env.resendFromEmail,
       to,
-      subject: 'Seu plano Fincheck foi alterado',
+      subject: 'Seu plano Finwise foi alterado',
       html: `
         <h1>Olá, ${name}!</h1>
         <p>Seu plano foi alterado para <strong>${newPlan}</strong> no início do novo ciclo de cobrança.</p>
-        <p>Contas bancárias que excedem o limite do seu novo plano estão agora em modo somente leitura. Acesse o Fincheck para verificar quais contas foram afetadas.</p>
+        <p>Contas bancárias que excedem o limite do seu novo plano estão agora em modo somente leitura. Acesse o Finwise para verificar quais contas foram afetadas.</p>
         <p>Para reativar todas as contas, faça upgrade do seu plano.</p>
       `,
     });
@@ -93,12 +93,12 @@ export class MailService {
     await this.send({
       from: env.resendFromEmail,
       to,
-      subject: 'Sua assinatura Fincheck foi cancelada',
+      subject: 'Sua assinatura Finwise foi cancelada',
       html: `
         <h1>Olá, ${name}!</h1>
         <p>Sua assinatura foi cancelada após falha no pagamento. Seu plano voltou para <strong>FREE</strong>.</p>
         <p>Contas bancárias e transações anteriores continuam disponíveis, mas algumas funcionalidades foram limitadas.</p>
-        <p>Para reativar, acesse o Fincheck e escolha um novo plano.</p>
+        <p>Para reativar, acesse o Finwise e escolha um novo plano.</p>
       `,
     });
   }

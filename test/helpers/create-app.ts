@@ -82,7 +82,7 @@ export async function createApp(): Promise<INestApplication<App>> {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const config = new DocumentBuilder()
-    .setTitle('Fincheck API')
+    .setTitle('Finwise API')
     .setDescription(
       'REST API for a personal finance management app. Users track bank accounts and transactions, organized by category, with plan-based feature limits enforced via Stripe subscriptions.',
     )

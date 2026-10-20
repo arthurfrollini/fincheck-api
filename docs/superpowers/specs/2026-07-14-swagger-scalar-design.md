@@ -4,7 +4,7 @@
 
 ## Goal
 
-Give the Fincheck API a rich, interactive API reference that documents every route,
+Give the Finwise API a rich, interactive API reference that documents every route,
 DTO, and status code — usable by the frontend, future collaborators, or the user
 themselves, without leaving the codebase. This is a standalone sub-project, done
 before the error-handling remediation work (audited separately, see
@@ -32,7 +32,7 @@ before the error-handling remediation work (audited separately, see
 
 In `main.ts`, after `ValidationPipe`/CORS are configured and before `app.listen()`:
 
-1. Build a `DocumentBuilder` config: title ("Fincheck API"), description (short,
+1. Build a `DocumentBuilder` config: title ("Finwise API"), description (short,
    one-liner matching the README's opening sentence), version (read from
    `package.json`), and a bearer auth scheme (`addBearerAuth()`) — this is what
    lets Scalar's UI carry a JWT when "trying" an authenticated route.
@@ -107,7 +107,7 @@ description is present.
   equivalent declarative validation — not a behavior change).
 - No auth/gating on who can view `/reference` (approved: available in all
   environments).
-- No visual/branding customization of the Scalar UI beyond the title Fincheck API
+- No visual/branding customization of the Scalar UI beyond the title Finwise API
   passed into `DocumentBuilder`.
 - Error-handling remediation (global exception filter, Prisma/Stripe error
   translation, webhook idempotency, logging/observability) is a separate,

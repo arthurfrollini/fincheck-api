@@ -1,4 +1,4 @@
-# Fincheck API
+# Finwise API
 
 REST API for a personal finance app. Users track bank accounts and transactions by category, with plan-based limits enforced through Stripe subscriptions. Three AI features run on the Claude API, and each one has its own eval:
 
@@ -157,7 +157,7 @@ The app runs with just `db` and `redis` up; the rest is optional.
 | Jaeger UI | http://localhost:16686 | Distributed traces |
 | Prometheus UI | http://localhost:9090 | Raw metrics and scrape target status |
 | Grafana | http://localhost:3001 (`admin` / `admin`) | Traces, metrics and logs in one place; datasources are provisioned automatically |
-| Grafana LLM dashboard | http://localhost:3001/d/fincheck-llm | Claude API spend, tokens and outcomes per feature, provisioned from `docker/grafana/provisioning/dashboards/`. The counters belong to the API process and reset when it restarts. |
+| Grafana LLM dashboard | http://localhost:3001/d/finwise-llm | Claude API spend, tokens and outcomes per feature, provisioned from `docker/grafana/provisioning/dashboards/`. The counters belong to the API process and reset when it restarts. |
 
 ```bash
 # Start only the observability stack (Jaeger, Prometheus, Loki, Grafana)
@@ -243,7 +243,7 @@ LOKI_URL=                     # default http://localhost:3100
 Two suites, kept separate because each covers a different layer. Coverage only means something when the two are combined.
 
 - **Unit** (`test:unit`): Jest, testing the `application`/`domain` layers and the eval harness in isolation, with Jest's own mocks. 440 tests.
-- **E2E** (`test:e2e`): Jest + Supertest, booting the real `AppModule` against a dedicated `fincheck_test` Postgres database (with pgvector) and real Redis.
+- **E2E** (`test:e2e`): Jest + Supertest, booting the real `AppModule` against a dedicated `finwise_test` Postgres database (with pgvector) and real Redis.
   - Mocked external boundaries: `MailService`, `StorageService`, `BillingService`, `LlmService` (the Claude API) and `EmbeddingProvider` (a deterministic fake instead of the 120 MB model).
   - Everything else runs for real: the queues and their workers, the Stripe webhook handler and signature check, pgvector search, the agent's tools over Postgres, quotas and rate limiting.
   - 95 tests across 12 spec files.

@@ -30,14 +30,14 @@ Goal: a transaction created **without** a `categoryId` gets one inferred by Clau
 
   It calls `client.messages.create(...)`, validates the first text block with the zod schema itself (refusal/max_tokens are never parsed; invalid JSON or schema mismatch → `parsed_output: null`), then **always** records usage. It does not use `messages.parse`: that throws on schema mismatch, which would lose the usage record and turn a bad answer into a retried, re-billed job. It (log + metrics) from `response.usage`, including on non-`end_turn` stop reasons. It does not swallow errors: typed SDK errors propagate to the caller, which decides retryable vs not (see failure matrix). `LlmFeature` is a string union (`'categorization'` now; `'agent' | 'rag' | 'judge'` later).
 - **`llm-pricing.ts`** — per-model price table (input, output, cache write, cache read, per MTok) for the models in use (`claude-haiku-5-5`, `claude-opus-5-5`) and `computeCostUsd(model, usage)`. Haiku 5.5 has a second rate card above 100K prompt tokens; categorization prompts are far below it, so the function uses the ≤100K card and logs a warning if `input_tokens` exceeds 100K. Thinking tokens are billed as output and are already included in `usage.output_tokens`.
-- **`llm.metrics.ts`** — OpenTelemetry counters on the existing `fincheck-api` meter, same mechanism as `billing.metrics.ts`:
-  - `fincheck_llm_tokens` (`{model, feature, direction}`; direction ∈ `input | output | cache_read | cache_write`)
-  - `fincheck_llm_cost_usd` (`{model, feature}`)
-  - `fincheck_llm_requests` (`{model, feature, outcome}`; outcome ∈ `ok | refusal | max_tokens | unparsed | error`). This is the API-call layer only: `unparsed` means `parsed_output` came back null. `LlmService` cannot see feature-level checks like ownership.
+- **`llm.metrics.ts`** — OpenTelemetry counters on the existing `finwise-api` meter, same mechanism as `billing.metrics.ts`:
+  - `finwise_llm_tokens` (`{model, feature, direction}`; direction ∈ `input | output | cache_read | cache_write`)
+  - `finwise_llm_cost_usd` (`{model, feature}`)
+  - `finwise_llm_requests` (`{model, feature, outcome}`; outcome ∈ `ok | refusal | max_tokens | unparsed | error`). This is the API-call layer only: `unparsed` means `parsed_output` came back null. `LlmService` cannot see feature-level checks like ownership.
 
-  Feature-level results get their own counter, owned by the feature: `fincheck_categorization_results` (`{result}`; result ∈ `categorized | uncategorized | skipped | rejected | failed`), emitted by `CategorizeTransactionService`. `rejected` = the model's answer failed ownership/type validation.
+  Feature-level results get their own counter, owned by the feature: `finwise_categorization_results` (`{result}`; result ∈ `categorized | uncategorized | skipped | rejected | failed`), emitted by `CategorizeTransactionService`. `rejected` = the model's answer failed ownership/type validation.
 
-  The OTel Prometheus exporter appends `_total` to monotonic counters, so they surface as `fincheck_llm_tokens_total` etc. The builder should confirm the exported names on `:9464/metrics` and adjust if the exporter also appends a unit suffix.
+  The OTel Prometheus exporter appends `_total` to monotonic counters, so they surface as `finwise_llm_tokens_total` etc. The builder should confirm the exported names on `:9464/metrics` and adjust if the exporter also appends a unit suffix.
 - **Per-call log line** (pino, `info`): `{feature, model, input_tokens, output_tokens, cache_read_input_tokens, cache_creation_input_tokens, cost_usd, latency_ms, stop_reason}` plus caller-supplied context (`transactionId`). **The transaction `name` is never logged**: it is user financial data and lands in Loki.
 
 ### Categorization (in the transactions feature module)
@@ -105,7 +105,7 @@ Mirrors `shared/mail/` file-for-file, under `src/modules/transactions/infra/queu
 None of this needs a real API key. Main CI stays keyless.
 
 - **Unit, `llm-pricing`**: cost for known usage on each model; cache read/write tokens priced separately.
-- **Unit, `LlmService`**: with a mocked `Anthropic` client: usage logged and the three `fincheck_llm_*` counters incremented on success, and on `refusal` / `max_tokens` / `unparsed`; SDK errors propagate unchanged and count as `outcome=error`.
+- **Unit, `LlmService`**: with a mocked `Anthropic` client: usage logged and the three `finwise_llm_*` counters incremented on success, and on `refusal` / `max_tokens` / `unparsed`; SDK errors propagate unchanged and count as `outcome=error`.
 - **Unit, `CategorizeTransactionService`**: `LlmService` mocked, fed **fixtures**: JSON files under `test/fixtures/llm/categorization/` in the exact shape `messages.parse` returns (content blocks including a leading `thinking` block, `parsed_output`, `usage`, `stop_reason`). Cases: happy path; `'none'`; below-floor confidence; refusal; max_tokens; null `parsed_output`; returned id belonging to another user (must not write); returned id of the wrong type (must not write); transaction already categorized (skipped); conditional update hits 0 rows; no candidate categories (skipped); request uses only same-type categories, `effort: 'low'` and no `temperature`.
 - **Unit, processor**: each error class maps to rethrow vs `UnrecoverableError` per the matrix.
 - **Unit, queue service**: enqueue options (attempts, backoff, retention, `jobId`); Redis failure is caught, not thrown.

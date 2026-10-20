@@ -64,8 +64,8 @@ export class AnswerQuestionService {
     private readonly planGuardService: PlanGuardService,
   ) {
     this.results = metrics
-      .getMeter('fincheck-api')
-      .createCounter('fincheck_rag_results', {
+      .getMeter('finwise-api')
+      .createCounter('finwise_rag_results', {
         description: 'Education questions answered, by result',
       });
   }
