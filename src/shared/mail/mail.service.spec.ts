@@ -10,7 +10,7 @@ import {
 jest.mock('@shared/config/env', () => ({
   env: {
     resendApiKey: 'test-resend-api-key',
-    resendFromEmail: 'noreply@fincheck.test',
+    resendFromEmail: 'noreply@finwise.test',
   },
 }));
 
@@ -44,7 +44,7 @@ describe('MailService', () => {
       expect(sendMock).toHaveBeenCalledTimes(1);
       expect(sendMock).toHaveBeenCalledWith(
         objectContaining({
-          from: 'noreply@fincheck.test',
+          from: 'noreply@finwise.test',
           to: 'user@example.com',
           subject: 'Confirme a alteração do seu e-mail',
           html: stringContaining(
@@ -63,9 +63,9 @@ describe('MailService', () => {
       expect(sendMock).toHaveBeenCalledTimes(1);
       expect(sendMock).toHaveBeenCalledWith(
         objectContaining({
-          from: 'noreply@fincheck.test',
+          from: 'noreply@finwise.test',
           to: 'user@example.com',
-          subject: 'Bem-vindo ao Fincheck!',
+          subject: 'Bem-vindo ao Finwise!',
           html: stringContaining('Olá, Arthur!'),
         }),
         { signal: anyInstance(AbortSignal) },
@@ -84,9 +84,9 @@ describe('MailService', () => {
       expect(sendMock).toHaveBeenCalledTimes(1);
       expect(sendMock).toHaveBeenCalledWith(
         objectContaining({
-          from: 'noreply@fincheck.test',
+          from: 'noreply@finwise.test',
           to: 'user@example.com',
-          subject: 'Seu plano Fincheck foi alterado',
+          subject: 'Seu plano Finwise foi alterado',
           html: stringContaining('Olá, Arthur!'),
         }),
         { signal: anyInstance(AbortSignal) },
@@ -107,9 +107,9 @@ describe('MailService', () => {
       expect(sendMock).toHaveBeenCalledTimes(1);
       expect(sendMock).toHaveBeenCalledWith(
         objectContaining({
-          from: 'noreply@fincheck.test',
+          from: 'noreply@finwise.test',
           to: 'user@example.com',
-          subject: 'Sua assinatura Fincheck foi cancelada',
+          subject: 'Sua assinatura Finwise foi cancelada',
           html: stringContaining('Olá, Arthur!'),
         }),
         { signal: anyInstance(AbortSignal) },

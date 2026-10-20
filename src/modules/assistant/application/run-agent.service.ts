@@ -180,11 +180,11 @@ export class RunAgentService {
     @InjectPinoLogger(RunAgentService.name)
     private readonly logger: PinoLogger,
   ) {
-    const meter = metrics.getMeter('fincheck-api');
-    this.runs = meter.createCounter('fincheck_agent_runs', {
+    const meter = metrics.getMeter('finwise-api');
+    this.runs = meter.createCounter('finwise_agent_runs', {
       description: 'Agent runs finished, by status',
     });
-    this.steps = meter.createCounter('fincheck_agent_steps', {
+    this.steps = meter.createCounter('finwise_agent_steps', {
       description: 'Model calls made by agent runs',
     });
   }

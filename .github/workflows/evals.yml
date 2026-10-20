@@ -64,7 +64,7 @@ jobs:
         env:
           POSTGRES_USER: root
           POSTGRES_PASSWORD: root
-          POSTGRES_DB: fincheck_eval
+          POSTGRES_DB: finwise_eval
         ports:
           - 5432:5432
         options: >-
@@ -74,7 +74,7 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://root:root@localhost:5432/fincheck_eval?schema=public
+      DATABASE_URL: postgresql://root:root@localhost:5432/finwise_eval?schema=public
 
     steps:
       - uses: actions/checkout@v4
@@ -117,7 +117,7 @@ jobs:
         env:
           POSTGRES_USER: root
           POSTGRES_PASSWORD: root
-          POSTGRES_DB: fincheck_eval
+          POSTGRES_DB: finwise_eval
         ports:
           - 5432:5432
         options: >-
@@ -127,7 +127,7 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://root:root@localhost:5432/fincheck_eval?schema=public
+      DATABASE_URL: postgresql://root:root@localhost:5432/finwise_eval?schema=public
 
     steps:
       - uses: actions/checkout@v4

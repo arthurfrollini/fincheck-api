@@ -5,7 +5,7 @@ import * as path from 'path';
 const ROOT = path.resolve(__dirname, '../../..');
 const DASHBOARD = path.join(
   ROOT,
-  'docker/grafana/provisioning/dashboards/fincheck-llm.json',
+  'docker/grafana/provisioning/dashboards/finwise-llm.json',
 );
 
 // Every counter the app registers, as the OTel Prometheus exporter names it
@@ -46,14 +46,14 @@ describe('Grafana LLM dashboard', () => {
   );
 
   it('has a stable uid and title so links to it keep working', () => {
-    expect(dashboard.uid).toBe('fincheck-llm');
-    expect(dashboard.title).toBe('fincheck · LLM');
+    expect(dashboard.uid).toBe('finwise-llm');
+    expect(dashboard.title).toBe('finwise · LLM');
   });
 
   it('only queries metrics the app actually exports', () => {
     const exported = exportedCounters();
     const used = new Set(
-      exprs.flatMap((e) => e.match(/fincheck_[a-z_]+/g) ?? []),
+      exprs.flatMap((e) => e.match(/finwise_[a-z_]+/g) ?? []),
     );
     expect(used.size).toBeGreaterThan(0);
     for (const metric of used) expect(exported).toContain(metric);
@@ -62,13 +62,13 @@ describe('Grafana LLM dashboard', () => {
   it('covers cost, tokens and outcomes for every LLM feature, plus each feature result', () => {
     const all = exprs.join('\n');
     for (const metric of [
-      'fincheck_llm_cost_usd_total',
-      'fincheck_llm_tokens_total',
-      'fincheck_llm_requests_total',
-      'fincheck_categorization_results_total',
-      'fincheck_rag_results_total',
-      'fincheck_agent_runs_total',
-      'fincheck_agent_steps_total',
+      'finwise_llm_cost_usd_total',
+      'finwise_llm_tokens_total',
+      'finwise_llm_requests_total',
+      'finwise_categorization_results_total',
+      'finwise_rag_results_total',
+      'finwise_agent_runs_total',
+      'finwise_agent_steps_total',
     ]) {
       expect(all).toContain(metric);
     }

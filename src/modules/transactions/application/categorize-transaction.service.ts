@@ -114,8 +114,8 @@ export class CategorizeTransactionService {
     private readonly planGuardService: PlanGuardService,
   ) {
     this.results = metrics
-      .getMeter('fincheck-api')
-      .createCounter('fincheck_categorization_results', {
+      .getMeter('finwise-api')
+      .createCounter('finwise_categorization_results', {
         description: 'Transaction categorization attempts, by result',
       });
   }

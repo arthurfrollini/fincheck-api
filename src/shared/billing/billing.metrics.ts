@@ -13,9 +13,9 @@ export class BillingMetricsService implements OnModuleInit {
   }
 
   onModuleInit() {
-    const meter = metrics.getMeter('fincheck-api');
+    const meter = metrics.getMeter('finwise-api');
     meter
-      .createObservableGauge('fincheck_active_subscriptions', {
+      .createObservableGauge('finwise_active_subscriptions', {
         description:
           'Number of users currently on a paid plan (GOLD or PLATINUM)',
       })

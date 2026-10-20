@@ -34,7 +34,7 @@ import { BillingModule } from '@shared/billing/billing.module';
               target: 'pino-loki',
               options: {
                 host: process.env.LOKI_URL ?? 'http://localhost:3100',
-                labels: { app: 'fincheck-api' },
+                labels: { app: 'finwise-api' },
               },
             },
           ],

@@ -1,1 +1,1 @@
-CREATE DATABASE fincheck_test;
+CREATE DATABASE finwise_test;

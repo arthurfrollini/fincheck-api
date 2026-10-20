@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make fincheck safe to put on a public URL: per-plan AI quotas and a global daily AI spend ceiling (recorded in Postgres), IP rate limiting, billing switchable off, admin-managed plans, configurable mail, a working `start:prod`, and a README that documents everything built on 2026-10-16.
+**Goal:** Make finwise safe to put on a public URL: per-plan AI quotas and a global daily AI spend ceiling (recorded in Postgres), IP rate limiting, billing switchable off, admin-managed plans, configurable mail, a working `start:prod`, and a README that documents everything built on 2026-10-16.
 
 **Architecture:** Quotas and the budget live in `PlanGuardService` next to the existing plan limits; usage rows are written by `LlmService` when a caller passes `userId`. Throttling is a global `@nestjs/throttler` guard with named limits. Billing, mail and proxy behavior are env-driven with defaults that keep local and CI unchanged.
 

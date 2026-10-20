@@ -11,7 +11,7 @@ import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 
 const sdk = new NodeSDK({
   resource: resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: 'fincheck-api',
+    [ATTR_SERVICE_NAME]: 'finwise-api',
   }),
   traceExporter: new OTLPTraceExporter({
     url:

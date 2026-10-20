@@ -4,7 +4,7 @@ import { DEFAULT_CATEGORIES } from '@modules/categories/entities/default-categor
 // One synthetic user, two months, 40 transactions. Every expected answer in
 // cases.jsonl is recomputed from this list by seed.spec.ts, so a typo in a
 // case can't hide.
-export const EVAL_USER_EMAIL = 'agent-eval@fincheck.local';
+export const EVAL_USER_EMAIL = 'agent-eval@finwise.local';
 export const EVAL_NOW = new Date('2026-10-16T12:00:00.000Z');
 
 type Kind = 'INCOME' | 'EXPENSE';

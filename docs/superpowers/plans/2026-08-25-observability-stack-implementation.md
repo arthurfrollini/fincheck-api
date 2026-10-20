@@ -4,14 +4,14 @@
 
 **Goal:** Add the metrics and logs pillars of observability (traces already done via OpenTelemetry+Jaeger) and unify all three in a single Grafana UI, at minimal cost.
 
-**Architecture:** Reuse the existing `NodeSDK` in `src/tracing.ts` for metrics by adding a `PrometheusExporter` as its `metricReader` — no second metrics library. Add one custom business metric (`fincheck_active_subscriptions`) via the OpenTelemetry Metrics API directly, wired through a NestJS provider so it can use the app's existing `PrismaService`. Ship logs to Loki via a second `pino-loki` transport target, additive to the existing stdout output. Add `prometheus`, `loki`, and `grafana` services to docker-compose; provision Grafana with three datasources (Prometheus, Loki, and the already-running Jaeger) so one Grafana tab covers all three pillars without replacing Jaeger.
+**Architecture:** Reuse the existing `NodeSDK` in `src/tracing.ts` for metrics by adding a `PrometheusExporter` as its `metricReader` — no second metrics library. Add one custom business metric (`finwise_active_subscriptions`) via the OpenTelemetry Metrics API directly, wired through a NestJS provider so it can use the app's existing `PrismaService`. Ship logs to Loki via a second `pino-loki` transport target, additive to the existing stdout output. Add `prometheus`, `loki`, and `grafana` services to docker-compose; provision Grafana with three datasources (Prometheus, Loki, and the already-running Jaeger) so one Grafana tab covers all three pillars without replacing Jaeger.
 
 **Tech Stack:** NestJS, `@opentelemetry/sdk-node`, `@opentelemetry/exporter-prometheus`, `@opentelemetry/api`, `nestjs-pino`, `pino-loki`, Docker Compose, Prometheus, Grafana, Loki.
 
 ## Global Constraints
 
 - No second metrics library — extend the existing `@opentelemetry/sdk-node` setup only (`docs/superpowers/specs/2026-08-25-observability-stack-design.md` Part 1).
-- Exactly one new business metric this pass: `fincheck_active_subscriptions`, counting users where `plan` is `GOLD` or `PLATINUM`. No other new metrics (spec's "Explicitly out of scope").
+- Exactly one new business metric this pass: `finwise_active_subscriptions`, counting users where `plan` is `GOLD` or `PLATINUM`. No other new metrics (spec's "Explicitly out of scope").
 - `pino-loki` is additive — the existing stdout log output must be preserved, not replaced.
 - Jaeger stays as the trace backend, wired into Grafana as a datasource — not replaced by Grafana Tempo (spec's "Explicitly out of scope").
 - No alerting rules, no containerizing the app itself (spec's "Explicitly out of scope").
@@ -49,7 +49,7 @@ import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 
 const sdk = new NodeSDK({
-  resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: 'fincheck-api' }),
+  resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: 'finwise-api' }),
   traceExporter: new OTLPTraceExporter({
     url:
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT ??
@@ -97,7 +97,7 @@ git commit -m "feat: expose Prometheus metrics via OpenTelemetry SDK"
 
 **Interfaces:**
 - Consumes: `PrismaService` from `@shared/database/prisma.service` (existing class, constructor-injected — see `src/shared/billing/stripe-events.prisma.repository.ts` for the same injection pattern in this module).
-- Produces: `BillingMetricsService` class with a public `getActiveSubscriptionsCount(): Promise<number>` method, and an OTel `fincheck_active_subscriptions` observable gauge registered on `onModuleInit`.
+- Produces: `BillingMetricsService` class with a public `getActiveSubscriptionsCount(): Promise<number>` method, and an OTel `finwise_active_subscriptions` observable gauge registered on `onModuleInit`.
 
 - [ ] **Step 1: Install `@opentelemetry/api` as a direct dependency**
 
@@ -160,9 +160,9 @@ export class BillingMetricsService implements OnModuleInit {
   }
 
   onModuleInit() {
-    const meter = metrics.getMeter('fincheck-api');
+    const meter = metrics.getMeter('finwise-api');
     meter
-      .createObservableGauge('fincheck_active_subscriptions')
+      .createObservableGauge('finwise_active_subscriptions')
       .addCallback(async (result) => {
         result.observe(await this.getActiveSubscriptionsCount());
       });
@@ -216,15 +216,15 @@ export class BillingModule {}
 - [ ] **Step 7: Verify manually end-to-end**
 
 Run: `npm run start:dev`, wait for boot, then:
-`curl -s http://localhost:9464/metrics | grep fincheck_active_subscriptions`
+`curl -s http://localhost:9464/metrics | grep finwise_active_subscriptions`
 
-Expected: a line like `fincheck_active_subscriptions{...} <N>` where `<N>` matches the real count of GOLD/PLATINUM users in the dev database.
+Expected: a line like `finwise_active_subscriptions{...} <N>` where `<N>` matches the real count of GOLD/PLATINUM users in the dev database.
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add src/shared/billing/billing.metrics.ts src/shared/billing/billing.metrics.spec.ts src/shared/billing/billing.module.ts package.json package-lock.json
-git commit -m "feat: add fincheck_active_subscriptions business metric"
+git commit -m "feat: add finwise_active_subscriptions business metric"
 ```
 
 ---
@@ -247,7 +247,7 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: fincheck-api
+  - job_name: finwise-api
     # The app runs on the host during dev, not as a compose service — from
     # inside this container "localhost" means the container itself, so the
     # target must be host.docker.internal (works out of the box on Docker
@@ -278,7 +278,7 @@ And add `prometheus_data:` to the top-level `volumes:` block.
 
 Run: `npm run start:dev` (if not already running), then `docker compose up -d prometheus`.
 
-Open `http://localhost:9090/targets` — expected: target `fincheck-api` with state `UP`.
+Open `http://localhost:9090/targets` — expected: target `finwise-api` with state `UP`.
 
 If it shows `DOWN` with a connection-refused error, confirm the app is actually running and listening on `:9464` (Task 1, Step 3) before debugging the container networking.
 
@@ -300,7 +300,7 @@ git commit -m "infra: add Prometheus, scraping the app's metrics endpoint"
 - Modify: `package.json`, `package-lock.json`
 
 **Interfaces:**
-- Produces: every log line the app already emits via `nestjs-pino`, additionally pushed to Loki's HTTP push API at `http://localhost:3100/loki/api/v1/push`, labeled `app=fincheck-api`.
+- Produces: every log line the app already emits via `nestjs-pino`, additionally pushed to Loki's HTTP push API at `http://localhost:3100/loki/api/v1/push`, labeled `app=finwise-api`.
 
 - [ ] **Step 1: Write the Loki config**
 
@@ -373,7 +373,7 @@ LoggerModule.forRoot({
           target: 'pino-loki',
           options: {
             host: process.env.LOKI_URL ?? 'http://localhost:3100',
-            labels: { app: 'fincheck-api' },
+            labels: { app: 'finwise-api' },
           },
         },
       ],
@@ -391,7 +391,7 @@ Run: `docker compose up -d loki`, then `npm run start:dev`, then trigger any req
 Query Loki directly:
 ```bash
 curl -s -G 'http://localhost:3100/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="fincheck-api"}' | head -c 500
+  --data-urlencode 'query={app="finwise-api"}' | head -c 500
 ```
 
 Expected: a JSON response with `"status":"success"` and at least one log entry in `data.result`.
@@ -455,7 +455,7 @@ In `docker-compose.yml`, add after `loki`:
       - '3001:3000'
 ```
 
-Host port `3001` (not `3000`) because the Fincheck API itself listens on `3000` — avoids a port clash on the host.
+Host port `3001` (not `3000`) because the Finwise API itself listens on `3000` — avoids a port clash on the host.
 
 And add `grafana_data:` to the top-level `volumes:` block.
 
@@ -490,7 +490,7 @@ Run: `npm run start:dev`, then exercise a real flow (signup, sign-in, `GET /user
 
 In `http://localhost:3001`:
 - Explore → Jaeger → find the trace for the request just made.
-- Explore → Loki → `{app="fincheck-api"}` → find the corresponding log lines, confirm `trace_id` field present and matches the trace above.
-- Explore → Prometheus → query `fincheck_active_subscriptions` → confirm a numeric value returns.
+- Explore → Loki → `{app="finwise-api"}` → find the corresponding log lines, confirm `trace_id` field present and matches the trace above.
+- Explore → Prometheus → query `finwise_active_subscriptions` → confirm a numeric value returns.
 
 No commit for this task — it's a manual end-to-end check that the previous 5 tasks compose correctly, not new code.

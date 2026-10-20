@@ -23,6 +23,6 @@ describe('API Reference (e2e)', () => {
     const res = await request(app.getHttpServer()).get('/reference-json');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('openapi');
-    expect(res.body).toMatchObject({ info: { title: 'Fincheck API' } });
+    expect(res.body).toMatchObject({ info: { title: 'Finwise API' } });
   });
 });

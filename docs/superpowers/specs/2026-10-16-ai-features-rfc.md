@@ -59,7 +59,7 @@ The email-level claim is "token and cost logging per request". Three options:
 
 - **F3a — pino structured log only.** Log `{model, feature, input_tokens, output_tokens, cache_read_input_tokens, cost_usd}` per call. Zero schema change; lands in Loki; queryable in Grafana. Cheapest.
 - **F3b — Postgres table.** An `LlmUsage` model. Queryable with SQL, joinable to users, supports per-user quota later. Costs a migration and a write per call.
-- **F3c — F3a + Prometheus counters.** Add `fincheck_llm_tokens_total{model,feature,direction}` and `fincheck_llm_cost_usd_total{model,feature}` to the existing `PrometheusExporter`, alongside the existing `fincheck_active_subscriptions` gauge.
+- **F3c — F3a + Prometheus counters.** Add `finwise_llm_tokens_total{model,feature,direction}` and `finwise_llm_cost_usd_total{model,feature}` to the existing `PrometheusExporter`, alongside the existing `finwise_active_subscriptions` gauge.
 
 **Recommendation: F3c.** It reuses the observability stack already built rather than bolting on a parallel one, and makes LLM cost a first-class dashboard panel next to the existing metrics. F3b only earns its migration if per-user billing or quota is actually coming.
 

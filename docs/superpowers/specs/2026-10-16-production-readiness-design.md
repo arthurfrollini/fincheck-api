@@ -1,6 +1,6 @@
 # Production Readiness — Design Spec
 
-**Context:** fincheck is going to a public URL. It stays a study project whose main user is the owner, but a public URL means open signup, internet-wide scanners and API endpoints that spend real money (Claude API, prepaid credit). This spec is everything that has to be true **before** the first deploy. Hosting and the deploy itself are a separate spec.
+**Context:** finwise is going to a public URL. It stays a study project whose main user is the owner, but a public URL means open signup, internet-wide scanners and API endpoints that spend real money (Claude API, prepaid credit). This spec is everything that has to be true **before** the first deploy. Hosting and the deploy itself are a separate spec.
 
 ## Threat model (what this protects against)
 

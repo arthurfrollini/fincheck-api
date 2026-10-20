@@ -19,7 +19,7 @@ jobs:
         env:
           POSTGRES_USER: root
           POSTGRES_PASSWORD: root
-          POSTGRES_DB: fincheck_test
+          POSTGRES_DB: finwise_test
         ports:
           - 5432:5432
         options: >-
@@ -68,7 +68,7 @@ jobs:
       - name: Write .env.test
         run: |
           cat > .env.test <<'EOF'
-          DATABASE_URL="postgresql://root:root@localhost:5432/fincheck_test?schema=public"
+          DATABASE_URL="postgresql://root:root@localhost:5432/finwise_test?schema=public"
           JWT_SECRET=test-jwt-secret
           RESEND_API_KEY=fake-resend-key
           RESEND_FROM_EMAIL=test@test.com
@@ -109,7 +109,7 @@ jobs:
         run: npm run build && test -f dist/main.js
 
       # Keyless and deterministic: local embeddings + pgvector. Runs after the
-      # e2e suite, which migrated fincheck_test and wipes its tables.
+      # e2e suite, which migrated finwise_test and wipes its tables.
       - name: Retrieval eval (gated on no drop vs baseline)
         env:
           DOTENV_PATH: .env.test

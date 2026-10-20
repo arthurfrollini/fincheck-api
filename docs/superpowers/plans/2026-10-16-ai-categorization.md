@@ -18,7 +18,7 @@
 - `CATEGORIZATION_MIN_CONFIDENCE = 0.5`; `confidence < 0.5` → uncategorized (0.5 itself passes).
 - Anthropic client: `new Anthropic({ maxRetries: 0 })`, key from `ANTHROPIC_API_KEY`.
 - Queue: name `'categorization'`, job name `'categorize-transaction'`, `jobId: \`categorize-${transactionId}\``, `attempts: 5`, `backoff: { type: 'exponential', delay: 2000 }`, `removeOnComplete: { age: 86400 }`, `removeOnFail: { age: 604800 }`.
-- Counters on meter `'fincheck-api'`: `fincheck_llm_tokens` `{model, feature, direction}`, `fincheck_llm_cost_usd` `{model, feature}`, `fincheck_llm_requests` `{model, feature, outcome}`, `fincheck_categorization_results` `{result}`.
+- Counters on meter `'finwise-api'`: `finwise_llm_tokens` `{model, feature, direction}`, `finwise_llm_cost_usd` `{model, feature}`, `finwise_llm_requests` `{model, feature, outcome}`, `finwise_categorization_results` `{result}`.
 - Never log `Transaction.name`. Never call the real API from any test or CI job.
 - Every new env var goes into `env.ts`, `.env.example`, the CI `.env.test` heredoc in `.github/workflows/ci.yml`, **and** the implementer's local `.env` and `.env.test` (gitignored; tests fail at import without it).
 - Pre-push gate is `npm run lint && npx tsc --noEmit && npx prettier --check "src/**/*.ts" "test/**/*.ts" && npm test`; every task ends green on it.
@@ -91,7 +91,7 @@ it('treats null cache fields as zero', () => { /* cache_* = null → same as inp
   - `warns when input_tokens exceeds 100_000 on claude-haiku-5-5` (cost uses the ≤100K card; the warning flags the second rate card).
   - `never logs message content`: serialized log args do not contain the user message text passed in `params`.
 - [ ] **Step 2: Run**, expect FAIL.
-- [ ] **Step 3: Implement.** `LlmMetrics` creates the three counters in its constructor via `metrics.getMeter('fincheck-api').createCounter(...)` (same meter as `billing.metrics.ts`); `record` adds per direction (`input`, `output`, `cache_read`, `cache_write`, skip zeros/nulls) and cost. Add `@IsString() @IsNotEmpty() anthropicApiKey` to `env.ts` mapped from `ANTHROPIC_API_KEY`; add `ANTHROPIC_API_KEY=` to `.env.example` and `ANTHROPIC_API_KEY=fake-anthropic-key` to the CI heredoc; add the same to your local `.env.test`, and your real key (or a placeholder) to local `.env`. Register `LlmModule` in `AppModule`.
+- [ ] **Step 3: Implement.** `LlmMetrics` creates the three counters in its constructor via `metrics.getMeter('finwise-api').createCounter(...)` (same meter as `billing.metrics.ts`); `record` adds per direction (`input`, `output`, `cache_read`, `cache_write`, skip zeros/nulls) and cost. Add `@IsString() @IsNotEmpty() anthropicApiKey` to `env.ts` mapped from `ANTHROPIC_API_KEY`; add `ANTHROPIC_API_KEY=` to `.env.example` and `ANTHROPIC_API_KEY=fake-anthropic-key` to the CI heredoc; add the same to your local `.env.test`, and your real key (or a placeholder) to local `.env`. Register `LlmModule` in `AppModule`.
 - [ ] **Step 4: Run the spec, then the full pre-push gate**, expect all green (proves the CI env line works).
 - [ ] **Step 5: Commit** `feat(llm): add LlmService with usage logging and Prometheus counters`.
 
@@ -131,7 +131,7 @@ it('treats null cache fields as zero', () => { /* cache_* = null → same as inp
   - `type CategorizationResult = 'categorized' | 'uncategorized' | 'skipped' | 'rejected' | 'failed'`
   - `CategorizeTransactionService.categorize(userId: string, transactionId: string, model?: LlmModel): Promise<CategorizationResult>`. SDK errors from `LlmService` propagate unchanged (the processor classifies them).
   - Constants: `CATEGORIZATION_MODEL`, `CATEGORIZATION_MIN_CONFIDENCE`, `CATEGORIZATION_SYSTEM_PROMPT`.
-  - Counter `fincheck_categorization_results` incremented once per call with the returned result (not on thrown SDK errors).
+  - Counter `finwise_categorization_results` incremented once per call with the returned result (not on thrown SDK errors).
 
 Fixtures are the exact `messages.parse` return shape: `content` starting with `{ "type": "thinking", "thinking": "", "signature": "fixture" }` then a `text` block with the JSON, `parsed_output`, `stop_reason`, `usage`, plus top-level `"recorded": false`. Category ids in fixtures are fixed UUIDs that the test's mocked repositories return. `foreign-category.json` returns a valid-format UUID that does not belong to the user.
 
@@ -214,5 +214,5 @@ Fixtures are the exact `messages.parse` return shape: `content` starting with `{
 ## Done when
 
 - Full pre-push gate green locally and in CI with no real key.
-- With a real key and the stack up (`docker compose up`, app running): creating a transaction without `categoryId` gets a category within seconds; `curl :9464/metrics | grep fincheck_llm` shows tokens, cost and requests; Loki shows the per-call log line without the transaction name.
+- With a real key and the stack up (`docker compose up`, app running): creating a transaction without `categoryId` gets a category within seconds; `curl :9464/metrics | grep finwise_llm` shows tokens, cost and requests; Loki shows the per-call log line without the transaction name.
 - Exported metric names checked on `:9464/metrics` and, if the exporter added a unit suffix, spec and plan updated to match.
